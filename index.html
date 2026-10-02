@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem('nfl_theme')||'dark'}catch(e){}</script>
+  <title>NFL Career Simulator</title>
+  <!-- Sports-style fonts (falls back gracefully when offline) -->
+  <link rel="preconnect" href="https://sleepercdn.com">
+  <link rel="preconnect" href="https://a.espncdn.com">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,800&family=Inter:wght@400;500;600;700&display=swap&family=Anton&family=Oswald:wght@600;700&family=Graduate&family=Alfa+Slab+One&family=Teko:wght@600;700&family=Saira+Extra+Condensed:wght@800;900" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Every screen is rendered into #app by script.js -->
+  <div id="app"></div>
+  <!-- Modals, toasts and overlays -->
+  <div id="modal-root"></div>
+  <div id="toast-root"></div>
+  <script src="uniform-shapes.js"></script>
+  <script src="colleges.js"></script>
+  <script src="fonts-jets.js"></script>
+  <script src="script.js"></script>
+  <script src="live-game.js"></script>
+  <script src="champion.js"></script>
+</body>
+</html>

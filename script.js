@@ -1198,7 +1198,7 @@ const JC_PATTERNS = [
   { k: 'retro', label: 'Retro', el: { sleeveStripes: true, retro: true, cuffs: true, hemTrim: true } },
 ];
 const JC_DETAILS = [['sidePanels', 'Side panels'], ['colorBlock', 'Color block'], ['gradient', 'Gradient'], ['cuffs', 'Cuffs'], ['hemTrim', 'Hem trim'], ['collarContrast', 'Contrast collar']];
-const JC_PARTS = [['body', 'Body'], ['sleeveL', 'Left Sleeve'], ['sleeveR', 'Right Sleeve'], ['collar', 'Collar'], ['shoulders', 'Shoulders'], ['sidePanels', 'Side Panels'], ['cuffs', 'Cuffs'], ['decor', 'Decorative elements']];
+const JC_PARTS = [['body', 'Body'], ['sleeveL', 'Left Sleeve'], ['sleeveR', 'Right Sleeve'], ['collar', 'Collar'], ['shoulders', 'Shoulders'], ['sidePanels', 'Side Panels'], ['cuffs', 'Cuffs'], ['swoosh', 'Nike swoosh'], ['decor', 'Decorative elements']];
 // cap = cap-height / font-size (calibrated once the fonts load, see jcCalibrate), wf = average glyph width / font-size
 const JC_FONTS = [
   { k: 'jets', label: 'NFL Jets', css: "'Saira Extra Condensed'", w: 900, cap: 0.70, wf: 0.36, glyph: true },   // numbers use the traced glyphs (fonts-jets.js); names use the closest font
@@ -1263,7 +1263,7 @@ function applyPattern(c, k) {
 }
 const patternMatches = (c, k) => { const pt = JC_PATTERNS.find(p => p.k === k), want = { ...JC_EL_DEFAULT, ...pt.el }; return Object.keys(want).every(e => !!c[e] === want[e]); };
 function newJersey(pal, pattern = 'solid') {
-  const base = { primary: pal.p, secondary: pal.s, accent: pal.a, pattern: 'solid', ...JC_EL_DEFAULT, parts: {}, numFont: 'jets', nameFont: 'jets', numSize: 100, numY: 0, nameSize: 100, numOutlineW: 2.4, nameOutlineW: 0, textCustom: false, sleeveNums: false };
+  const base = { primary: pal.p, secondary: pal.s, accent: pal.a, pattern: 'solid', ...JC_EL_DEFAULT, parts: {}, numFont: 'jets', nameFont: 'jets', numSize: 100, numY: 0, nameSize: 100, numOutlineW: 2.4, nameOutlineW: 0, textCustom: false, sleeveNums: false, swoosh: true };
   return autoText(applyPattern(base, pattern));
 }
 // jersey in the school's colors (create screen + player card)
@@ -1293,7 +1293,7 @@ function normJersey(c) {
   o = { ...JC_EL_DEFAULT, numFont: 'jets', nameFont: 'jets', numSize: 100, numY: 0, nameSize: 100, numOutlineW: 2.4, nameOutlineW: 0, pattern: 'solid', ...o };
   o.torsoLogo = !!o.torsoLogo; o.logoX = clamp(Number(o.logoX) || 150, 8, 292); o.logoY = clamp(Number(o.logoY) || 112, 8, 337); o.logoSize = clamp(Number(o.logoSize) || 100, 40, 220);
   o.sleeveStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.sleeveStyle) ? o.sleeveStyle : 'even'; o.sleeveThick = clamp(Number(o.sleeveThick) || 100, 60, 200); o.sleeveNumY = clamp(Number(o.sleeveNumY) || 0, -50, 40);
-  o.showWord = o.showWord !== false; o.sleeveNums = !!o.sleeveNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
+  o.showWord = o.showWord !== false; o.swoosh = !!o.swoosh; o.sleeveNums = !!o.sleeveNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
   const hx = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d; o.primary = hx(o.primary, '#FFFFFF'); o.secondary = hx(o.secondary, '#111418'); o.accent = hx(o.accent, '#FFFFFF');
   o.numSize = clamp(Number(o.numSize) || 100, 50, 150); o.nameSize = clamp(Number(o.nameSize) || 100, 50, 150); o.numY = clamp(Number(o.numY) || 0, -60, 70);
   o.numOutlineW = clamp(Number(o.numOutlineW) || 0, 0, 8); o.nameOutlineW = clamp(Number(o.nameOutlineW) || 0, 0, 5);
@@ -1306,7 +1306,7 @@ const jerseyFor = teamId => normJersey((S && S.jerseys && S.jerseys[teamId]) || 
 function jcColors(c) {
   const pr = c.parts || {}, P = c.primary, S2 = c.secondary, A = c.accent, body = pr.body || P;
   return { body, sleeveL: pr.sleeveL || (c.colorBlock ? S2 : body), sleeveR: pr.sleeveR || (c.colorBlock ? S2 : body), shoulders: pr.shoulders || (c.colorBlock ? S2 : body),
-    collar: pr.collar || (c.collarContrast ? S2 : body), sidePanels: pr.sidePanels || S2, cuffs: pr.cuffs || S2, decor: pr.decor || A };
+    swoosh: pr.swoosh || (lum(pr.sleeveL || (c.colorBlock ? S2 : body)) > 0.55 ? '#111418' : '#FFFFFF'), collar: pr.collar || (c.collarContrast ? S2 : body), sidePanels: pr.sidePanels || S2, cuffs: pr.cuffs || S2, decor: pr.decor || A };
 }
 // a visually coherent random design: a real palette + a pattern recipe + a couple of compatible details
 function randomJersey(teamId, current) {
@@ -1318,7 +1318,7 @@ function randomJersey(teamId, current) {
   if (rnd() < 0.15) c.collarContrast = false;
   c.numFont = pick(['cond', 'cond', 'block', 'athletic']); c.nameFont = c.numFont; c.numOutlineW = pick([0, 3.2, 3.2, 4.5]);
   c.sleeveStyle = pick(JC_SLEEVE_STYLES)[0]; c.sleeveThick = pick([90, 100, 120, 150]);
-  if (current) { c.numSize = current.numSize; c.numY = current.numY; c.nameSize = current.nameSize; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
+  if (current) { c.numSize = current.numSize; c.numY = current.numY; c.nameSize = current.nameSize; c.swoosh = current.swoosh; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
   return autoText(c);
 }
 
@@ -1361,8 +1361,8 @@ function jcTexts(c, view, name, number, word) {
 // numbers moved down from the shoulders to the sleeves, exactly as in the Illustrator drawing (JERSEY2.svg): Anton 128.6px, nearly upright and tilted ~16 degrees,
 // starting outside the edge of the jersey; whatever passes the outline is cut off. (x, y) = start of the baseline of the drawing's "00", r = rotation
 const JC_SLEEVE = {
-  front: { L: { x: 1.9, y: 121.2, r: 16.8 }, R: { x: 263.6, y: 134.9, r: -15.8 } },
-  back: { L: { x: 2.4, y: 123.9, r: 16.76 }, R: { x: 264.1, y: 137.6, r: -15.82 } },
+  front: { L: { x: 6.2, y: 103.7, r: 16.8 }, R: { x: 260.8, y: 118.6, r: -15.8 } },
+  back: { L: { x: 5.9, y: 104.2, r: 16.76 }, R: { x: 256.4, y: 119.9, r: -15.82 } },
 };
 function jcSleeveTexts(c, view, number) {
   const f = jcFont(c.numFont), n = String(number).length, base0 = 128.6 * 0.3 * 0.73, cap = n > 2 ? base0 * 0.8 : base0;
@@ -1429,6 +1429,7 @@ function jerseyOne(cfg, view, name, number, o = {}) {
   const backLogo = backHref ? `<image href="${backHref}" x="${M.cx - 8.5}" y="35" width="17" height="17" preserveAspectRatio="xMidYMid meet"/>` : '';
   const tSz = 34 * cfg.logoSize / 100, tHref = (!back && cfg.torsoLogo && tid && TEAM[tid]) ? (o.logoData ? o.logoData[lkey] : jcLogoUrl(tid, lkey)) : '';
   const torsoLogo = tHref ? `<g clip-path="url(#${id}bo)"><image class="jc-tlogo" data-tlogo="1" href="${tHref}" x="${(cfg.logoX - tSz / 2).toFixed(1)}" y="${(cfg.logoY - tSz / 2).toFixed(1)}" width="${tSz.toFixed(1)}" height="${tSz.toFixed(1)}" preserveAspectRatio="xMidYMid meet"/></g>` : '';
+  const swoosh = cfg.swoosh && Z.swooshL ? `<g clip-path="url(#${id}bo)" fill="${C.swoosh}"><path d="${Z.swooshL}"/><path d="${Z.swooshR}"/></g>` : '';
   const yokes = back ? ['yoke'] : ['yokeL', 'yokeR'];
   const hem = cfg.hemTrim ? `<g clip-path="url(#${id}bd)"><rect x="0" y="${(bottom - 9).toFixed(1)}" width="300" height="14" fill="${C.decor}"/></g>` : '';
   const texts = o.noText ? '' : jcTexts(cfg, view, name, number, o.word).map(jcTextSVG).join('') +
@@ -1453,7 +1454,7 @@ function jerseyOne(cfg, view, name, number, o = {}) {
     </g>
     ${pieces.map(([k]) => `<path d="${Z[k]}" ${ln}/>`).join('')}
     <path d="${Z.bodyOuter}" fill="none" stroke="${INK}" stroke-width="1.3" stroke-linejoin="round"/>
-    ${back || o.noShield ? '' : nflCollarLogo()}${backLogo}${torsoLogo}
+    ${swoosh}${back || o.noShield ? '' : nflCollarLogo()}${backLogo}${torsoLogo}
     ${texts}
   </svg>`;
 }
@@ -2162,6 +2163,9 @@ function renderLocker(keepScroll) {
         <div class="lk-label">2 · DESIGN</div>
         <div class="designs jc-pats">${pats}</div>
         ${sleeveSel}
+        <div class="lk-sub">Nike swoosh <span class="hint">on both sleeves</span></div>
+        <div class="seg"><button class="tog ${cfg.swoosh ? 'on' : ''}" data-act="jcSwoosh"><i></i>Nike swoosh</button></div>
+        ${cfg.swoosh ? colorRow('Swoosh color', 'parts.swoosh', C.swoosh, cfg.parts.swoosh ? '<button class="mini" data-act="jcPartAuto" data-k="swoosh">Auto</button>' : '<span class="hint">auto</span>') : ''}
         <div class="lk-sub">Team logo on the chest <span class="hint">drag it on the jersey to move it</span></div>
         <div class="seg"><button class="tog ${cfg.torsoLogo ? 'on' : ''}" data-act="jcTorsoLogo"><i></i>Logo on chest</button>${cfg.torsoLogo ? '<button class="mini" data-act="jcLogoCenter">Reset position</button>' : ''}</div>
         ${cfg.torsoLogo ? range('Logo size', 'logoSize', 40, 220, 5, cfg.logoSize, '%') + (jcView === 'back' ? '<div class="muted small">Switch to FRONT to see and move the logo.</div>' : '') : ''}
@@ -2556,6 +2560,7 @@ const actions = {
   jcTorsoLogo: () => { jcView = 'front'; editJersey(c => { c.torsoLogo = !c.torsoLogo; }); },
   jcLogoCenter: () => editJersey(c => { c.logoX = 150; c.logoY = 112; c.logoSize = 100; }),
   jcNumReset: () => editJersey(c => { c.sleeveNumY = 0; }),
+  jcSwoosh: () => editJersey(c => { c.swoosh = !c.swoosh; }),
   jcWord: () => { jcView = 'front'; editJersey(c => { c.showWord = !c.showWord; }); },
   jcSleeveStyle: (d) => editJersey(c => { c.sleeveStyle = d.k; }),
   jcSleeve: (d) => editJersey(c => { const n = Number(d.k); c.sleeveCount = n; c.sleeveStripes = n > 0; c.retro = n === 3; }),

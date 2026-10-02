@@ -645,3 +645,9 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 /* easter egg: tap the team logo on the dashboard */
 .egg-hit { display: inline-flex; cursor: default; -webkit-tap-highlight-color: transparent; } .egg-pop { animation: eggPop .6s ease; }
 @keyframes eggPop { 0% { transform: scale(1); filter: none; } 35% { transform: scale(1.18) rotate(-4deg); filter: drop-shadow(0 0 14px #ffd23d); } 100% { transform: scale(1); filter: none; } }
+
+/* career complete: every jersey worn */
+.cc-jerseys { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 10px 0 8px; }
+.cc-jersey { border-radius: 14px; padding: 10px 8px 6px; background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--t1, #444) 30%, transparent), rgba(255, 255, 255, .03)); border: 1px solid rgba(255, 255, 255, .08); }
+.cc-jh { display: flex; align-items: center; gap: 10px; text-align: left; padding: 0 4px 4px; } .cc-jh .team-badge { flex: none; } .cc-jh b { display: block; font-family: var(--head); font-size: 18px; letter-spacing: .04em; text-transform: uppercase; line-height: 1.05; } .cc-jh span { font-size: 11px; color: var(--mut); letter-spacing: .1em; }
+.cc-jersey .jersey-pair { gap: 4px; } .cc-jersey svg { filter: drop-shadow(0 6px 8px rgba(0, 0, 0, .4)); }

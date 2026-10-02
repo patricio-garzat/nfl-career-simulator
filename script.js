@@ -2349,7 +2349,11 @@ function renderCareerComplete() {
     <div class="two"><section class="card"><div class="eyebrow">CAREER EARNINGS</div><div class="gold-big">${money(S.earnings)}</div></section>
       <section class="card"><div class="eyebrow">FANTASY CAREER</div><div class="gold-big cyan">${fmt1(C.fp)} <small>PPR PTS</small></div><div class="muted small">${fmt1(C.ppg)} PPG over ${C.gp} games</div></section></div>
     ${best ? `<section class="card"><div class="eyebrow">BEST SEASON · ${best.year} (${TEAM[best.teamId].name})</div><div class="big-line">${cfg.line(bT).map(x => `<div><b>${fmtN(x.v)}</b><span>${x.l}</span></div>`).join('')}<div><b>${fmt1(bT.ppg)}</b><span>PPG</span></div></div></section>` : ''}
-    <section class="card"><div class="eyebrow">TEAMS</div><div class="chips">${teams.map(id => `<span class="chip">${badge(id)} ${TEAM[id].name}</span>`).join('')}</div></section>
+    <section class="card"><div class="eyebrow">YOUR JERSEYS</div><div class="cc-jerseys">${teams.map((id, i) => {
+      const yrs = S.seasons.filter(se => se.teamId === id || (se.stints || []).some(x => x.teamId === id)).map(se => se.year), y0 = Math.min(...yrs), y1 = Math.max(...yrs);
+      return `<div class="cc-jersey" style="${themeVars(id)}"><div class="cc-jh">${badge(id)}<div><b>${TEAM[id].name}</b><span>${y0 === y1 ? y0 : y0 + '–' + y1}${i === teams.length - 1 ? ' · FINAL TEAM' : ''}</span></div></div>
+        ${jerseySVG(jerseyFor(id), jName(P), playerNumber(), { view: 'both', teamId: id, word: TEAM[id].nick })}</div>`;
+    }).join('')}</div><div class="muted small">The last design you saved for each team.</div></section>
     <div class="row between wrap-row"><button class="btn btn-ghost" data-act="viewCareer">VIEW CAREER TIMELINE</button><button class="btn btn-ghost" data-act="toTitle">MAIN MENU</button><button class="btn btn-primary" data-act="startCareer">NEW CAREER</button></div></div>`);
   if (score >= 45) { setTimeout(() => burst(app.querySelector('.complete'), 90), 500); Snd.play('bigFanfare', 0.4); }
 }

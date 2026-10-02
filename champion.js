@@ -42,7 +42,9 @@ function showChampionCelebration(season, game) {
         <button class="btn btn-primary btn-xl sb-go" id="sbGo">CONTINUE ▸</button>
       </div>`;
     document.body.appendChild(ov);
-    const stop = lvConfetti(ov.querySelector('.sb-confetti'), [t.c1, t.c2, gold, '#ffffff', '#c9d0dc', '#ffb300']);
+    // confetti in the winner's colors only (dark team colors get lighter shades so they show up on the dark background; a little white, like the jersey)
+    const shades = c => (lum(c) < 0.3 ? [mixHex(c, '#ffffff', 0.4), mixHex(c, '#ffffff', 0.22), c] : [c, c, mixHex(c, '#ffffff', 0.25)]);
+    const stop = lvConfetti(ov.querySelector('.sb-confetti'), [...shades(t.c1), ...shades(t.c2), '#ffffff']);
     Snd.play('bigFanfare', 0.2); Snd.play('roar', 1.2); Snd.play('cheer', 2.4);
     const t1 = setTimeout(() => Snd.play('cheer'), 5200);
     const done = () => { clearTimeout(t1); stop(); ov.classList.add('out'); setTimeout(() => { ov.remove(); resolve(); }, 450); };

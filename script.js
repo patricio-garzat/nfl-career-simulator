@@ -1619,7 +1619,7 @@ function updateCreateJersey() {
   const el = document.getElementById('createJersey'); if (!el) return;
   const n = parseInt(form.number, 10), ok = numberOk(form.pos, n);
   const shown = cleanJerseyName(form.jerseyName) || cleanJerseyName(surname(form.name)) || 'YOUR NAME';
-  el.innerHTML = jerseySVG(collegeJersey(form.college), shown, Number.isInteger(n) ? clamp(n, 0, 99) : '?', { view: 'both', word: String(form.college || 'ROOKIE').toUpperCase(), backLogo: COLLEGE_INFO[form.college] ? collegeLogo(COLLEGE_INFO[form.college].id, 80) : '' });
+  el.innerHTML = jerseySVG(collegeJersey(form.college), shown, Number.isInteger(n) ? clamp(n, 0, 99) : '?', { view: 'both', noShield: true, word: String(form.college || 'ROOKIE').toUpperCase(), backLogo: COLLEGE_INFO[form.college] ? collegeLogo(COLLEGE_INFO[form.college].id, 80) : '' });
   const cc = document.getElementById('createCollege'); if (cc) cc.innerHTML = `${collegeImg(form.college, 80, 'col-logo')}<b>${esc(form.college)}</b>`;
   if (updateCreateJersey.last !== form.college) { updateCreateJersey.last = form.college; el.classList.remove('jswap'); void el.offsetWidth; el.classList.add('jswap'); }
   const hint = document.getElementById('numHint');
@@ -1754,11 +1754,11 @@ function renderTitle() {
 let collegeDiv = 'ALL';
 const collegeImg = (name, size = 80, cls = 'col-logo') => { const c = COLLEGE_INFO[name]; return c ? `<img class="${cls}" src="${collegeLogo(c.id, size)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ''; };
 const collegeChip = name => `<span class="chip chip-col">${collegeImg(name, 40, 'col-logo xs')}${esc(name)}</span>`;
-const DIV_LABEL = { FBS: 'FBS', FCS: 'FCS', OTHER: 'Other' };
+const DIV_LABEL = { FBS: 'FBS', FCS: 'FCS', OTHER: 'Other', MX: 'México' };
 function collegePickerHTML() {
   const cur = COLLEGE_INFO[form.college] || COLLEGE_INFO['Alabama'];
-  const tabs = [['ALL', 'All'], ['FBS', 'FBS'], ['FCS', 'FCS'], ['OTHER', 'Other']].map(([k, l]) => `<button type="button" class="mini ${collegeDiv === k ? 'on' : ''}" data-act="collegeTab" data-d="${k}">${l}</button>`).join('');
-  const tiles = NCAA.map(([id, name, div, conf]) => `<button type="button" class="cp-tile ${name === form.college ? 'on' : ''}" data-act="pickCollege" data-n="${esc(name)}" data-d="${div}" data-q="${esc((name + ' ' + conf).toLowerCase())}" title="${esc(name)}${conf ? ' · ' + esc(conf) : ''}"><img src="${collegeLogo(id, 80)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><span>${esc(name)}</span></button>`).join('');
+  const tabs = [['ALL', 'All'], ['FBS', 'FBS'], ['FCS', 'FCS'], ['OTHER', 'Other'], ['MX', '🇲🇽 México']].map(([k, l]) => `<button type="button" class="mini ${collegeDiv === k ? 'on' : ''}" data-act="collegeTab" data-d="${k}">${l}</button>`).join('');
+  const tiles = NCAA.map(([id, name, div, conf]) => `<button type="button" class="cp-tile ${name === form.college ? 'on' : ''}" data-act="pickCollege" data-n="${esc(name)}" data-d="${div}" data-q="${esc((name + ' ' + conf + (div === 'MX' ? ' mexico méxico onefa' : '')).toLowerCase())}" title="${esc(name)}${conf ? ' · ' + esc(conf) : ''}"><img src="${collegeLogo(id, 80)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><span>${esc(name)}</span></button>`).join('');
   return `<div class="college-pick">
     <div class="cp-cur" id="cpCur">${collegeImg(form.college, 120, 'col-logo lg')}<div><b>${esc(form.college)}</b><span>${cur ? (cur.conf ? esc(cur.conf) + ' · ' : '') + DIV_LABEL[cur.div] : ''}</span></div></div>
     <div class="cp-tools"><input class="input cp-search" data-filter="college" placeholder="Search ${NCAA.length} schools…" autocomplete="off"><div class="minis">${tabs}</div></div>
@@ -1784,7 +1784,7 @@ function renderCreate() {
       <input class="input" data-model="name" maxlength="24" placeholder="e.g. Alex Johnson" value="${esc(form.name)}" autocomplete="off">
       <label class="lbl">Position</label>
       <div class="pos-grid">${Object.keys(POS).map(p => `<button class="pos-btn ${form.pos === p ? 'sel' : ''}" data-act="pickPos" data-pos="${p}"><b>${p}</b><span>${POS[p].name}</span></button>`).join('')}</div>
-      <label class="lbl">College <span class="hint">official logos — every NCAA program</span></label>
+      <label class="lbl">College <span class="hint">every NCAA program + Mexican ONEFA teams</span></label>
       ${collegePickerHTML()}
       <div class="row3">
         <div><label class="lbl">Age</label><input class="input" type="number" min="21" max="25" data-model="age" value="${form.age}"></div>
@@ -1812,7 +1812,7 @@ function renderPreview() {
           <div class="chips">${posBadge(P.pos)}<span class="chip">${POS[P.pos].name}</span>${collegeChip(P.college)}<span class="chip">AGE ${P.age}</span></div>
           <div class="chips"><span class="chip ${P.dev === 'Normal' ? '' : 'gold'}">${P.dev === 'Normal' ? '' : '★ '}${P.dev} development</span><span class="chip">Projection: ${draftProjectionLabel(P)}</span></div>
         </div>
-        <div class="pc-jersey">${jerseySVG(collegeJersey(P.college), jName(P), P.number, { backLogo: COLLEGE_INFO[P.college] ? collegeLogo(COLLEGE_INFO[P.college].id, 80) : '' })}</div>
+        <div class="pc-jersey">${jerseySVG(collegeJersey(P.college), jName(P), P.number, { noShield: true, backLogo: COLLEGE_INFO[P.college] ? collegeLogo(COLLEGE_INFO[P.college].id, 80) : '' })}</div>
       </div>
       <div class="attr-grid">${attrBars(P)}</div>
     </div>

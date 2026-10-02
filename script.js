@@ -556,6 +556,7 @@ function startSeason() {
   if (S.carryInjury) { season.injury = S.carryInjury; S.carryInjury = null; }
   season.aiRes = genAiResults(S.teamId);
   season.style = Math.exp(gauss(0, 0.07)); // pass-heavy or run-heavy scheme this year
+  decInitSeason(season, S.seasons[S.seasons.length - 1]);
   S.seasons.push(season);
   season.depth = buildDepth(S.teamId); season.role = curRoleKey(season);
   return season;
@@ -769,6 +770,7 @@ function executeTrade(o) {
   const ns = buildSchedule(to); // the new team's remaining opponents replace the old ones
   for (let j = p; j < se.schedule.length; j++) { se.schedule[j].oppId = ns[j].oppId; se.schedule[j].home = ns[j].home; }
   se.teamId = to; S.teamId = to; S.contract.teamId = to; S.contract.bias = o.bias;
+  if (se.m) se.m.chem = Math.min(se.m.chem, 42); // new locker room
   se.trade = { from, to, after: p, pkg: o.pkg }; se.traded = true; se.tradeOffers = []; se.depth = buildDepth(to); se.role = curRoleKey(se);
   S.trades = (S.trades || []).concat({ year: se.year, from, to, after: p, pkg: o.pkg });
   S.contracts.push({ ...S.contract, type: 'Trade', startYear: S.year });
@@ -810,7 +812,7 @@ function playGame(season) {
     if (inj.weeksLeft <= 0) { season.injury = null; notes.push(`✅ ${inj.name}: fully recovered. You are cleared to play.`); }
   } else if (rnd() > atSlot(PLAYP, pos, slot)) {
     st = 'OUT'; dnp = true; injNote = "Coach's decision"; // not dressed / did not play
-  } else if (rnd() < injuryChance(pos, P.age)) {
+  } else if (rnd() < injuryChance(pos, P.age) * decMods(season).inj) {
     hurt = rollInjury();
     season.injury = { name: hurt.name, weeks: hurt.weeks, weeksLeft: hurt.weeks };
     season.injuries.push({ name: hurt.name, weeks: hurt.weeks, wk, year: season.year });
@@ -818,7 +820,7 @@ function playGame(season) {
   }
 
   const myR = effRating(season, st !== 'OUT'), oppR = S.teamRatings[oppId];
-  const diff = myR - oppR + (season.rigged ? 18 : 0);
+  const diff = myR - oppR + (season.rigged ? 18 : 0) + decMods(season).team;
   const baseMy = clamp(Math.round(gauss(22.5 + diff * 0.225, 8.2)), 3, 56);
   let s = {}, fp = 0, rate = null;
   if (st !== 'OUT') {
@@ -827,7 +829,7 @@ function playGame(season) {
     const pass = clamp(Math.round(gauss(34.5 * (1 - gsc) * (season.style || 1), 5.2)), 20, 54);
     const tg = { pass, rush: clamp(Math.round(gauss(27 + gsc * 30 - 0.3 * (pass - 34.5), 4)), 14, 42) };
     const c = {
-      pos, s: sk, z: clamp((sk - 0.5) / 0.5, -1, 1), slot, mult, form: season.form, tg,
+      pos, s: sk, z: clamp((sk - 0.5) / 0.5, -1, 1), slot, mult, form: season.form * decMods(season).perf, tg,
       ym: clamp(1 + diff * 0.004, 0.88, 1.12), tm: clamp(1 + diff * 0.006, 0.85, 1.15), matchup: clamp(1 + diff * 0.006, 0.8, 1.2),
       a: n => clamp((P.attrs[n] - 40) / 55, 0, 1), pts: baseMy, snap: snapShare(pos, slot) * Math.min(1, mult),
     };
@@ -855,6 +857,7 @@ function playGame(season) {
     season.playoffGames.push(game);
     resolvePlayoffRound(season, win, game, notes);
   }
+  decAfterGame(season, game, notes);
   return { game, notes };
 }
 
@@ -934,13 +937,21 @@ function computeAwards(season, T) {
 }
 
 const DECLINE_MULT = { QB: .6, K: .45, OL: .85, RB: 1.4, WR: 1.1, CB: 1.15, S: 1, TE: 1, DL: 1.05, LB: 1.1 };
+/* Two clocks: athleticism (speed, strength, burst…) peaks early and fades from 28; technique and football IQ keep growing into the early 30s and only fade late. */
+const GROW_PHYS = { 21: 2.9, 22: 2.5, 23: 2.0, 24: 1.5, 25: 1.1, 26: 0.7, 27: 0.3 };
+const GROW_MENT = { 21: 2.9, 22: 2.5, 23: 2.0, 24: 1.5, 25: 1.1, 26: 0.8, 27: 0.55, 28: 0.4, 29: 0.25, 30: 0.1, 31: 0 };
+const FADE_PHYS = [-0.3, -0.8, -1.4, -2.0, -2.6, -3.2, -3.8];           // ages 28, 29, 30 …
+const FADE_MENT = [-0.2, -0.5, -0.9, -1.3, -1.8];                       // ages 32, 33, 34 …
 function ageDelta(age, phys, pos) {
-  const grow = { 21: 2.9, 22: 2.5, 23: 2.0, 24: 1.5, 25: 1.1, 26: 0.7, 27: 0.3, 28: 0.0 };
-  if (age <= 28) { let d = grow[Math.max(21, age)]; if (pos === 'RB' && age >= 27) d -= 0.6; return d; }
-  const dec = phys ? [-0.8, -1.4, -2.0, -2.7, -3.4, -4.0] : [-0.1, -0.4, -0.8, -1.3, -1.9, -2.5];
-  return dec[Math.min(age - 29, 5)] * DECLINE_MULT[pos];
+  let d;
+  if (phys) d = age <= 27 ? GROW_PHYS[Math.max(21, age)] : FADE_PHYS[Math.min(age - 28, 6)];
+  else d = age <= 31 ? GROW_MENT[Math.max(21, age)] : FADE_MENT[Math.min(age - 32, 4)];
+  if (d > 0 && pos === 'RB' && age >= 27) d -= 0.6;
+  return d < 0 ? d * DECLINE_MULT[pos] : d;
 }
-// Offseason progression: age curve + dev trait + season performance + serious injuries
+const stochRound = v => { const f = Math.floor(v); return f + (rnd() < v - f ? 1 : 0); };
+// Offseason progression: age curve per attribute type + your season (counts a lot) + the training you chose + serious injuries.
+// The yearly overall change is kept in a believable band: a good, healthy season never wrecks your rating, a bad one never skyrockets it.
 function develop(season, T) {
   const P = S.player, cfg = POS[P.pos], age = season.age, gp = T.gp;
   const idx = gp >= 4 ? (T.fp / gp) / expPPG(P.pos, season.depth ? season.depth.slot : 1) : 1;
@@ -949,20 +960,36 @@ function develop(season, T) {
   const physNames = cfg.attrs.filter(a => a[2]).map(a => a[0]);
   const injPen = {};
   season.injuries.filter(i => i.weeks >= 9).forEach(() => shuffle(physNames).slice(0, 2).forEach(n => { injPen[n] = (injPen[n] || 0) + randInt(1, 3); }));
-  const ovrFrom = P.ovr, changes = [];
+  if (season.injExtra) shuffle(physNames).slice(0, 2).forEach(n => { injPen[n] = (injPen[n] || 0) + Math.ceil(season.injExtra / 2); });   // rushed back and re-injured
+  const tr = season.train || { phys: 0, ment: 0 };
+  const ovrFrom = P.ovr, why = { age: 0, season: 0, training: 0, injury: 0 };
+  const rawD = {};
   cfg.attrs.forEach(([name, , phys]) => {
-    const old = P.attrs[name];
-    let base = ageDelta(age, phys, P.pos);
+    let base = ageDelta(age, !!phys, P.pos);
     if (base > 0) base *= P.devMult;
-    let d = base + perf * (age <= 30 ? 1.0 : 0.5) + gauss(0, 0.9) - (injPen[name] || 0);
-    d = Math.round(d);
-    if (d > 0 && old >= 88) d = Math.round(d * 0.4);
-    const nv = clamp(old + d, 35, 99);
-    changes.push({ attr: name, from: old, to: nv, d: nv - old });
-    P.attrs[name] = nv;
+    const sp = perf * (phys ? 0.55 : 1.0) * (age <= 30 ? 1 : 0.7);         // technique responds more to how you played
+    const trn = phys ? tr.phys : tr.ment, inj = injPen[name] || 0;
+    rawD[name] = stochRound(base + sp + trn + gauss(0, 0.55) - inj);
+    why.age += base; why.season += sp; why.training += trn; why.injury -= inj;
   });
-  P.ovr = calcOvr(P.pos, P.attrs);
-  return { ovrFrom, ovrTo: P.ovr, changes, injured: Object.keys(injPen).length > 0 };
+  Object.keys(why).forEach(k => { why[k] = Math.round(why[k] / cfg.attrs.length * 10) / 10; });
+  const apply = () => cfg.attrs.forEach(([name]) => { const d = rawD[name]; P.attrs[name] = clamp(P.attrs[name] + d, 35, 99); });
+  const before = { ...P.attrs };
+  cfg.attrs.forEach(([name]) => { let d = rawD[name]; if (d > 0 && before[name] >= 88) d = Math.round(d * 0.4); rawD[name] = d; });
+  apply();
+  // guard rails on the overall
+  const serious = Object.keys(injPen).length > 0, good = perf > 0.35 && gp >= 8, poor = perf < -0.2;
+  const floor = serious ? -6 : good ? (age <= 28 ? 0 : age <= 31 ? -1 : -2) : (age <= 27 ? -2 : -5);
+  const ceil = poor ? (age <= 24 ? 3 : age <= 27 ? 2 : 1) : age >= 30 ? 2 : 7;
+  let ovr = calcOvr(P.pos, P.attrs), guard = 0, smoothed = 0;
+  while ((ovr < ovrFrom + floor || ovr > ovrFrom + ceil) && guard++ < 60) {
+    const up = ovr < ovrFrom + floor, pickA = cfg.attrs.filter(([n]) => (up ? P.attrs[n] < 99 : P.attrs[n] > 35))[Math.floor(rnd() * cfg.attrs.length)] || cfg.attrs[0];
+    P.attrs[pickA[0]] = clamp(P.attrs[pickA[0]] + (up ? 1 : -1), 35, 99); smoothed += up ? 1 : -1;
+    ovr = calcOvr(P.pos, P.attrs);
+  }
+  P.ovr = ovr;
+  const changes = cfg.attrs.map(([name]) => ({ attr: name, from: before[name], to: P.attrs[name], d: P.attrs[name] - before[name] }));
+  return { ovrFrom, ovrTo: P.ovr, changes, injured: serious, why, smoothed, perfIdx: Math.round(perf * 100) / 100 };
 }
 
 function finishSeason() {
@@ -1929,7 +1956,7 @@ function renderDashboard() {
         </div></div>
       ${ovrRing(P.ovr, 'big')}
     </header>
-    ${inj}${tradeBanner}
+    ${inj}${tradeBanner}${decBannerHTML(se)}
     <div class="dash-grid">
       <div class="col">
         <section class="card">
@@ -1952,6 +1979,7 @@ function renderDashboard() {
       </div>
       <div class="col">
         <section class="card"><div class="card-h"><h3>ATTRIBUTES</h3></div><div class="attr-list">${attrBars(P)}</div></section>
+        <section class="card"><div class="card-h"><h3>MORALE &amp; FORM</h3></div>${decMetersHTML(se)}</section>
         ${depthCardHTML(se)}
         ${jerseyCardHTML()}
         <section class="card"><div class="card-h"><h3>CAREER</h3></div>
@@ -1982,7 +2010,7 @@ function showGameModal(game, notes, season) {
   const next = season.status !== 'done';
   openModal(`<div class="gm-head"><div class="eyebrow">${label} · ${game.home ? 'vs' : '@'} ${opp.name}</div>
     <div class="gm-res ${game.w ? 'w' : 'l'}">${game.w ? 'W' : 'L'} ${game.my}–${game.op}</div></div>${body}${nt}
-    <div class="row end"><button class="btn btn-ghost" data-act="closeModal">CLOSE</button>${offersOf(season).length && season.status === 'regular' ? '<button class="btn btn-secondary" data-act="viewTrades">TRADE CENTER</button>' : ''}${next ? '<button class="btn btn-primary" data-act="simNextModal">NEXT GAME ▸</button>' : '<button class="btn btn-primary" data-act="seasonSummary">SEASON SUMMARY ▸</button>'}</div>`, 'game');
+    <div class="row end"><button class="btn btn-ghost" data-act="closeModal">CLOSE</button>${offersOf(season).length && season.status === 'regular' ? '<button class="btn btn-secondary" data-act="viewTrades">TRADE CENTER</button>' : ''}${next && season.pending ? '<button class="btn btn-primary" data-act="openDecision">🎯 MAKE A DECISION ▸</button>' : next ? '<button class="btn btn-primary" data-act="simNextModal">NEXT GAME ▸</button>' : '<button class="btn btn-primary" data-act="seasonSummary">SEASON SUMMARY ▸</button>'}</div>`, 'game');
   Snd.play('whistle');
   if (notes.some(n => n.includes('TRADE OFFER'))) Snd.play('phone', 1.1);
   if (notes.some(n => n.includes('DEPTH CHART'))) Snd.play('chime', 1.0);
@@ -2297,7 +2325,8 @@ function renderDevelopment() {
         <div class="oc-to ${up ? 'up' : down ? 'down' : ''}"><b id="ovrNum">${dv.ovrFrom}</b><span>${up ? '▲' : down ? '▼' : '●'}</span></div></div>
       <div class="dev-list">${dv.changes.map((c, i) => `<div class="dev-row" style="animation-delay:${0.1 + i * 0.12}s"><span>${c.attr}</span><b class="${c.d > 0 ? 'good' : c.d < 0 ? 'bad' : 'muted'}">${c.d > 0 ? '+' : ''}${c.d}</b>
         <div class="bar ${barClass(c.to)}"><i style="--w:${c.to}%"></i></div><em>${c.to}</em></div>`).join('')}</div>
-      <div class="muted small center">Age ${se.age} · ${P.dev} development${dv.injured ? ' · a serious injury cost you some athleticism' : ''}</div>
+      ${dv.why ? `<div class="dev-why"><span>WHY</span>${[['AGE', dv.why.age], ['YOUR SEASON', dv.why.season], ['TRAINING', dv.why.training], ['INJURY', dv.why.injury]].filter(([, v]) => v !== 0).map(([l, v]) => `<em class="${v > 0 ? 'good' : 'bad'}">${l} ${v > 0 ? '+' : ''}${v.toFixed(1)}</em>`).join('')}</div>` : ''}
+      <div class="muted small center">Age ${se.age} · ${P.dev} development${dv.injured ? ' · a serious injury cost you some athleticism' : ''}${dv.smoothed ? ' · your overall changes are kept within a believable range' : ''}</div>
       ${pj !== curSl ? `<div class="banner ${pj < curSl ? 'good' : 'warn'}">Depth chart outlook: ${slotLabel(P.pos, curSl)} → <b>${slotLabel(P.pos, pj)}</b> (projected)</div>` : ''}
     </section>
     <div class="row end"><button class="btn btn-primary btn-xl" data-act="afterDev">CONTINUE</button></div></div>`);
@@ -2469,12 +2498,17 @@ const actions = {
   },
 
   /* dashboard */
+  openDecision: () => { closeModal(); openDecision(); },
+  decide: (d) => decideNow(d.k),
+  decDone: () => { closeModal(); renderDashboard(); },
   simNext: async () => {
     const se = curSeason(); if (se.status === 'done') return actions.seasonSummary();
+    if (se.pending) return openDecision();
     const r = playGame(se); saveGame(); renderDashboard(); await maybeCelebrate(se, r.game); showGameModal(r.game, r.notes, se);
   },
   watchLive: () => {
     if (busy) return; const se = curSeason(); if (se.status === 'done') return actions.seasonSummary();
+    if (se.pending) return openDecision();
     const r = playGame(se); saveGame();
     LV.done = async () => { renderDashboard(); await maybeCelebrate(se, r.game); showGameModal(r.game, r.notes, se); };
     openLiveGame(r.game, r.notes, se);
@@ -2484,6 +2518,7 @@ const actions = {
     const P = S.player, se = curSeason(), C = careerTotals(), car = POS[P.pos].career(C), completed = S.seasons.filter(x => x.complete).length;
     openModal(`<h3 class="modal-h">${esc(P.name)} · ${P.pos} · OVR ${P.ovr}</h3>
       <div class="attr-list">${attrBars(P)}</div>
+      ${decMetersHTML(se)}
       ${depthCardHTML(se)}
       <div class="tiles t3">${tile('SEASONS', S.seasons.length)}${tile(car[0].l.replace('Career ', '').toUpperCase(), car[0].v)}${tile(car[1].l.replace('Career ', '').toUpperCase(), car[1].v)}${tile('PRO BOWLS', awardCount('PB'))}${tile('SUPER BOWLS', awardCount('SB_CHAMP'))}${tile('EARNINGS', money(S.earnings), 'gold')}</div>
       <div class="muted small">${completed} completed season${completed === 1 ? '' : 's'} · ${S.contract.yearsLeft} yr left on contract</div>
@@ -2493,6 +2528,7 @@ const actions = {
     if (busy) return; busy = true;
     try {
       const se = curSeason();
+      if (se.pending) { openDecision(); return; }
       if (se.status !== 'done') {
         const ov = document.createElement('div'); ov.className = 'sim-overlay';
         ov.innerHTML = `<div class="sim-box"><div class="eyebrow">SIMULATING ${se.year} SEASON</div><div class="sim-bar"><i></i></div><div class="sim-stage">REGULAR SEASON</div><div class="sim-feed"></div></div>`;
@@ -2508,8 +2544,10 @@ const actions = {
           if (se.status === 'playoffs' && stage.textContent !== 'PLAYOFFS') { stage.textContent = 'PLAYOFFS'; Snd.play('fanfare'); }
           const call = r.notes.find(n => n.includes('TRADE OFFER'));
           if (call) { paused = call; break; } // stop the sim so the user can answer the call
+          if (se.pending) { paused = 'DECISION'; break; } // a decision is waiting
           await sleep(110);
         }
+        if (paused === 'DECISION') { ov.remove(); saveGame(); renderDashboard(); openDecision(); return; }
         if (paused) {
           ov.remove(); saveGame(); renderDashboard();
           openModal(`<h3 class="modal-h">📞 TRADE OFFER</h3><p class="modal-p">${paused.replace('📞 TRADE OFFER — ', '')}</p>

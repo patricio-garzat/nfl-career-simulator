@@ -1434,11 +1434,11 @@ function jerseyOne(cfg, view, name, number, o = {}) {
   const tSz = 34 * cfg.logoSize / 100, tHref = (!back && cfg.torsoLogo && tid && TEAM[tid]) ? (o.logoData ? o.logoData[lkey] : jcLogoUrl(tid, lkey)) : '';
   const torsoLogo = tHref ? `<g clip-path="url(#${id}bo)"><image class="jc-tlogo" data-tlogo="1" href="${tHref}" x="${(cfg.logoX - tSz / 2).toFixed(1)}" y="${(cfg.logoY - tSz / 2).toFixed(1)}" width="${tSz.toFixed(1)}" height="${tSz.toFixed(1)}" preserveAspectRatio="xMidYMid meet"/></g>` : '';
   const swoosh = cfg.swoosh && Z.swooshL ? `<g clip-path="url(#${id}bo)" fill="${C.swoosh}"><path d="${Z.swooshL}"/><path d="${Z.swooshR}"/></g>` : '';
-  // team logo on both sleeves (spot from the user's JERSEY2Logos.svg; whatever sticks out of the jersey outline is cut off by the clip below): the right one as it is, the left one mirrored, so faces/birds look the same way on both arms
+  // team logo on both sleeves (spot from the user's JERSEY2Logos.svg; whatever sticks out of the jersey outline is cut off by the clip below): the wearer's right sleeve as it is, the wearer's left one mirrored (so on the front view the screen-right logo is the mirrored one), so faces/birds look the same way on both arms
   const sl = (cfg.sleeveLogo && tid && TEAM[tid] && UNI.slogo) ? ['L', 'R'].map(sd => {
     const g = UNI.slogo[view][sd], w = g.w * cfg.sleeveLogoSize / 100, k = lum(C['sleeve' + sd]) > 0.45 ? 'light' : 'dark';
     const href = o.logoData ? o.logoData[k] : jcLogoUrl(tid, k);
-    return `<image class="jc-slogo" href="${href}" x="${(-w / 2).toFixed(2)}" y="${(-w / 2).toFixed(2)}" width="${w.toFixed(2)}" height="${w.toFixed(2)}" preserveAspectRatio="xMidYMid meet" transform="translate(${g.x} ${g.y}) rotate(${g.r})${sd === 'L' ? ' scale(-1 1)' : ''}"/>`;
+    return `<image class="jc-slogo" href="${href}" x="${(-w / 2).toFixed(2)}" y="${(-w / 2).toFixed(2)}" width="${w.toFixed(2)}" height="${w.toFixed(2)}" preserveAspectRatio="xMidYMid meet" transform="translate(${g.x} ${g.y}) rotate(${g.r})${(back ? sd === 'L' : sd === 'R') ? ' scale(-1 1)' : ''}"/>`;
   }).join('') : '';
   const sleeveLogos = sl ? `<g clip-path="url(#${id}bo)">${sl}</g>` : '';
   const yokes = back ? ['yoke'] : ['yokeL', 'yokeR'];

@@ -550,7 +550,9 @@ function startSeason() {
     schedule: buildSchedule(S.teamId), idx: 0, games: [], playoffGames: [], status: 'regular',
     injury: null, injuries: [], missed: 0, form: Math.exp(gauss(0, 0.11)),
     record: null, po: null, wins: null, seed: null, divRank: null, awards: [], dev: null, complete: false,
+    rigged: !!S.egg, // easter egg: this season ends with the Super Bowl title
   };
+  S.egg = false;
   if (S.carryInjury) { season.injury = S.carryInjury; S.carryInjury = null; }
   season.aiRes = genAiResults(S.teamId);
   season.style = Math.exp(gauss(0, 0.07)); // pass-heavy or run-heavy scheme this year
@@ -816,7 +818,7 @@ function playGame(season) {
   }
 
   const myR = effRating(season, st !== 'OUT'), oppR = S.teamRatings[oppId];
-  const diff = myR - oppR;
+  const diff = myR - oppR + (season.rigged ? 18 : 0);
   const baseMy = clamp(Math.round(gauss(22.5 + diff * 0.225, 8.2)), 3, 56);
   let s = {}, fp = 0, rate = null;
   if (st !== 'OUT') {
@@ -839,7 +841,9 @@ function playGame(season) {
   const td = sg(s.passTD) + sg(s.rushTD) + sg(s.recTD) + sg(s.defTD);
   if (pos !== 'K') my = Math.max(my, td * 7); // the team scored at least the player's own touchdowns
   if (my === op) { if (rnd() < logistic(diff * 0.064)) my += 3; else op += 3; } // overtime
-  const win = my > op;
+  let win = my > op;
+  // easter egg: the team wins every playoff game and loses 2-4 in the regular season; a lost game just flips its score (still a realistic result)
+  if (season.rigged && !win && (kind === 'PO' || season.games.filter(g => !g.w).length >= (season.riggedCap = season.riggedCap || randInt(2, 4)))) { [my, op] = [op, my]; win = true; }
 
   const game = { k: kind, wk, round: mInfo ? mInfo.name : null, opp: oppId, home, my, op, w: win, tm: season.teamId, st, dnp, slot, inj: injNote, hurt, s, fp, rate, td };
   if (kind === 'REG') {
@@ -1911,7 +1915,7 @@ function renderDashboard() {
   setScreen(`<div class="wrap" style="${themeVars(S.teamId)}">
     <div class="brandbar">${nflLogo('brand')}<span>NFL CAREER</span><i></i><span class="muted">${se.year} SEASON</span></div>
     <header class="hero"><span class="hero-num">${playerNumber()}</span>
-      <div class="hero-l">${badge(S.teamId, 'xl')}
+      <div class="hero-l"><span class="egg-hit" data-act="egg">${badge(S.teamId, 'xl')}</span>
         <div><div class="eyebrow">${team.name.toUpperCase()} · ${depthText(se).toUpperCase()}</div>
           <h1 class="player-name">${esc(P.name)}</h1>
           <div class="chips">${posBadge(P.pos)}<span class="chip">#${playerNumber()}</span><span class="chip">AGE ${P.age}</span><span class="chip">${se.year} SEASON</span>${collegeChip(P.college)}<span class="chip ${P.dev === 'Normal' ? '' : 'gold'}">${P.dev === 'Normal' ? '' : '★ '}${P.dev}</span></div>
@@ -2586,6 +2590,13 @@ const actions = {
   },
   collegeTab: (d) => { collegeDiv = d.d; document.querySelectorAll('.college-pick .cp-tools .mini').forEach(b => b.classList.toggle('on', b.dataset.d === collegeDiv)); applyCollegeFilter(); },
   randNumber: () => { form.number = randomNumber(form.pos); const i = document.querySelector('[data-model="number"]'); if (i) i.value = form.number; updateCreateJersey(); },
+  egg: () => {
+    const se = curSeason(), live = se && se.status !== 'done' && !se.complete;
+    const on = live ? (se.rigged = !se.rigged) : (S.egg = !S.egg);
+    saveGame(); Snd.play(on ? 'cheer' : 'tick');
+    const b = document.querySelector('.egg-hit'); if (b) { b.classList.remove('egg-pop'); void b.offsetWidth; b.classList.add('egg-pop'); }
+    toast(on ? (live ? '🏆 This season ends with the Super Bowl' : '🏆 Next season ends with the Super Bowl') : '🏆 Easter egg off');
+  },
   toggleTheme: () => { const t = Theme.get() === 'dark' ? 'light' : 'dark'; Theme.set(t); updateThemeBtn(); toast(t === 'light' ? '☀️ Light mode' : '🌙 Dark mode'); },
   viewStandings: () => { stConf = null; stView = 'div'; renderStandings(S.seasons.length - 1); },
   standConf: (d) => { stConf = d.c; renderStandings(stIdx); },

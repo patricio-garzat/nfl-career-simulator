@@ -555,3 +555,87 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 @keyframes sbSlam { 0% { opacity: 0; transform: scale(2.6); } 100% { opacity: 1; transform: scale(1); } }
 
 .jc2-preview .jc-tlogo { cursor: grab; touch-action: none; } .jc2-preview .jc-tlogo.drag { cursor: grabbing; } .jc2-preview svg { touch-action: pan-y; }
+
+/* =====================================================================
+   PHONE MODE (<= 720px): the page itself never scrolls. #app is a fixed full-screen frame; the key screens are compact enough to fit,
+   long ones (tables, editors) scroll INSIDE their own panel.
+   ===================================================================== */
+.only-m { display: none; }
+@media (max-width: 720px) {
+  html, body { height: 100%; overflow: hidden; } body { min-height: 0; }
+  #app { position: fixed; inset: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .only-m { display: inline-flex; }
+  .wrap, .wrap.narrow { padding: calc(10px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom)); }
+  .h-xl { font-size: 26px; margin: 0 0 8px; } .eyebrow { font-size: 11px; letter-spacing: .16em; }
+  .modal-card { max-height: 88dvh; overflow-y: auto; }
+
+  /* ---- create player: everything on one screen, the college list takes the free space and scrolls by itself ---- */
+  .wrap.create { height: 100%; display: flex; flex-direction: column; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+  .wrap.create > .eyebrow { display: none; } .wrap.create > .h-xl { font-size: 22px; margin: 0 0 6px; padding-right: 100px; }
+  .wrap.create .create-grid { flex: 1; min-height: 0; display: block; }
+  .wrap.create .jersey-stage { display: none; }
+  .wrap.create .form-card { height: 100%; display: flex; flex-direction: column; padding: 10px 12px; gap: 0; overflow: hidden; }
+  .wrap.create .lbl { margin-top: 7px; font-size: 11px; letter-spacing: .12em; } .wrap.create .lbl .hint { display: none; }
+  .wrap.create .input { padding: 8px 12px; font-size: 15px; border-radius: 10px; }
+  .wrap.create .pos-grid { grid-template-columns: repeat(5, 1fr); gap: 5px; }
+  .wrap.create .pos-btn { padding: 6px 0; border-radius: 10px; } .wrap.create .pos-btn b { font-size: 17px; } .wrap.create .pos-btn span { display: none; }
+  .wrap.create .college-pick { flex: 1; min-height: 0; gap: 6px; margin-top: 2px; }
+  .wrap.create .cp-cur { padding: 6px 10px; gap: 10px; border-radius: 12px; } .wrap.create .cp-cur .col-logo.lg { width: 34px; height: 34px; } .wrap.create .cp-cur b { font-size: 18px; } .wrap.create .cp-cur span { font-size: 11px; }
+  .wrap.create .cp-tools { gap: 6px; flex-wrap: nowrap; } .wrap.create .cp-search { min-width: 0; } .wrap.create .cp-tools .mini { padding: 5px 7px; font-size: 11px; }
+  .wrap.create .cp-grid { flex: 1; min-height: 96px; max-height: none; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 4px; }
+  .wrap.create .cp-tile { min-height: 84px; padding: 6px 4px 8px; } .wrap.create .cp-tile img { width: 36px; height: 36px; } .wrap.create .cp-tile span { font-size: 10px; }
+  .wrap.create .row3 { grid-template-columns: .8fr 1fr 1fr; gap: 8px; margin-top: 0; } .wrap.create .row3 > :last-child { grid-column: auto; } .wrap.create #numHint { display: none; }
+  .wrap.create .row3 .btn { padding: 8px 4px; font-size: 14px; }
+  .wrap.create .row.end { margin-top: 8px; flex-wrap: nowrap; } .wrap.create .row.end .btn { flex: 1; padding: 11px 8px; font-size: 16px; }
+
+  /* ---- player card ---- */
+  .wrap.narrow:not(.center) > .eyebrow { display: none; } .wrap.narrow:not(.center) > .h-xl { font-size: 22px; padding-right: 100px; }
+  .player-card { padding: 12px; } .pc-top { gap: 10px; align-items: center; flex-wrap: nowrap; } .pc-jersey { display: none; } .pc-name { font-size: 28px; }
+  .pc-top .ovr-ring.big { width: 78px; height: 78px; flex: none; } .pc-top .ovr-ring.big .n { font-size: 30px; }
+  .pc-id .chips + .chips { display: none; } .pc-id .chip { font-size: 10px; padding: 3px 7px; }
+  .attr-grid { grid-template-columns: 1fr 1fr; gap: 6px 14px; margin-top: 10px; }
+  .wrap.narrow .row.between { flex-direction: column-reverse; align-items: stretch; gap: 8px; } .wrap.narrow .row.between .row { flex-wrap: nowrap; } .wrap.narrow .row.between .btn { flex: 1; padding: 11px 6px; font-size: 15px; }
+
+  /* ---- dashboard: the essentials only ---- */
+  .brandbar { display: flex; margin: 0 0 8px; padding-right: 104px; font-size: 12px; min-height: 34px; align-items: center; }
+  .dash-grid .card > .muted.small { display: none; }
+  .hero { padding: 10px 12px; margin: 0 0 8px; border-radius: 16px; flex-direction: row; align-items: center; gap: 8px; } .hero-num { display: none; }
+  .hero-l { gap: 10px; } .hero .team-badge.xl, .hero .team-badge { transform: scale(.7); transform-origin: left center; margin-right: -14px; }
+  .hero .eyebrow { font-size: 9px; letter-spacing: .1em; } .player-name { font-size: 26px; } .hero .chips { gap: 4px; margin-top: 4px; flex-wrap: nowrap; overflow: hidden; } .hero .chip { font-size: 10px; padding: 2px 7px; white-space: nowrap; } .hero .chips .chip:nth-child(n+3) { display: none; }
+  .hero .ovr-ring.big { width: 64px; height: 64px; flex: none; } .hero .ovr-ring.big .n { font-size: 24px; } .hero .ovr-ring.big .l { display: none; }
+  .dash-grid { grid-template-columns: 1fr; gap: 8px; } .dash-grid .col + .col { display: none; } .dash-grid .col { display: flex; flex-direction: column; gap: 8px; }
+  .dash-grid .card { padding: 10px 12px; margin: 0; } .card-h { margin-bottom: 6px; } .card-h h3 { font-size: 15px; }
+  .tiles { grid-template-columns: repeat(4, 1fr); gap: 6px; } .tile { padding: 6px 2px; border-radius: 10px; } .tile-v { font-size: 22px; } .tile-l { font-size: 9px; letter-spacing: .06em; }
+  .fp-row, .spark, .last-game { display: none; } .banner { padding: 7px 10px; font-size: 12px; margin: 0 0 6px; } .banner .btn { padding: 4px 8px; font-size: 12px; }
+  .next-card { padding: 10px 12px; border-radius: 14px; } .next-card .nc-row { gap: 10px; } .next-card .team-badge { transform: scale(.8); transform-origin: left center; margin-right: -8px; } .next-card .muted { font-size: 12px; }
+  .actions { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .actions .btn { padding: 9px 2px; font-size: 13px; border-radius: 10px; min-width: 0; }
+  .actions .btn-primary { grid-column: span 4; padding: 14px; font-size: 18px; } .actions .btn-xl, .actions .btn-secondary { grid-column: span 2; padding: 11px 4px; font-size: 14px; } .actions .btn-xl.btn-primary { grid-column: span 4; font-size: 18px; padding: 14px; }
+  .actions .btn-live { grid-column: span 2; } .actions .btn-secondary { grid-column: span 2; }
+  .actions [data-act="saveExit"] { grid-column: span 2; }
+
+  /* ---- jersey creator: fixed preview on top, the editor scrolls inside its own panel ---- */
+  .jc-wrap { height: 100%; display: flex; flex-direction: column; padding-bottom: 0; }
+  .jc-wrap > .title-logo { display: none; } .jc-wrap .topbar { margin: 0 0 6px; }
+  .jc2 { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+  .jc2-preview { position: static; flex: none; margin: 0; padding: 0; border: 0; background: transparent; }
+  .jc2-preview .mat-jersey { max-width: min(100%, 30dvh); } .jc2-preview .mat { padding: 4px; }
+  .jc2-editor { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+
+  /* ---- live game + celebration ---- */
+  .lv-overlay { overflow: hidden; } .lv-wrap { height: 100%; padding: calc(8px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom)); gap: 8px; }
+  .lv-top { gap: 8px; } .lv-top > .muted { display: none; } .lv-top b { font-size: 16px; } .lv-ctrl { padding-right: 56px; gap: 4px; } .lv-ctrl .mini { padding: 4px 8px; }
+  .lv-board { padding: 6px 10px; } .lv-bottom { grid-template-columns: 1fr 1fr; gap: 8px; } .lv-log { display: none; } .lv-bottom .card { padding: 10px 12px; } .lv-dd { font-size: 15px; } .lv-text { font-size: 13px; min-height: 0; }
+  .lv-me-h { font-size: 12px; margin-bottom: 6px; } .lv-tiles b { font-size: 20px; }
+  .sb-trophy-wrap { height: min(32dvh, 400px); } .sb-title .l2 { font-size: clamp(44px, 14vw, 90px); } .sb-stage { gap: 4px; padding: 10px; }
+
+  .title-screen { height: 100%; min-height: 0; overflow: hidden; } .title-inner { min-height: 0; height: 100%; padding-top: 0; padding-bottom: 0; } .title-inner .nfl-logo.title { height: 64px; width: auto; }
+  .hero { padding: 8px 10px; margin-bottom: 6px; } .hero .team-badge.xl, .hero .team-badge { transform: scale(.6); margin-right: -20px; } .hero .ovr-ring.big { width: 56px; height: 56px; } .hero .ovr-ring.big .n { font-size: 22px; } .player-name { font-size: 24px; }
+  .dash-grid, .dash-grid .col { gap: 6px; } .dash-grid .card { padding: 8px 10px; } .tile { padding: 4px 2px; } .tile-v { font-size: 20px; } .brandbar { min-height: 30px; margin-bottom: 4px; }
+  .next-card { padding: 8px 12px; } .next-card .nc-big { font-size: 22px; } .banner { padding: 5px 10px; font-size: 11px; margin-bottom: 4px; }
+  .actions .btn-primary, .actions .btn-xl.btn-primary { padding: 11px; font-size: 17px; } .actions .btn { padding: 8px 2px; }
+
+  .lv-top { padding-right: 100px; row-gap: 6px; } .lv-ctrl { order: 3; width: calc(100% + 100px); margin: 0 -100px 0 0; padding-right: 0; justify-content: flex-end; }
+  .lv-board { gap: 6px; padding: 6px 8px; } .lv-team { gap: 6px; min-width: 0; } .lv-team img { width: 30px; height: 30px; } .lv-team b { font-size: 17px; } .lv-score { font-size: 32px; min-width: 34px; } .lv-poss { font-size: 14px; } .lv-q { font-size: 13px; } .lv-clock { font-size: 22px; }
+  .lv-ctrl { margin-top: 24px; }
+}

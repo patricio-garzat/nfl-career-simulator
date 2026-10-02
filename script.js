@@ -1562,7 +1562,7 @@ function setScreen(html, cls = '') {
   app.className = 'screen ' + cls;
   app.innerHTML = html;
   updateBackdrop(html);
-  window.scrollTo(0, 0);
+  window.scrollTo(0, 0); app.scrollTop = 0;
 }
 function openModal(html, cls = '') {
   modalRoot.innerHTML = `<div class="overlay"><div class="modal-card ${cls}">${html}</div></div>`;
@@ -1852,6 +1852,7 @@ function renderDashboard() {
           <button class="btn btn-ghost" data-act="viewCareer">CAREER</button>
           <button class="btn btn-ghost" data-act="viewContract">CONTRACT</button>
           <button class="btn btn-ghost" data-act="viewTrades">TRADES${pend ? ' (' + pend + ')' : ''}</button>
+          <button class="btn btn-ghost only-m" data-act="viewPlayer">PLAYER</button>
           <button class="btn btn-ghost" data-act="saveExit">SAVE &amp; EXIT</button>
         </div>
       </div>
@@ -2041,6 +2042,7 @@ function renderTrades() {
    jersey instantly (jcLive); releasing saves it into S.jerseys[teamId]. */
 let jcView = 'front'; // FRONT / BACK
 function renderLocker(keepScroll) {
+  const ed0 = document.querySelector('.jc2-editor'), ey = ed0 ? ed0.scrollTop : 0, ay = app.scrollTop;
   const y = window.scrollY, P = S.player, id = S.teamId, t = TEAM[id], cfg = jerseyFor(id), C = jcColors(cfg), bg = S.jerseyBg || 'team';
   const opt = (list, cur) => list.map(f => `<option value="${f.k}" ${f.k === cur ? 'selected' : ''}>${f.label}</option>`).join('');
   const chip = (act, k, l, on) => `<button class="mini ${on ? 'on' : ''}" data-act="${act}" data-k="${k}">${l}</button>`;
@@ -2101,7 +2103,7 @@ function renderLocker(keepScroll) {
         <div class="muted small lk-note">The jersey name is separate from your player name (<b>${esc(P.name)}</b>). Each team keeps its own design; when you change teams you get a fresh home jersey.</div>
       </section>
     </div></div>`);
-  if (keepScroll) window.scrollTo(0, y);
+  if (keepScroll) { window.scrollTo(0, y); app.scrollTop = ay; const ed = document.querySelector('.jc2-editor'); if (ed) ed.scrollTop = ey; }
 }
 /* --- Career + timeline --------------------------------------------------------------- */
 function achievementLines() {
@@ -2373,6 +2375,15 @@ const actions = {
     openLiveGame(r.game, r.notes, se);
   },
   simNextModal: () => { closeModal(); actions.simNext(); },
+  viewPlayer: () => {                                    // phones: attributes, depth chart and career live here instead of on the dashboard
+    const P = S.player, se = curSeason(), C = careerTotals(), car = POS[P.pos].career(C), completed = S.seasons.filter(x => x.complete).length;
+    openModal(`<h3 class="modal-h">${esc(P.name)} · ${P.pos} · OVR ${P.ovr}</h3>
+      <div class="attr-list">${attrBars(P)}</div>
+      ${depthCardHTML(se)}
+      <div class="tiles t3">${tile('SEASONS', S.seasons.length)}${tile(car[0].l.replace('Career ', '').toUpperCase(), car[0].v)}${tile(car[1].l.replace('Career ', '').toUpperCase(), car[1].v)}${tile('PRO BOWLS', awardCount('PB'))}${tile('SUPER BOWLS', awardCount('SB_CHAMP'))}${tile('EARNINGS', money(S.earnings), 'gold')}</div>
+      <div class="muted small">${completed} completed season${completed === 1 ? '' : 's'} · ${S.contract.yearsLeft} yr left on contract</div>
+      <div class="row end"><button class="btn btn-primary" data-act="closeModal">CLOSE</button></div>`);
+  },
   simSeason: async () => {
     if (busy) return; busy = true;
     try {

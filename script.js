@@ -1439,18 +1439,18 @@ function jerseyOne(cfg, view, name, number, o = {}) {
   return `<svg${o.noText ? ' xmlns="http://www.w3.org/2000/svg"' : ''} class="jersey part-jersey ${back ? 'is-back' : 'is-front'} ${o.cls || ''}" viewBox="0 0 ${M.w} ${M.h}" role="img" aria-label="${back ? 'Back' : 'Front'} of jersey ${esc(String(name || ''))} ${number}">
     <defs>
       <clipPath id="${id}bo"><path d="${Z.bodyOuter}"/></clipPath>
-      <clipPath id="${id}bd"><path d="${Z.torso}"/><path d="${Z.sideL}"/><path d="${Z.sideR}"/></clipPath>
+      <clipPath id="${id}bd"><path d="${Z.torso}"/><path d="${Z.sideL}"/><path d="${Z.sideR}"/></clipPath><clipPath id="${id}sp"><path d="${Z.sideL}"/><path d="${Z.sideR}"/></clipPath>
       <clipPath id="${id}sl"><path d="${Z.sleeveL}"/></clipPath><clipPath id="${id}sr"><path d="${Z.sleeveR}"/></clipPath>${clipYokes}${clipSleeves}
       <linearGradient id="${id}gr" gradientUnits="userSpaceOnUse" x1="0" y1="40" x2="0" y2="${M.h}"><stop offset=".2" stop-color="${cfg.primary}"/><stop offset="1" stop-color="${cfg.secondary}"/></linearGradient>
       <linearGradient id="${id}s" x1="0" x2="1"><stop offset="0" stop-color="#000" stop-opacity=".2"/><stop offset=".2" stop-color="#000" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".2"/></linearGradient>
       <linearGradient id="${id}v" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".1"/><stop offset=".3" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".16"/></linearGradient>
-      <pattern id="${id}m" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="1.2" cy="1.2" r=".7" fill="rgba(0,0,0,.08)"/></pattern>
+      <pattern id="${id}m" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="1.2" cy="1.2" r=".75" fill="rgba(0,0,0,.14)"/></pattern>
     </defs>
     <g clip-path="url(#${id}bo)">
       ${pieces.map(([k, fill]) => `<path d="${Z[k]}" fill="${fill}"/>`).join('')}
       <g clip-path="url(#${id}sl)">${bandsOf('L')}</g><g clip-path="url(#${id}sr)">${bandsOf('R')}</g>
       ${hem}
-      <rect width="${M.w}" height="${M.h}" fill="url(#${id}m)"/><rect width="${M.w}" height="${M.h}" fill="url(#${id}s)"/><rect width="${M.w}" height="${M.h}" fill="url(#${id}v)"/>
+      <g clip-path="url(#${id}sp)"><rect width="${M.w}" height="${M.h}" fill="url(#${id}m)"/></g><rect width="${M.w}" height="${M.h}" fill="url(#${id}s)"/><rect width="${M.w}" height="${M.h}" fill="url(#${id}v)"/>
     </g>
     ${pieces.map(([k]) => `<path d="${Z[k]}" ${ln}/>`).join('')}
     <path d="${Z.bodyOuter}" fill="none" stroke="${INK}" stroke-width="1.3" stroke-linejoin="round"/>

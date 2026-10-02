@@ -1586,7 +1586,7 @@ function splash(title, sub, ms = 1500) {
   return new Promise(res => {
     const el = document.createElement('div');
     el.className = 'splash';
-    el.innerHTML = `<div class="splash-in">${nflLogo('splash')}<div class="splash-title">${title}</div><div class="splash-sub">${sub}</div></div>`;
+    el.innerHTML = `<div class="splash-in">${nflLogo('season')}<div class="splash-title">${title}</div><div class="splash-sub">${sub}</div></div>`;
     document.body.appendChild(el); Snd.play("whoosh");
     const end = () => { el.remove(); res(); };
     el.addEventListener('click', () => { el.classList.add('out'); setTimeout(end, 250); }, { once: true });

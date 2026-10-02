@@ -290,7 +290,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .st-table td.tm .team-badge.logo, .st-row .team-badge.logo { flex: none; }
 .nfl-logo { display: block; margin: 0 auto 6px; height: 70px; width: auto; filter: drop-shadow(0 6px 24px rgba(0, 0, 0, .55)); }
 .nfl-logo.title { height: 120px; margin-bottom: 14px; animation: pop .7s cubic-bezier(.2, 1.3, .4, 1) both; }
-.nfl-logo.draft { height: 62px; } .nfl-logo.splash { height: 110px; margin-bottom: 14px; animation: pop .6s both; }
+.nfl-logo.draft { height: 62px; } .nfl-logo.season { height: 110px; margin-bottom: 14px; animation: pop .6s both; }
 .nfl-logo.inline { display: inline-block; height: 44px; margin: 0 12px 0 0; vertical-align: middle; }
 .nfl-logo.brand { height: 28px; margin: 0; }
 .title-logo { display: flex; align-items: center; }

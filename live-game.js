@@ -109,20 +109,53 @@ function lvBuild(game) {
 
 /* ---------- the field ---------- */
 function lvFieldSVG(away, home) {
-  const A = TEAM[away], H = TEAM[home], dark = c => mixHex(c, '#000000', 0.38);
-  const stripes = Array.from({ length: 20 }, (_, i) => `<rect x="${lvX(i * 5)}" y="${LV_PAD}" width="50" height="${LV_FH}" fill="${i % 2 ? '#2f8a4a' : '#2a8044'}"/>`).join('');
-  const lines = Array.from({ length: 21 }, (_, i) => `<line x1="${lvX(i * 5)}" x2="${lvX(i * 5)}" y1="${LV_PAD}" y2="${LV_PAD + LV_FH}" stroke="#fff" stroke-opacity="${i % 2 === 0 ? .85 : .45}" stroke-width="${i === 0 || i === 20 ? 4 : 2}"/>`).join('');
-  const nums = [1, 2, 3, 4, 5, 4, 3, 2, 1].map((n, i) => { const x = lvX((i + 1) * 10); return `<text x="${x}" y="${LV_PAD + 78}" text-anchor="middle" transform="rotate(180 ${x} ${LV_PAD + 70})">${n}0</text><text x="${x}" y="${LV_PAD + LV_FH - 54}" text-anchor="middle">${n}0</text>`; }).join('');
-  const hashY = [lvY(-11.8), lvY(11.8)], hashes = Array.from({ length: 99 }, (_, i) => { const x = lvX(i + 1); return hashY.map(y => `<line x1="${x}" x2="${x}" y1="${y - 5}" y2="${y + 5}" stroke="#fff" stroke-opacity=".7" stroke-width="1.6"/>`).join('') + [LV_PAD + 4, LV_PAD + LV_FH - 12].map(y => `<line x1="${x}" x2="${x}" y1="${y}" y2="${y + 8}" stroke="#fff" stroke-opacity=".6" stroke-width="1.4"/>`).join(''); }).join('');
-  const ez = (x, team, rot) => `<rect x="${x}" y="${LV_PAD}" width="100" height="${LV_FH}" fill="${dark(team.c1)}"/><rect x="${x}" y="${LV_PAD}" width="100" height="${LV_FH}" fill="${team.c1}" opacity=".55"/>
-    <text x="${x + 50}" y="${LV_PAD + LV_FH / 2}" text-anchor="middle" dominant-baseline="central" transform="rotate(${rot} ${x + 50} ${LV_PAD + LV_FH / 2})" class="lv-ez" fill="${lum(team.c1) > 0.6 ? '#111' : '#fff'}">${esc(team.nick.toUpperCase())}</text>
-    <image href="${logoUrl(team.id)}" x="${x + 22}" y="${LV_PAD + 18}" width="56" height="56" opacity=".95" preserveAspectRatio="xMidYMid meet"/><image href="${logoUrl(team.id)}" x="${x + 22}" y="${LV_PAD + LV_FH - 74}" width="56" height="56" opacity=".95" preserveAspectRatio="xMidYMid meet"/>`;
+  const A = TEAM[away], H = TEAM[home], top = LV_PAD, bot = LV_PAD + LV_FH, cy = lvY(0);
+  const stripes = Array.from({ length: 20 }, (_, i) => `<rect x="${lvX(i * 5)}" y="${top}" width="50" height="${LV_FH}" fill="${i % 2 ? '#2f8a4a' : '#2a8044'}"/>`).join('');
+  // yard lines: a full-width line every 5 yards, the goal lines heavier
+  const lines = Array.from({ length: 21 }, (_, i) => `<line x1="${lvX(i * 5)}" x2="${lvX(i * 5)}" y1="${top}" y2="${bot}" stroke="#fff" stroke-opacity=".92" stroke-width="${i === 0 || i === 20 ? 5 : 2.6}"/>`).join('');
+  // NFL hash marks: one-yard ticks on the inbound lines (70'9" from each sideline = 3.08 yd either side of the middle) and along both sidelines
+  const hy = 3.08, hashes = Array.from({ length: 99 }, (_, i) => {
+    if ((i + 1) % 5 === 0) return '';
+    const x = lvX(i + 1), t = (y, d) => `<line x1="${x}" x2="${x}" y1="${y}" y2="${y + d}" stroke="#fff" stroke-opacity=".85" stroke-width="1.8"/>`;
+    return t(lvY(-hy) - 3.5, 7) + t(lvY(hy) - 3.5, 7) + t(top + 2, 7) + t(bot - 9, 7);
+  }).join('');
+  // yard numbers: 6 ft x 4 ft numerals (drawn 1.5x so they read on a small screen), base 12 yd from the sideline, clear of the line on both sides;
+  // the 10-40 pairs carry a small arrow pointing at the nearest goal line. Far-side numbers are turned 180° so they read from the other sideline.
+  const NW = 20, NH = 30, GAP = 9, ARW = 13;
+  const digit = (ch, cx, y0, rot) => `<text x="${cx}" y="${y0 + NH}" text-anchor="middle" font-size="${NH / 0.7}" ${ch === '1' ? '' : `textLength="${NW}" lengthAdjust="spacingAndGlyphs"`} ${rot ? `transform="rotate(180 ${cx} ${y0 + NH / 2})"` : ''}>${ch}</text>`;
+  const nums = [1, 2, 3, 4, 5, 4, 3, 2, 1].map((n, i) => {
+    const X = lvX((i + 1) * 10), toLeft = i < 4, toRight = i > 4;
+    const place = (y0, far) => {
+      const L = X - GAP - NW / 2, R = X + GAP + NW / 2, d = far ? ['0', String(n)] : [String(n), '0'];   // upside-down "30" is seen as 0 then 3 along the field
+      let g = digit(d[0], L, y0, far) + digit(d[1], R, y0, far);
+      const ay = y0 + NH / 2;
+      if (toLeft) g += `<polygon points="${X - GAP - NW - 5 - ARW},${ay} ${X - GAP - NW - 5},${ay - 8} ${X - GAP - NW - 5},${ay + 8}"/>`;
+      if (toRight) g += `<polygon points="${X + GAP + NW + 5 + ARW},${ay} ${X + GAP + NW + 5},${ay - 8} ${X + GAP + NW + 5},${ay + 8}"/>`;
+      return g;
+    };
+    return place(bot - 120 - NH, false) + place(top + 120, true);
+  }).join('');
+  // end zones: the team's color, its name in big letters across the zone, its logo on each side of the name, orange pylons at the corners
+  const dk = c => mixHex(c, '#000000', 0.22);
+  const ezOf = (x, team, rot) => {
+    const bg = team.c1, txt = Math.abs(lum(team.c2) - lum(bg)) > 0.28 ? team.c2 : (lum(bg) > 0.5 ? '#101418' : '#ffffff'), ol = lum(txt) > 0.5 ? '#000' : '#fff';
+    const name = team.nick.toUpperCase(), fs = 70, len = Math.max(170, Math.min(370, name.length * fs * 0.5)), cx = x + 50, half = len / 2;
+    const logo = y => `<image href="${logoUrl(team.id)}" x="${cx - 36}" y="${y - 36}" width="72" height="72" preserveAspectRatio="xMidYMid meet"/>`;
+    return `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="${bg}"/><rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="${dk(bg)}" opacity=".18"/>
+    <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" textLength="${len}" lengthAdjust="spacingAndGlyphs" transform="rotate(${rot} ${cx} ${cy})" class="lv-ez" font-size="${fs}" fill="${txt}" stroke="${ol}" stroke-opacity=".55">${esc(name)}</text>
+    ${logo(cy - half - 52)}${logo(cy + half + 52)}`;
+  };
+  const pylon = (x, y) => `<rect x="${x - 4.5}" y="${y - 4.5}" width="9" height="9" fill="#ff6a13" stroke="#fff" stroke-width="1"/>`;
+  const pylons = [100, 1100, 0, 1200].map(x => pylon(Math.min(1198, Math.max(2, x)), top + 5) + pylon(Math.min(1198, Math.max(2, x)), bot - 5)).join('');
   const post = (x, d) => `<g stroke="#ffd23d" stroke-width="5" stroke-linecap="round" fill="none"><line x1="${x}" x2="${x}" y1="${lvY(-3.1)}" y2="${lvY(3.1)}"/><line x1="${x}" x2="${x + d * 18}" y1="${lvY(-3.1)}" y2="${lvY(-3.1)}"/><line x1="${x}" x2="${x + d * 18}" y1="${lvY(3.1)}" y2="${lvY(3.1)}"/></g>`;
+  const shield = x => `<image href="${NFL_LOGO}" x="${x - 34}" y="${cy - 34}" width="68" height="68" opacity=".9" preserveAspectRatio="xMidYMid meet"/>`;
   return `<svg class="lv-field" viewBox="0 0 ${LV_FW} ${LV_FH + 2 * LV_PAD}" role="img" aria-label="Football field">
-    <rect width="${LV_FW}" height="${LV_FH + 2 * LV_PAD}" rx="16" fill="#1e5f34"/>${stripes}${ez(0, A, -90)}${ez(1100, H, 90)}
-    <g class="lv-lines">${lines}${hashes}</g><g class="lv-nums" fill="#fff" fill-opacity=".78">${nums}</g>
-    <image href="${logoUrl(home)}" x="${lvX(50) - 105}" y="${lvY(0) - 105}" width="210" height="210" opacity=".92" preserveAspectRatio="xMidYMid meet"/>
-    ${post(4, 1)}${post(1196, -1)}
+    <rect width="${LV_FW}" height="${LV_FH + 2 * LV_PAD}" rx="16" fill="#1e5f34"/>${stripes}${ezOf(0, A, -90)}${ezOf(1100, H, 90)}
+    <g class="lv-lines">${lines}${hashes}<rect x="1" y="${top}" width="1198" height="${LV_FH}" fill="none" stroke="#fff" stroke-opacity=".95" stroke-width="4"/></g>
+    <g class="lv-nums" fill="#fff" fill-opacity=".88">${nums}</g>
+    ${shield(lvX(25))}${shield(lvX(75))}
+    <image href="${logoUrl(home)}" x="${lvX(50) - 90}" y="${cy - 90}" width="180" height="180" opacity=".92" preserveAspectRatio="xMidYMid meet"/>
+    ${pylons}${post(4, 1)}${post(1196, -1)}
     <rect id="lvLos" y="${LV_PAD}" width="4" height="${LV_FH}" fill="#4aa8ff" opacity="0"/><rect id="lvFd" y="${LV_PAD}" width="4" height="${LV_FH}" fill="#ffd23d" opacity="0"/>
     <g id="lvActors"></g><g id="lvFx"></g></svg>`;
 }

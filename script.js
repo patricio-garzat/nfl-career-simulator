@@ -1471,24 +1471,19 @@ async function drawCollarLogo(ctx, ox, oy, sc) {
     } catch (e2) { /* the logo is decoration only */ }
   }
 }
-async function exportJerseyPNG() {
-  const id = S.teamId, cfg = jerseyFor(id), name = jName(S.player), num = playerNumber(), word = TEAM[id].nick;
-  await Promise.all(JC_FONTS.map(f => document.fonts.load(`${f.w} 100px ${f.css}`).catch(() => {})));
-  const sc = 3, W = UNI.meta.w, H = UNI.meta.h, pad = 28, gap = 28;
-  const cv = document.createElement('canvas'); cv.width = (W * 2 + gap + pad * 2) * sc; cv.height = (H + pad * 2) * sc;
-  const ctx = cv.getContext('2d');
-  const views = ['front', 'back'];
-  const logoData = { light: await jcLogoDataURL(id, 'light'), dark: await jcLogoDataURL(id, 'dark') };
-  for (let i = 0; i < 2; i++) {
-    const svg = jerseyOne(cfg, views[i], name, num, { noText: true, noShield: true, word, teamId: id, logoData });
+// draws one view of the jersey (shapes, collar logo, numbers and name) onto a canvas: (ox, oy) in canvas pixels, sc = canvas pixels per jersey unit
+async function jcDrawJersey(ctx, cfg, view, name, num, word, id, logoData, ox, oy, sc, shadow) {
+  const W = UNI.meta.w, H = UNI.meta.h;
+    const svg = jerseyOne(cfg, view, name, num, { noText: true, noShield: true, word, teamId: id, logoData });
     const img = new Image();
     await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); });
-    const ox = (pad + i * (W + gap)) * sc, oy = pad * sc;
+    if (shadow) { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 14 * sc; ctx.shadowOffsetY = 14 * sc; }
     ctx.drawImage(img, ox, oy, W * sc, H * sc);
-    if (views[i] === 'front') await drawCollarLogo(ctx, ox, oy, sc);
-    jcTexts(cfg, views[i], name, num, word).concat(jcShoulderTexts(cfg, views[i], num)).forEach(s => {
+    if (shadow) ctx.restore();
+    if (view === 'front') await drawCollarLogo(ctx, ox, oy, sc);
+    jcTexts(cfg, view, name, num, word).concat(jcShoulderTexts(cfg, view, num)).forEach(s => {
       ctx.save();
-      if (s.clip) { ctx.translate(ox, oy); ctx.scale(sc, sc); ctx.clip(new Path2D(s.clip === 'bo' ? UNI[views[i]].bodyOuter : UNI[views[i]][s.clip])); ctx.setTransform(1, 0, 0, 1, 0, 0); }
+      if (s.clip) { ctx.translate(ox, oy); ctx.scale(sc, sc); ctx.clip(new Path2D(s.clip === 'bo' ? UNI[view].bodyOuter : UNI[view][s.clip])); ctx.setTransform(1, 0, 0, 1, 0, 0); }
       if (s.jets) {
         const k = s.cap / 100, w = s.run.w * k, sq = w > s.maxW ? s.maxW / w : 1;
         if (s.rot !== undefined) { ctx.translate(ox + s.tx * sc, oy + s.ty * sc); ctx.rotate(s.rot * Math.PI / 180); ctx.scale(s.sx || 1, 1); ctx.translate(-w * sq / 2 * sc, -s.cap * sc); } else ctx.translate(ox + (s.x - w * sq / 2) * sc, oy + (s.y - s.cap) * sc);
@@ -1504,13 +1499,84 @@ async function exportJerseyPNG() {
       if (s.stroke) { ctx.lineWidth = s.sw * sc; ctx.strokeStyle = s.stroke; ctx.strokeText(s.t, 0, 0); }
       ctx.fillStyle = s.fill; ctx.fillText(s.t, 0, 0); ctx.restore();
     });
-  }
+}
+async function exportJerseyPNG() {
+  const id = S.teamId, cfg = jerseyFor(id), name = jName(S.player), num = playerNumber(), word = TEAM[id].nick;
+  await Promise.all(JC_FONTS.map(f => document.fonts.load(`${f.w} 100px ${f.css}`).catch(() => {})));
+  const sc = 3, W = UNI.meta.w, H = UNI.meta.h, pad = 28, gap = 28;
+  const cv = document.createElement('canvas'); cv.width = (W * 2 + gap + pad * 2) * sc; cv.height = (H + pad * 2) * sc;
+  const ctx = cv.getContext('2d');
+  const views = ['front', 'back'];
+  const logoData = { light: await jcLogoDataURL(id, 'light'), dark: await jcLogoDataURL(id, 'dark') };
+  for (let i = 0; i < 2; i++) await jcDrawJersey(ctx, cfg, views[i], name, num, word, id, logoData, (pad + i * (W + gap)) * sc, pad * sc, sc);
   const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${name.replace(/[^A-Z0-9]+/g, '-')}-${num}-jersey.png`;
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
 }
 
-// Framed jersey: wooden (or gold, for Hall of Famers) frame, team-colored mat, glass reflection and a brass plaque with career stats
+/* ---- download the framed display case (vitrina) exactly as it looks on screen: wooden frame, team-colored mat, jersey and brass plaque ---- */
+async function exportVitrinaPNG(o = {}) {
+  const P = S.player, id = S.teamId, t = TEAM[id], cc = POS[P.pos], C = careerTotals(), cfg = jerseyFor(id), name = jName(P), num = playerNumber(), view = o.view || jcView || 'front', gold = !!o.gold;
+  await Promise.all(JC_FONTS.map(f => document.fonts.load(`${f.w} 100px ${f.css}`).catch(() => {})).concat(['500', '600', '700', '800'].map(w => document.fonts.load(`${w} 20px 'Barlow Condensed'`).catch(() => {})), [document.fonts.load("700 12px 'Inter'").catch(() => {})]));
+  const logoData = { light: await jcLogoDataURL(id, 'light'), dark: await jcLogoDataURL(id, 'dark') };
+  const stats = cc.careerLines(C).map(x => ({ v: fmtN(x.v), l: x.l }));
+  const aw = [[awardCount('SB_CHAMP'), '🏆', 'Super Bowl'], [awardCount('MVP'), '👑', 'MVP'], [awardCount('AP1'), '🏅', 'All-Pro'], [awardCount('PB'), '⭐', 'Pro Bowl']].filter(a => a[0]).map(a => `${a[1]} ${a[0]}× ${a[2]}`);
+  const seasons = S.seasons.filter(x => x.games.length), years = seasons.length ? (seasons[0].year === seasons[seasons.length - 1].year ? `${seasons[0].year}` : `${seasons[0].year} – ${seasons[seasons.length - 1].year}`) : `${S.year}`;
+  const sub = `#${num} · ${P.pos} · ${years}`, foot = `${o.final ? 'CAREER TOTALS' : 'CAREER SO FAR'} · ${fmt1(C.fp)} FANTASY PTS`;
+  const SC = 3, M = 64, FW = 460, PF = 16, PI = 10, JW = 300, JH = JW * UNI.meta.h / UNI.meta.w, bg = S.jerseyBg || 'team';
+  const matW = FW - 2 * PF - 2 * PI, matH = 26 + 15.6 + 10 + JH + 18, plW = matW - 8, inner = plW - 28;
+  const HEAD = "'Barlow Condensed', 'Arial Narrow', sans-serif", BODY = "'Inter', system-ui, sans-serif";
+  const cv = document.createElement('canvas'), ctx = cv.getContext('2d');
+  // text helper (letter spacing in css px)
+  const txt = (str, x, y, font, color, ls = 0, align = 'center') => { ctx.font = font; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; if ('letterSpacing' in ctx) ctx.letterSpacing = ls + 'px'; ctx.fillStyle = color; ctx.fillText(str, x, y); };
+  const tw = (str, font, ls = 0) => { ctx.font = font; if ('letterSpacing' in ctx) ctx.letterSpacing = ls + 'px'; return ctx.measureText(str).width; };
+  // plaque height: name + sub + stats + awards + footer (measured, so it matches the CSS layout)
+  ctx.setTransform(SC, 0, 0, SC, 0, 0);
+  const awLines = []; { let line = [], w = 0; aw.forEach(a => { const wa = tw(a, `700 12px ${BODY}`); if (line.length && w + 12 + wa > inner) { awLines.push(line); line = []; w = 0; } w += (line.length ? 12 : 0) + wa; line.push({ a, wa }); }); if (line.length) awLines.push(line); }
+  const plH = 12 + 27.3 + 2 + 15.6 + 8 + 58 + (awLines.length ? 8 + awLines.length * 15 + (awLines.length - 1) * 4 : 0) + 8 + 12 + 12;
+  const FH = PF + PI + matH + 12 + plH + 4 + PI + PF;
+  cv.width = (FW + 2 * M) * SC; cv.height = (FH + 2 * M) * SC; ctx.setTransform(SC, 0, 0, SC, 0, 0);
+  const rr = (x, y, w, h, r) => { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); };
+  const lin = (x, y, w, h, deg, stops) => { const a = deg * Math.PI / 180, dx = Math.sin(a), dy = -Math.cos(a), len = Math.abs(w * dx) + Math.abs(h * dy), cx = x + w / 2, cy = y + h / 2, g = ctx.createLinearGradient(cx - dx * len / 2, cy - dy * len / 2, cx + dx * len / 2, cy + dy * len / 2); stops.forEach(([p, c]) => g.addColorStop(p, c)); return g; };
+  const inset = (x, y, w, h, r, blur, color) => { ctx.save(); rr(x, y, w, h, r); ctx.clip(); ctx.shadowColor = color; ctx.shadowBlur = blur * SC; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.rect(x - 200, y - 200, w + 400, h + 400); ctx.moveTo(x + r, y); ctx.arcTo(x, y, x, y + h, r); ctx.arcTo(x, y + h, x + w, y + h, r); ctx.arcTo(x + w, y + h, x + w, y, r); ctx.arcTo(x + w, y, x, y, r); ctx.closePath(); ctx.fill('evenodd'); ctx.restore(); };
+  const fx = M, fy = M;
+  /* wooden / gold frame */
+  const wood1 = gold ? '#f2cf6b' : '#6a4526', wood2 = gold ? '#9b6f12' : '#3b2514', rim = gold ? '#ffe9a3' : '#8a6238';
+  ctx.save(); ctx.shadowColor = gold ? 'rgba(176,119,0,.45)' : 'rgba(0,0,0,.45)'; ctx.shadowBlur = 60 * SC; ctx.shadowOffsetY = 24 * SC; rr(fx, fy, FW, FH, 10); ctx.fillStyle = wood2; ctx.fill(); ctx.restore();
+  rr(fx, fy, FW, FH, 10); ctx.fillStyle = lin(fx, fy, FW, FH, 135, [[0, wood1], [0.55, wood2], [1, wood1]]); ctx.fill();
+  ctx.save(); rr(fx, fy, FW, FH, 10); ctx.clip(); ctx.lineWidth = 3; ctx.strokeStyle = gold ? 'rgba(120,80,0,.5)' : 'rgba(0,0,0,.45)'; rr(fx + 3.5, fy + 3.5, FW - 7, FH - 7, 7); ctx.stroke(); ctx.lineWidth = 2; ctx.strokeStyle = rim; rr(fx + 1, fy + 1, FW - 2, FH - 2, 9); ctx.stroke(); ctx.restore();
+  /* dark inner frame */
+  const ix = fx + PF, iy = fy + PF, iw = FW - 2 * PF, ih = FH - 2 * PF;
+  rr(ix, iy, iw, ih, 4); ctx.fillStyle = '#11141b'; ctx.fill(); inset(ix, iy, iw, ih, 4, 14, 'rgba(0,0,0,.8)');
+  /* mat */
+  const mx = ix + PI, my = iy + PI, t1 = t.c1;
+  let g0, g1, tagCol = 'rgba(255,255,255,.8)';
+  if (bg === 'dark') { g0 = '#1d222c'; g1 = '#0a0d12'; } else if (bg === 'light') { g0 = '#ffffff'; g1 = '#d5dbe6'; tagCol = 'rgba(20,32,64,.7)'; } else { g0 = mixHex('#1a1f2b', t1, 0.55); g1 = mixHex('#0c1018', t1, 0.25); }
+  { const cx = mx + matW / 2, cy = my + matH * 0.3, rad = Math.hypot(Math.max(cx - mx, mx + matW - cx), Math.max(cy - my, my + matH - cy)), gr = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad); gr.addColorStop(0, g0); gr.addColorStop(bg === 'light' ? 0.9 : bg === 'dark' ? 0.85 : 0.8, g1); gr.addColorStop(1, g1); rr(mx, my, matW, matH, 3); ctx.fillStyle = gr; ctx.fill(); inset(mx, my, matW, matH, 3, 40, 'rgba(0,0,0,.55)'); }
+  txt(t.name.toUpperCase(), mx + matW / 2 + 2.2, my + 26 + 12, `700 13px ${HEAD}`, tagCol, 4.42);
+  const jx = mx + (matW - JW) / 2, jy = my + 26 + 15.6 + 10;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); await jcDrawJersey(ctx, cfg, view, name, num, t.nick, id, logoData, jx * SC, jy * SC, SC * JW / UNI.meta.w, true); ctx.restore(); ctx.setTransform(SC, 0, 0, SC, 0, 0);
+  /* brass plaque */
+  const px = mx + 4, py = my + matH + 12;
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 6 * SC; ctx.shadowOffsetY = 2 * SC; rr(px, py, plW, plH, 4); ctx.fillStyle = '#c89a2c'; ctx.fill(); ctx.restore();
+  rr(px, py, plW, plH, 4); ctx.fillStyle = lin(px, py, plW, plH, 135, [[0, '#f6dc8a'], [0.45, '#c89a2c'], [0.7, '#f1d27a'], [1, '#b9892a']]); ctx.fill();
+  ctx.save(); rr(px, py, plW, plH, 4); ctx.clip(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(120,80,0,.35)'; rr(px + 2, py + 2, plW - 4, plH - 4, 3); ctx.stroke(); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,244,200,.7)'; rr(px + 0.5, py + 0.5, plW - 1, plH - 1, 4); ctx.stroke(); ctx.restore();
+  const shad = (fn) => { fn(0, 1, 'rgba(255,244,200,.55)'); fn(0, 0, '#3a2700'); };
+  const cxp = px + plW / 2; let y = py + 12;
+  shad((dx, dy, c) => txt(P.name.toUpperCase(), cxp + dx + 1.3, y + 21.5 + dy, `800 26px ${HEAD}`, c, 2.6)); y += 27.3 + 2;
+  shad((dx, dy, c) => txt(sub.toUpperCase(), cxp + dx + 1.3, y + 12 + dy, `600 13px ${HEAD}`, c, 2.6)); y += 15.6 + 8;
+  ctx.fillStyle = 'rgba(90,60,0,.45)'; ctx.fillRect(px + 14, y, inner, 1); ctx.fillRect(px + 14, y + 57, inner, 1);
+  { const items = stats.map(s2 => ({ ...s2, w: Math.max(tw(s2.v, `700 28px ${HEAD}`), tw(s2.l.toUpperCase(), `500 10px ${HEAD}`, 1.4)) })), free = inner - items.reduce((a, b) => a + b.w, 0), gap = free / (items.length * 2); let x = px + 14 + gap;
+    items.forEach(it => { const cx = x + it.w / 2; shad((dx, dy, c) => { txt(it.v, cx + dx, y + 9 + 24 + dy, `700 28px ${HEAD}`, c); txt(it.l.toUpperCase(), cx + dx + 0.7, y + 9 + 28 + 10 + dy, `500 10px ${HEAD}`, c, 1.4); }); x += it.w + gap * 2; }); }
+  y += 58;
+  if (awLines.length) { y += 8; awLines.forEach((line, li) => { const total = line.reduce((a, b) => a + b.wa, 0) + 12 * (line.length - 1); let x = cxp - total / 2; line.forEach(it => { shad((dx, dy, c) => txt(it.a, x + dx, y + 12 + dy, `700 12px ${BODY}`, c, 0, 'left')); x += it.wa + 12; }); y += 15 + 4; }); y -= 4; }
+  y += 8; ctx.globalAlpha = 0.8; shad((dx, dy, c) => txt(foot.toUpperCase(), cxp + dx + 1.3, y + 10 + dy, `500 10px ${HEAD}`, c, 2.6)); ctx.globalAlpha = 1;
+  const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${name.replace(/[^A-Z0-9]+/g, '-')}-${num}-vitrina.png`;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+
+// Framed jersey: wooden (or gold, for Hall of Famers) frame, team-colored mat and a brass plaque with career stats
 function frameHTML(o = {}) {
   const P = S.player, id = S.teamId, t = TEAM[id], cc = POS[P.pos], C = careerTotals();
   const stats = cc.careerLines(C).map(x => `<div><b>${fmtN(x.v)}</b><span>${x.l}</span></div>`).join('');
@@ -1519,7 +1585,7 @@ function frameHTML(o = {}) {
   const years = seasons.length ? (seasons[0].year === seasons[seasons.length - 1].year ? `${seasons[0].year}` : `${seasons[0].year} – ${seasons[seasons.length - 1].year}`) : `${S.year}`;
   return `<div class="frame ${o.gold ? 'gold' : ''}" style="${themeVars(id)}"><div class="frame-in">
     <div class="mat bg-${S.jerseyBg || 'team'}"><div class="mat-tag">${t.name.toUpperCase()}</div>
-      <div class="mat-jersey">${jerseySVG(jerseyFor(id), jName(P), playerNumber(), { view: o.view || 'both', word: t.nick })}</div><div class="glass"></div></div>
+      <div class="mat-jersey">${jerseySVG(jerseyFor(id), jName(P), playerNumber(), { view: o.view || 'both', word: t.nick })}</div></div>
     <div class="plaque"><div class="pl-name">${esc(P.name)}</div><div class="pl-sub">#${playerNumber()} · ${P.pos} · ${years}</div>
       <div class="pl-stats">${stats}</div>${aw ? `<div class="pl-aw">${aw}</div>` : ''}<div class="pl-foot">${o.final ? 'CAREER TOTALS' : 'CAREER SO FAR'} · ${fmt1(C.fp)} FANTASY PTS</div></div></div></div>`;
 }
@@ -2476,7 +2542,7 @@ const actions = {
   jcPartAuto: (d) => editJersey(c => { delete c.parts[d.k]; }),
   jcRandom: () => editJersey(c => Object.assign(c, randomJersey(S.teamId, c))),
   jcReset: () => { if (S.jerseys) delete S.jerseys[S.teamId]; saveGame(); renderLocker(true); toast('Design reset'); },
-  jcExport: () => { exportJerseyPNG().then(() => toast('⬇ Jersey saved as PNG')).catch(() => toast('Could not export the image')); },
+  jcExport: () => { exportVitrinaPNG().then(() => toast('⬇ Display case saved as PNG')).catch(e => { console.error(e); toast('Could not export the image'); }); },
   jerseyBg: (d) => { S.jerseyBg = d.k; saveGame(); renderLocker(true); },
   jerseyExpand: () => {
     const P = S.player, id = S.teamId;

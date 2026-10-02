@@ -1293,7 +1293,7 @@ function normJersey(c) {
   o = { ...JC_EL_DEFAULT, numFont: 'jets', nameFont: 'jets', numSize: 100, numY: 0, nameSize: 100, numOutlineW: 2.4, nameOutlineW: 0, pattern: 'solid', ...o };
   o.torsoLogo = !!o.torsoLogo; o.logoX = clamp(Number(o.logoX) || 150, 8, 292); o.logoY = clamp(Number(o.logoY) || 112, 8, 337); o.logoSize = clamp(Number(o.logoSize) || 100, 40, 220);
   o.sleeveStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.sleeveStyle) ? o.sleeveStyle : 'even'; o.sleeveThick = clamp(Number(o.sleeveThick) || 100, 60, 200); o.sleeveNumY = clamp(Number(o.sleeveNumY) || 0, -50, 40);
-  o.sleeveNums = !!o.sleeveNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
+  o.showWord = o.showWord !== false; o.sleeveNums = !!o.sleeveNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
   const hx = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d; o.primary = hx(o.primary, '#FFFFFF'); o.secondary = hx(o.secondary, '#111418'); o.accent = hx(o.accent, '#FFFFFF');
   o.numSize = clamp(Number(o.numSize) || 100, 50, 150); o.nameSize = clamp(Number(o.nameSize) || 100, 50, 150); o.numY = clamp(Number(o.numY) || 0, -60, 70);
   o.numOutlineW = clamp(Number(o.numOutlineW) || 0, 0, 8); o.nameOutlineW = clamp(Number(o.nameOutlineW) || 0, 0, 5);
@@ -1352,7 +1352,7 @@ function jcTexts(c, view, name, number, word) {
   if (view === 'back') {
     const nm = String(name || '').toUpperCase(), len = nm.length, capN = (len > 8 ? 19 - (len - 8) * 1.2 : 19) * c.nameSize / 100;
     out.push({ k: 'name', t: nm, x: UNI.meta.cx, y: 97, size: capN / nf.cap, css: nf.css, w: nf.w, wf: nf.wf, fill: c.nameColor, stroke: c.nameOutlineW > 0 ? c.nameOutline : null, sw: c.nameOutlineW > 0 ? c.nameOutlineW : 2.4, ls: 1.5, maxW: 150 });
-  } else if (word) {
+  } else if (word && c.showWord !== false) {
     out.push({ k: 'word', t: String(word).toUpperCase(), x: UNI.meta.cx, y: 97, size: (7 * c.nameSize / 100) / nf.cap, css: nf.css, w: nf.w, wf: nf.wf, fill: c.nameColor, stroke: null, sw: 0, ls: 2.4, maxW: 130 });
   }
   return out;
@@ -2170,6 +2170,7 @@ function renderLocker(keepScroll) {
         <div class="lk-label">3 · PARTS <span class="hint">give any part its own color</span></div>
         <div class="jc-parts">${parts}</div>
         <div class="lk-label">4 · PLAYER NAME</div>
+        <div class="seg"><button class="tog ${cfg.showWord ? 'on' : ''}" data-act="jcWord"><i></i>Team name on the front</button></div>
         <div class="lk-num"><input class="input" maxlength="12" value="${esc(jName(P))}" data-change="jerseyName" aria-label="Player name on the jersey" placeholder="NAME ON JERSEY"></div>
         <div class="jc-grid2"><label class="jc-sel"><span>Font</span><select class="input" data-jc="nameFont">${opt(JC_FONTS, cfg.nameFont)}</select></label>${range('Size', 'nameSize', 50, 150, 5, cfg.nameSize, '%')}</div>
         <div class="jc-colors stack">${colorRow('Name color', 'nameColor', cfg.nameColor)}${colorRow('Name outline', 'nameOutline', cfg.nameOutline)}</div>
@@ -2555,6 +2556,7 @@ const actions = {
   jcTorsoLogo: () => { jcView = 'front'; editJersey(c => { c.torsoLogo = !c.torsoLogo; }); },
   jcLogoCenter: () => editJersey(c => { c.logoX = 150; c.logoY = 112; c.logoSize = 100; }),
   jcNumReset: () => editJersey(c => { c.sleeveNumY = 0; }),
+  jcWord: () => { jcView = 'front'; editJersey(c => { c.showWord = !c.showWord; }); },
   jcSleeveStyle: (d) => editJersey(c => { c.sleeveStyle = d.k; }),
   jcSleeve: (d) => editJersey(c => { const n = Number(d.k); c.sleeveCount = n; c.sleeveStripes = n > 0; c.retro = n === 3; }),
   jcPartAuto: (d) => editJersey(c => { delete c.parts[d.k]; }),

@@ -1292,6 +1292,7 @@ function normJersey(c) {
   let o = c && c.primary !== undefined ? { ...c } : migrateJersey(c || {});
   o = { ...JC_EL_DEFAULT, numFont: 'jets', nameFont: 'jets', numSize: 100, numY: 0, nameSize: 100, numOutlineW: 2.4, nameOutlineW: 0, pattern: 'solid', ...o };
   o.torsoLogo = !!o.torsoLogo; o.logoX = clamp(Number(o.logoX) || 150, 8, 292); o.logoY = clamp(Number(o.logoY) || 112, 8, 337); o.logoSize = clamp(Number(o.logoSize) || 100, 40, 220);
+  o.sleeveStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.sleeveStyle) ? o.sleeveStyle : 'even'; o.sleeveThick = clamp(Number(o.sleeveThick) || 100, 60, 200); o.sleeveNumY = clamp(Number(o.sleeveNumY) || 0, -50, 40);
   o.sleeveNums = !!o.sleeveNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
   const hx = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d; o.primary = hx(o.primary, '#FFFFFF'); o.secondary = hx(o.secondary, '#111418'); o.accent = hx(o.accent, '#FFFFFF');
   o.numSize = clamp(Number(o.numSize) || 100, 50, 150); o.nameSize = clamp(Number(o.nameSize) || 100, 50, 150); o.numY = clamp(Number(o.numY) || 0, -60, 70);
@@ -1316,11 +1317,26 @@ function randomJersey(teamId, current) {
   if (!c.hemTrim && rnd() < 0.18) c.hemTrim = true;
   if (rnd() < 0.15) c.collarContrast = false;
   c.numFont = pick(['cond', 'cond', 'block', 'athletic']); c.nameFont = c.numFont; c.numOutlineW = pick([0, 3.2, 3.2, 4.5]);
+  c.sleeveStyle = pick(JC_SLEEVE_STYLES)[0]; c.sleeveThick = pick([90, 100, 120, 150]);
   if (current) { c.numSize = current.numSize; c.numY = current.numY; c.nameSize = current.nameSize; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
   return autoText(c);
 }
 
 /* ---- text layout shared by the SVG and the PNG export (coordinates in the 300 x 345 jersey box) ---- */
+// sleeve lines: each style gives the width of every line (x thickness) and the gap between them (x spacing), counting from the cuff towards the shoulder
+const JC_SLEEVE_STYLES = [['even', 'Even', [1, 1, 1], 1], ['thick', 'Thick + thin', [1.9, 0.6, 0.6], 0.8], ['taper', 'Tapered', [0.7, 1.1, 1.6], 1], ['wide', 'Wide', [1.7, 1.7, 1.7], 1], ['spaced', 'Spaced', [1, 1, 1], 2.4]];
+function jcStripeBands(c) {
+  const n = jcSleeveCount(c), st = JC_SLEEVE_STYLES.find(x => x[0] === c.sleeveStyle) || JC_SLEEVE_STYLES[0], k = c.sleeveThick / 100, T = 7 * k, out = []; let pos = 10;
+  for (let i = 0; i < n; i++) { const w = T * st[2][i]; out.push([pos, pos + w]); pos += w + 4.5 * k * st[3]; }
+  return out;
+}
+// a band parallel to the end of the sleeve: the cuff curve moved a..b units towards the shoulder (side 'R' is the mirror image)
+function jcBandPath(side, a, b) {
+  const P = UNI.cuffCurve, n = P.length;
+  const off = d => P.map((p, i) => { const q0 = P[Math.max(0, i - 1)], q1 = P[Math.min(n - 1, i + 1)]; let tx = q1[0] - q0[0], ty = q1[1] - q0[1]; const l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l; let nx = ty, ny = -tx; if (ny > 0) { nx = -nx; ny = -ny; } return [p[0] + nx * d, p[1] + ny * d]; });
+  const A = off(a), B = off(b), pts = A.concat(B.reverse()).map(q => (side === 'R' ? [2 * UNI.meta.cx - q[0], q[1]] : q));
+  return 'M' + pts.map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join('L') + 'Z';
+}
 const jcSleeveCount = c => (c.sleeveCount != null ? c.sleeveCount : (c.sleeveStripes ? (c.retro ? 3 : 2) : 0));
 // the traced NFL numerals: a run of glyph paths (cap height 100 units)
 function jcJetsRun(t) {
@@ -1353,7 +1369,7 @@ function jcSleeveTexts(c, view, number) {
   const run = f.glyph ? jcJetsRun(number) : null, half00 = f.glyph ? (JETS.glyphs['0'].w * 2 + JETS.gap) / 100 * base0 / 2 : f.wf * 2 * (128.6 * 0.3 * 0.73 / f.cap) / 2;
   const mk = side => {
     const d = JC_SLEEVE[view][side], rad = d.r * Math.PI / 180;
-    const base = { k: 'sh', t: String(number), x: 0, y: 0, tx: d.x + Math.cos(rad) * half00, ty: d.y + Math.sin(rad) * half00, rot: d.r, sx: 1, fill: c.numColor, stroke: c.numOutlineW > 0 ? c.numOutline : null, sw: Math.min(1.2, c.numOutlineW * 0.4), maxW: 1e9, clip: 'bo' };
+    const base = { k: 'sh', t: String(number), x: 0, y: 0, tx: d.x + Math.cos(rad) * half00, ty: d.y + (c.sleeveNumY || 0) + Math.sin(rad) * half00, rot: d.r, sx: 1, fill: c.numColor, stroke: c.numOutlineW > 0 ? c.numOutline : null, sw: Math.min(1.2, c.numOutlineW * 0.4), maxW: 1e9, clip: 'bo' };
     return f.glyph ? { ...base, jets: true, run, cap } : { ...base, size: cap / f.cap, css: f.css, w: f.w, wf: f.wf, ls: 0 };
   };
   return [mk('L'), mk('R')];
@@ -1407,7 +1423,7 @@ function jerseyOne(cfg, view, name, number, o = {}) {
     ? [['sleeveL', C.sleeveL], ['sideL', side], ['torso', bodyFill], ['sleeveR', C.sleeveR], ['yoke', C.shoulders], ['sideR', side], ['collarBack', C.collar]]
     : [['sleeveL', C.sleeveL], ['neckB', dB], ['neckA', dA], ['sideL', side], ['collarL', C.collar], ['neckBand', C.collar], ['torso', bodyFill], ['sleeveR', C.sleeveR], ['yokeL', C.shoulders], ['yokeR', C.shoulders], ['sideR', side], ['collarR', C.collar], ['neckTip', C.collar]];
   const bottom = Z.meta.bottom, B = UNI.bands, nStr = jcSleeveCount(cfg);
-  const bandsOf = side2 => (cfg.cuffs ? `<path d="${B[side2].cuff}" fill="${C.cuffs}"/>` : '') + ['s1', 's2', 's3'].slice(0, nStr).map(k => `<path d="${B[side2][k]}" fill="${C.decor}"/>`).join('');
+  const bandsOf = side2 => (cfg.cuffs ? `<path d="${B[side2].cuff}" fill="${C.cuffs}"/>` : '') + jcStripeBands(cfg).map(([a, b]) => `<path d="${jcBandPath(side2, a, b)}" fill="${C.decor}"/>`).join('');
   const tid = o.teamId || (typeof S !== 'undefined' && S && S.teamId), lkey = lum(C.body) > 0.45 ? 'light' : 'dark';
   const backHref = !back ? '' : (o.backLogo !== undefined ? o.backLogo : (tid && TEAM[tid] ? (o.logoData ? o.logoData[lkey] : jcLogoUrl(tid, lkey)) : ''));
   const backLogo = backHref ? `<image href="${backHref}" x="${M.cx - 8.5}" y="35" width="17" height="17" preserveAspectRatio="xMidYMid meet"/>` : '';
@@ -1416,7 +1432,7 @@ function jerseyOne(cfg, view, name, number, o = {}) {
   const yokes = back ? ['yoke'] : ['yokeL', 'yokeR'];
   const hem = cfg.hemTrim ? `<g clip-path="url(#${id}bd)"><rect x="0" y="${(bottom - 9).toFixed(1)}" width="300" height="14" fill="${C.decor}"/></g>` : '';
   const texts = o.noText ? '' : jcTexts(cfg, view, name, number, o.word).map(jcTextSVG).join('') +
-    jcShoulderTexts(cfg, view, number).map(t => `<g clip-path="url(#${id}${t.clip})">${jcTextSVG(t)}</g>`).join('');
+    jcShoulderTexts(cfg, view, number).map(t => `<g clip-path="url(#${id}${t.clip})"${cfg.sleeveNums ? ' data-snum="1" class="jc-snum"' : ''}>${cfg.sleeveNums ? `<circle cx="${t.tx < UNI.meta.cx ? 33 : 2 * UNI.meta.cx - 33}" cy="${(t.ty - (t.cap || 28) / 2).toFixed(1)}" r="20" fill="transparent"/>` : ''}${jcTextSVG(t)}</g>`).join('');
   const clipSleeves = `<clipPath id="${id}sleeveVisL"><path d="${Z.sleeveVisL}"/></clipPath><clipPath id="${id}sleeveVisR"><path d="${Z.sleeveVisR}"/></clipPath>`;
   const clipYokes = back ? `<clipPath id="${id}yoke"><path d="${Z.yoke}"/></clipPath>` : `<clipPath id="${id}yokeL"><path d="${Z.yokeL}"/></clipPath><clipPath id="${id}yokeR"><path d="${Z.yokeR}"/></clipPath>`;
   return `<svg${o.noText ? ' xmlns="http://www.w3.org/2000/svg"' : ''} class="jersey part-jersey ${back ? 'is-back' : 'is-front'} ${o.cls || ''}" viewBox="0 0 ${M.w} ${M.h}" role="img" aria-label="${back ? 'Back' : 'Front'} of jersey ${esc(String(name || ''))} ${number}">
@@ -2120,7 +2136,7 @@ function renderLocker(keepScroll) {
   const dets = JC_DETAILS.map(([k, l]) => `<button class="tog ${cfg[k] ? 'on' : ''}" data-act="jcToggle" data-k="${k}"><i></i>${l}</button>`).join('');
   const parts = JC_PARTS.map(([k, l]) => `<div class="jc-part">${colorRow(l, 'parts.' + k, C[k], cfg.parts[k] ? `<button class="mini" data-act="jcPartAuto" data-k="${k}">Auto</button>` : '<span class="hint">auto</span>')}</div>`).join('');
   const nStr = jcSleeveCount(cfg);
-  const sleeveSel = `<div class="lk-sub">Sleeve lines <span class="hint">add or remove them</span></div><div class="minis big sl-sel">${[0, 1, 2, 3].map(n => chip('jcSleeve', n, n ? String(n) : 'None', nStr === n)).join('')}</div>${nStr ? colorRow('Line color', 'parts.decor', C.decor) : ''}`;
+  const sleeveSel = `<div class="lk-sub">Sleeve lines <span class="hint">add or remove them</span></div><div class="minis big sl-sel">${[0, 1, 2, 3].map(n => chip('jcSleeve', n, n ? String(n) : 'None', nStr === n)).join('')}</div>${nStr ? `<div class="minis sl-styles">${JC_SLEEVE_STYLES.map(x => chip('jcSleeveStyle', x[0], x[1], cfg.sleeveStyle === x[0])).join('')}</div>${range('Line thickness', 'sleeveThick', 60, 200, 5, cfg.sleeveThick, '%')}${colorRow('Line color', 'parts.decor', C.decor)}` : ''}`;
   setScreen(`<div class="wrap jc-wrap" style="${themeVars(id)}">
     <div class="topbar"><button class="btn btn-ghost" data-act="goHome">◂ BACK</button><span class="eyebrow">JERSEY CREATOR</span></div>
     <h2 class="h-xl title-logo">${badge(id, 'lg')}<span>NFL JERSEY CREATOR</span></h2>
@@ -2160,7 +2176,7 @@ function renderLocker(keepScroll) {
         ${range('Outline width', 'nameOutlineW', 0, 5, 0.5, cfg.nameOutlineW)}
         <div class="lk-label">5 · NUMBER</div>
         <div class="lk-sub">Side numbers <span class="hint">on the shoulders or moved down to the sleeves</span></div>
-        <div class="minis big">${chip('jcNumPos', 'shoulder', 'SHOULDERS', !cfg.sleeveNums)}${chip('jcNumPos', 'sleeve', 'SLEEVES', cfg.sleeveNums)}</div>
+        <div class="minis big">${chip('jcNumPos', 'shoulder', 'SHOULDERS', !cfg.sleeveNums)}${chip('jcNumPos', 'sleeve', 'SLEEVES', cfg.sleeveNums)}</div>${cfg.sleeveNums ? `<div class="muted small">Drag a sleeve number up or down on the jersey.${(cfg.sleeveNumY || 0) ? ' <button class="mini" data-act="jcNumReset">Reset height</button>' : ''}</div>` : ''}
         <div class="lk-num"><input class="input" type="number" min="0" max="99" value="${playerNumber()}" data-change="jerseyNumber" aria-label="Jersey number" style="max-width:110px"><button class="btn btn-ghost btn-sm" data-act="randNumber2">RANDOM #</button><span class="hint" id="numHint2">${P.pos} numbers: ${numberRule(P.pos)}</span></div>
         <div class="jc-grid2"><label class="jc-sel"><span>Font</span><select class="input" data-jc="numFont">${opt(JC_FONTS, cfg.numFont)}</select></label>${range('Size', 'numSize', 50, 150, 5, cfg.numSize, '%')}</div>
         ${range('Position', 'numY', -60, 70, 2, cfg.numY)}
@@ -2379,7 +2395,7 @@ function jcInput(el, commit) {
   if (['numColor', 'numOutline', 'nameColor', 'nameOutline'].includes(path)) cfg.textCustom = true;
   if (['primary', 'secondary', 'accent'].includes(path)) autoText(cfg);
   jcSave(cfg);
-  const lab = document.querySelector(`[data-rv="${path}"]`); if (lab && el.type === 'range') lab.textContent = v + (/Size$/.test(path) ? '%' : '');
+  const lab = document.querySelector(`[data-rv="${path}"]`); if (lab && el.type === 'range') lab.textContent = v + (/(Size|Thick)$/.test(path) ? '%' : '');
   const code = el.parentNode && el.parentNode.querySelector('code'); if (code) code.textContent = path.startsWith('parts.') ? 'CUSTOM' : String(v).toUpperCase();
   if (commit) { saveGame(); renderLocker(true); } else jcLive();
 }
@@ -2538,6 +2554,8 @@ const actions = {
   jcNumPos: (d) => editJersey(c => { c.sleeveNums = d.k === 'sleeve'; }),
   jcTorsoLogo: () => { jcView = 'front'; editJersey(c => { c.torsoLogo = !c.torsoLogo; }); },
   jcLogoCenter: () => editJersey(c => { c.logoX = 150; c.logoY = 112; c.logoSize = 100; }),
+  jcNumReset: () => editJersey(c => { c.sleeveNumY = 0; }),
+  jcSleeveStyle: (d) => editJersey(c => { c.sleeveStyle = d.k; }),
   jcSleeve: (d) => editJersey(c => { const n = Number(d.k); c.sleeveCount = n; c.sleeveStripes = n > 0; c.retro = n === 3; }),
   jcPartAuto: (d) => editJersey(c => { delete c.parts[d.k]; }),
   jcRandom: () => editJersey(c => Object.assign(c, randomJersey(S.teamId, c))),
@@ -2630,7 +2648,17 @@ document.addEventListener('click', e => {
   const f = actions[el.dataset.act];
   if (f) f(el.dataset, el, e);
 });
-let jcDrag = null;
+let jcDrag = null, jcNumDrag = null;
+document.addEventListener('pointerdown', e => {                       // sleeve numbers: drag up or down (vertical only)
+  const el = e.target.closest && e.target.closest('[data-snum]'); if (!el || !el.closest('.jc2-preview')) return;
+  const svg = el.ownerSVGElement, p = svg && jcPoint(svg, e); if (!p) return;
+  const cfg = JSON.parse(JSON.stringify(jerseyFor(S.teamId))); jcNumDrag = { svg, cfg, y0: p.y, v0: cfg.sleeveNumY || 0 }; e.preventDefault();
+});
+document.addEventListener('pointermove', e => {
+  if (!jcNumDrag) return; const p = jcPoint(jcNumDrag.svg, e); if (!p) return;
+  jcNumDrag.cfg.sleeveNumY = clamp(jcNumDrag.v0 + (p.y - jcNumDrag.y0), -50, 40); jcSave(jcNumDrag.cfg); jcLive(); jcNumDrag.svg = document.querySelector('.jc2-preview svg') || jcNumDrag.svg;
+});
+['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, () => { if (!jcNumDrag) return; jcSave(jcNumDrag.cfg); saveGame(); jcNumDrag = null; renderLocker(true); }));
 const jcPoint = (svg, e) => { const m = svg.getScreenCTM(); if (!m) return null; const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(m.inverse()); };
 document.addEventListener('pointerdown', e => {
   const el = e.target.closest && e.target.closest('image[data-tlogo]'); if (!el || !el.closest('.jc2-preview')) return;

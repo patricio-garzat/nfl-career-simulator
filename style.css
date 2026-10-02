@@ -639,3 +639,5 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
   .lv-board { gap: 6px; padding: 6px 8px; } .lv-team { gap: 6px; min-width: 0; } .lv-team img { width: 30px; height: 30px; } .lv-team b { font-size: 17px; } .lv-score { font-size: 32px; min-width: 34px; } .lv-poss { font-size: 14px; } .lv-q { font-size: 13px; } .lv-clock { font-size: 22px; }
   .lv-ctrl { margin-top: 24px; }
 }
+
+.jc2-preview .jc-snum { cursor: ns-resize; touch-action: none; } .sl-styles { flex-wrap: wrap; margin: 4px 0 8px; } .sl-styles .mini { padding: 6px 10px; }

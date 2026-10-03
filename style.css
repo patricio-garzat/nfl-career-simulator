@@ -949,17 +949,20 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 /* ---- contract signing ---- */
 .sg-overlay { position: fixed; inset: 0; z-index: 140; display: flex; flex-direction: column; align-items: center; overflow-y: auto; background: radial-gradient(900px 600px at 50% 0%, color-mix(in srgb, var(--t1) 30%, #101827), #070b14 75%); animation: ffIn .45s ease both; } .sg-overlay.out { animation: ffOut .38s ease both; }
 .sg-top { width: 100%; max-width: 640px; display: flex; justify-content: space-between; align-items: center; padding: calc(12px + env(safe-area-inset-top)) 14px 6px; padding-right: 128px; } .sg-tag { font: 800 13px var(--head); letter-spacing: .16em; color: var(--tb, var(--lime)); }
-.sg-desk { width: min(94vw, calc((100vh - 150px) * 0.775), 640px); margin: 4px auto 0; flex: none; } .sg-paper { width: 100%; height: auto; display: block; filter: drop-shadow(0 26px 40px rgba(0, 0, 0, .55)); transform-origin: 50% 100%; animation: sgPaper .7s cubic-bezier(.2, .9, .3, 1) both; }
-@keyframes sgPaper { from { transform: translateY(46px) rotate(-1.4deg) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
-.sg-line { opacity: 0; animation: sgLine .5s ease forwards; } @keyframes sgLine { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
-.sg-pop { opacity: 0; animation: sgPop .5s cubic-bezier(.2, 1.4, .4, 1) forwards; transform-box: fill-box; transform-origin: center; } @keyframes sgPop { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
+.sg-desk { width: min(94vw, calc((100vh - 150px) * 0.775), 640px); margin: 4px auto 0; flex: none; } .sg-paper { width: 100%; height: auto; display: block; filter: drop-shadow(0 26px 40px rgba(0, 0, 0, .55)); transform-origin: 50% 100%; animation: sgPaper .5s cubic-bezier(.2, 1.15, .3, 1) both; }
+@keyframes sgPaper { from { transform: translateY(160px) rotate(-7deg) scale(.88); opacity: 0; } 60% { opacity: 1; } to { transform: none; opacity: 1; } }
+.sg-line { opacity: 0; animation: sgLine .32s ease-out forwards; } @keyframes sgLine { from { opacity: 0; clip-path: inset(-4px 100% -4px 0); transform: translateX(-6px); } to { opacity: 1; clip-path: inset(-4px -4px -4px 0); transform: none; } }
+.sg-pop { opacity: 0; animation: sgPop .38s cubic-bezier(.2, 1.5, .4, 1) forwards; transform-box: fill-box; transform-origin: center; } @keyframes sgPop { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
 .sg-t { font: 500 11.6px Georgia, 'Times New Roman', serif; fill: #2a2a2a; } .sg-title { font: 800 27px 'Barlow Condensed', sans-serif; letter-spacing: .14em; fill: #1b1e26; } .sg-sub { font: 700 13px 'Barlow Condensed', sans-serif; letter-spacing: .18em; }
 .sg-big { font: 800 22px 'Barlow Condensed', sans-serif; letter-spacing: .03em; } .sg-small { font: 700 10px 'Barlow Condensed', sans-serif; letter-spacing: .16em; } .sg-x { font: 700 18px Georgia, serif; fill: #3a3a3a; } .sg-date { font: 500 12px Georgia, serif; fill: #3a3a3a; }
 .sg-pen { transition: opacity .2s; filter: drop-shadow(5px 9px 5px rgba(0, 0, 0, .35)); } .sg-pen.lift { filter: drop-shadow(10px 18px 9px rgba(0, 0, 0, .3)); } .sg-penshadow { display: none; }
-.sg-stamp { transform-box: fill-box; } .sg-stamp.on { animation: sgStamp .45s cubic-bezier(.2, 1.6, .4, 1) both; } .sg-stampt { font: 800 24px 'Barlow Condensed', sans-serif; letter-spacing: .2em; }
+.sg-stamp { transform-box: fill-box; } .sg-stamp.on { animation: sgStamp .28s cubic-bezier(.2, 1.7, .4, 1) both; } .sg-stampt { font: 800 24px 'Barlow Condensed', sans-serif; letter-spacing: .2em; }
 @keyframes sgStamp { from { opacity: 0; transform: scale(2.1) rotate(-12deg); } to { opacity: .9; transform: none; } }
 .sg-actions { margin: 12px 0 calc(16px + env(safe-area-inset-bottom)); min-height: 62px; display: flex; justify-content: center; align-items: center; }
-.sg-done .sg-line, .sg-done .sg-pop { animation: none; opacity: 1; transform: none; }
+.sg-done .sg-line, .sg-done .sg-pop { animation: none; opacity: 1; transform: none; clip-path: none; }
+.sg-desk.shake { animation: sgShake .32s ease-out; } @keyframes sgShake { 0% { transform: translate(0, 0); } 15% { transform: translate(-5px, 4px); } 35% { transform: translate(4px, -3px); } 60% { transform: translate(-2px, 2px); } 100% { transform: none; } }
+.sg-ring.on { animation: sgRing .6s ease-out both; transform-box: fill-box; transform-origin: center; } @keyframes sgRing { from { opacity: .9; transform: scale(.4); stroke-width: 8px; } to { opacity: 0; transform: scale(5); stroke-width: 1px; } }
+.sg-shine.on { animation: sgShine .9s .05s ease-in-out both; } @keyframes sgShine { from { opacity: .9; transform: skewX(-18deg) translateX(0); } to { opacity: 0; transform: skewX(-18deg) translateX(1000px); } }
 
 /* first team: league chooser (MFL / US High School) */
 .yp-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 10px; }

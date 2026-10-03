@@ -1155,6 +1155,7 @@ const Snd = (() => {
     up: t => { brush(t, 0.5, 0.035, true); ping(t + 0.3, 0.013); ping(t + 0.42, 0.01); },
     down: t => { brush(t, 0.45, 0.03, false); },
     whoosh: t => air(t, 0.8, 0.035),
+    penScratch: t => noise(t, 0.08, { type: 'bandpass', f: rr(2400, 3800), q: 1.1, vol: 0.04, attack: 0.008, crisp: true }),
     cash: t => { soft(t, 0.04); ping(t + 0.06, 0.012); },
     contract: t => { lib.cash(t); lib.fanfare(t + 0.3); applause(t + 1, 1.4, 0.02); },
     seasonEnd: t => { hum(t, 0.03); brush(t + 0.15, 0.8, 0.03, false); },
@@ -2827,6 +2828,7 @@ const actions = {
   beginRookie: async () => {
     if (busy) return; busy = true;
     try {
+      if (typeof contractSign === 'function' && S.contract) await contractSign({ teamId: S.teamId, kind: 'ROOKIE CONTRACT', years: S.contract.years, total: S.contract.total, guaranteed: S.contract.guaranteed, role: null, startYear: START_YEAR, date: `May 2, ${START_YEAR}` });
       S.year = START_YEAR; startSeason(); S.phase = 'season'; saveGame(); Snd.play('whistle', 0.5);
       await splash(`${S.year} SEASON`, `${TEAM[S.teamId].name} · Rookie Season`, 1700);
       if (typeof ffPreseason === 'function') await ffPreseason(curSeason());   // fantasy draft day
@@ -2927,8 +2929,10 @@ const actions = {
   tradeAccept: (d) => {
     const se = curSeason(), o = offersOf(se).find(x => x.id === d.id); if (!o || tradeStatus(se) === 'closed' || tradeStatus(se) === 'used') return;
     const t = TEAM[o.teamId];
-    confirmBox(`Accept the trade to ${t.city}?`, `You'd join the ${t.name} as a <b>${o.role}</b>. Your contract carries over, and the rest of your season is played with your new team. You can only be traded once this season.`, 'ACCEPT TRADE', () => {
+    confirmBox(`Accept the trade to ${t.city}?`, `You'd join the ${t.name} as a <b>${o.role}</b>. Your contract carries over, and the rest of your season is played with your new team. You can only be traded once this season.`, 'ACCEPT TRADE', async () => {
       const from = se.teamId; executeTrade(o);
+      const c = S.contract || {};
+      if (typeof contractSign === 'function') await contractSign({ teamId: o.teamId, kind: 'TRADE · NEW TEAM', years: c.yearsLeft || c.years || 1, total: c.total || 0, guaranteed: c.guaranteed || 0, role: o.role, startYear: S.year, date: `${['October', 'November'][rnd() < 0.5 ? 0 : 1]} ${randInt(2, 27)}, ${S.year}` });
       openModal(`<div class="nc-anim" style="${themeVars(o.teamId)}"><div class="eyebrow">TRADE COMPLETED</div><div class="row">${badge(from, 'lg')}<span class="trade-arrow">➜</span>${badge(o.teamId, 'xl')}</div>
         <h3 class="modal-h">You've been traded to the ${t.name}!</h3><div class="d-contract"><div>${o.role.toUpperCase()}</div><div>${o.pkg}</div></div>
         <div class="muted">Your remaining schedule has changed.</div><button class="btn btn-primary btn-xl" data-act="tradeDone">TO THE DASHBOARD ▸</button></div>`, 'contract');
@@ -3039,11 +3043,12 @@ const actions = {
   retireAsk: () => confirmBox('Retire from the NFL?', 'Your career will end and the final career summary will be shown. This cannot be undone.', 'RETIRE', doRetire, true),
 
   /* free agency */
-  faAccept: (d) => {
+  faAccept: async (d) => {
     const o = S.fa.offers.find(x => x.id === d.id); if (!o) return;
     const t = TEAM[o.teamId];
     S.contract = makeContract({ ...o, startYear: S.year + 1 }, o.isCur ? 'Re-sign' : 'Free Agent');
     S.contracts.push({ ...S.contract }); S.teamId = o.teamId; S.fa = { signed: true }; saveGame();
+    if (typeof contractSign === 'function') await contractSign({ teamId: o.teamId, kind: o.isCur ? 'RE-SIGNING' : 'FREE AGENT CONTRACT', years: o.years, total: o.total, guaranteed: o.guaranteed, role: o.role, startYear: S.year + 1, date: `March 15, ${S.year + 1}` });
     openModal(`<div class="nc-anim" style="${themeVars(o.teamId)}"><div class="eyebrow">NEW CONTRACT</div>${badge(o.teamId, 'xl')}
       <h3 class="modal-h">${o.isCur ? 'You re-signed with' : 'You signed with'} the ${t.name}!</h3>
       <div class="d-contract"><div>${o.years} YEAR${o.years > 1 ? 'S' : ''}</div><div>${money(o.total)}</div><div>${money(o.guaranteed)} GUARANTEED</div></div>

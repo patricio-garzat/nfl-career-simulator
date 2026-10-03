@@ -469,6 +469,7 @@ async function openLiveGame(game, notes, season) {
     const win = game.w; POS[P.pos].stats.forEach(x => { L.T[x.k] = (game.s || {})[x.k] || 0; }); tiles(); setClock(4, '0:00');
     const b = $('lvBanner'); if (b) { b.className = `lv-banner show final ${win ? 'good' : 'bad'}`; b.innerHTML = `<small>FINAL</small>${win ? 'VICTORY' : 'DEFEAT'}<span>${TEAM[away].id} ${L.score.away} — ${L.score.home} ${TEAM[home].id}</span><button class="btn btn-primary" id="lvDone">CONTINUE ▸</button>`; const d = $('lvDone'); if (d) d.addEventListener('click', finish); }
     const sk = $('lvSkip'); if (sk) sk.style.display = 'none'; Snd.play(win ? 'fanfare' : 'down');
+    if (win) { const st = el.querySelector('.lv-stage') || el; burst(st, 70); setTimeout(() => burst(st, 50), 450); }   // team-colored confetti
   };
   /* ---- play the script ---- */
   await sleep(700);

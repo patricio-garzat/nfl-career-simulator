@@ -1812,7 +1812,17 @@ function splash(title, sub, ms = 1500) {
   });
 }
 // Small particle burst (touchdowns, awards, contracts)
-function burst(parent, n = 28, colors = ['#c5ff3a', '#ffc53d', '#ffffff', '#35e0ff']) {
+// confetti colors: your current team's (dark colors get lighter shades so they show up on dark screens), plus a little white
+function confettiColors() {
+  let c1, c2;
+  if (typeof CS !== 'undefined' && CS && CS.info && !(S && S.phase === 'season')) { c1 = CS.info.c1; c2 = CS.info.c2; }
+  else if (S && S.teamId && TEAM[S.teamId]) { c1 = TEAM[S.teamId].c1; c2 = TEAM[S.teamId].c2; }
+  if (!c1) return ['#c5ff3a', '#ffc53d', '#ffffff', '#35e0ff'];
+  const shades = c => (lum(c) < 0.3 ? [mixHex(c, '#ffffff', 0.4), mixHex(c, '#ffffff', 0.22), c] : [c, c, mixHex(c, '#ffffff', 0.25)]);
+  return [...shades(c1), ...shades(c2 || c1), '#ffffff'];
+}
+function burst(parent, n = 28, colors) {
+  colors = colors || confettiColors();
   const box = document.createElement('div'); box.className = 'burst';
   for (let i = 0; i < n; i++) {
     const p = document.createElement('i');
@@ -2159,7 +2169,8 @@ function showGameModal(game, notes, season) {
   if (game.hurt) Snd.play('injury', 0.9);
   if (notes.some(n => n.includes('SUPER BOWL CHAMPIONS'))) Snd.play('bigFanfare', 1.2);
   else if (notes.some(n => n.includes('PLAYOFFS CLINCHED'))) Snd.play('fanfare', 1.2);
-  if (game.td > 0 && game.st !== 'OUT') burst(modalRoot.querySelector('.modal-card'), 34);
+  if (game.w) burst(modalRoot.querySelector('.modal-card'), game.td > 0 ? 56 : 44);   // a win rains confetti in your team's colors
+  else if (game.td > 0 && game.st !== 'OUT') burst(modalRoot.querySelector('.modal-card'), 34);
   if (notes.some(n => n.includes('SUPER BOWL CHAMPIONS'))) burst(modalRoot.querySelector('.modal-card'), 70);
 }
 

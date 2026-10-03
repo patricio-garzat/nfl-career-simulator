@@ -6,7 +6,7 @@
   <script>try{document.documentElement.dataset.theme=localStorage.getItem('nfl_theme')||'dark'}catch(e){}</script>
   <script>
     // auto-update: GitHub Pages lets browsers keep files for ~10 minutes, so on every visit we ask version.json (never cached) and, if a newer build is published, reload once on a fresh URL
-    window.APP_BUILD = '20261002-29';
+    window.APP_BUILD = '20261002-30';
     try { fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
       if (j && j.v && j.v !== window.APP_BUILD) { var k = 'nfl_reloaded_' + j.v; if (!sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); location.replace(location.pathname + '?v=' + j.v); } }
     }).catch(function () {}); } catch (e) {}
@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,800&family=Inter:wght@400;500;600;700&display=swap&family=Anton&family=Oswald:wght@600;700&family=Graduate&family=Alfa+Slab+One&family=Teko:wght@600;700&family=Saira+Extra+Condensed:wght@800;900&family=Archivo+Black" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261002-29">
+  <link rel="stylesheet" href="style.css?v=20261002-30">
 </head>
 <body>
   <!-- Every screen is rendered into #app by script.js -->
@@ -26,14 +26,14 @@
   <!-- Modals, toasts and overlays -->
   <div id="modal-root"></div>
   <div id="toast-root"></div>
-  <script src="uniform-shapes.js?v=20261002-29"></script>
-  <script src="colleges.js?v=20261002-29"></script>
-  <script src="fonts-jets.js?v=20261002-29"></script>
-  <script src="minigames.js?v=20261002-29"></script>
-  <script src="patterns.js?v=20261002-29"></script>
-  <script src="script.js?v=20261002-29"></script>
-  <script src="college.js?v=20261002-29"></script>
-  <script src="live-game.js?v=20261002-29"></script>
-  <script src="champion.js?v=20261002-29"></script>
+  <script src="uniform-shapes.js?v=20261002-30"></script>
+  <script src="colleges.js?v=20261002-30"></script>
+  <script src="fonts-jets.js?v=20261002-30"></script>
+  <script src="minigames.js?v=20261002-30"></script>
+  <script src="patterns.js?v=20261002-30"></script>
+  <script src="script.js?v=20261002-30"></script>
+  <script src="college.js?v=20261002-30"></script>
+  <script src="live-game.js?v=20261002-30"></script>
+  <script src="champion.js?v=20261002-30"></script>
 </body>
 </html>

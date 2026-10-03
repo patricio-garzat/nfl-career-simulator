@@ -752,3 +752,48 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 /* patterns by zone */
 .zp-row { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; margin: 6px 0; background: var(--w60); } .zp-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; } .zp-h b { font-family: var(--head); letter-spacing: .08em; text-transform: uppercase; font-size: 15px; } .zp-seg { margin: 0; }
 .zp-ctl { margin-top: 8px; display: grid; gap: 8px; } .zp-line { display: flex; align-items: center; gap: 8px; } .zp-line small { opacity: .6; margin-left: 4px; }
+
+/* ===== JERSEY CREATOR — cleaner layout: sticky actions + tabs, cards per topic, bigger buttons ===== */
+.jc2-editor { padding: 0 !important; overflow-y: auto; max-height: calc(100dvh - 150px); overscroll-behavior: contain; scroll-behavior: smooth; }
+.jc2-editor .jc-actions { position: sticky; top: 0; z-index: 6; display: grid; grid-template-columns: 1.1fr 1fr 1.1fr; gap: 8px; margin: 0; padding: 12px 14px 8px; background: var(--card); }
+.jc2-editor .jc-actions .btn { min-height: 46px; padding: 8px 6px; font-size: 14px; letter-spacing: .06em; justify-content: center; white-space: nowrap; }
+.jc-tabs { position: sticky; top: 66px; z-index: 5; display: flex; gap: 6px; overflow-x: auto; padding: 4px 14px 12px; background: var(--card); border-bottom: 1px solid var(--line); scrollbar-width: none; }
+.jc-tabs::-webkit-scrollbar { display: none; }
+.jc-tab { flex: none; display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 8px 15px; border-radius: 12px; border: 1.5px solid var(--line2); background: var(--w40); color: var(--text); font-family: var(--head); font-weight: 700; font-size: 15px; letter-spacing: .07em; text-transform: uppercase; cursor: pointer; transition: background .15s, border-color .15s, transform .1s; }
+.jc-tab span { font-size: 18px; line-height: 1; } .jc-tab:hover { border-color: var(--lime); } .jc-tab:active { transform: scale(.97); } .jc-tab.on { background: var(--lime); color: #0a1204; border-color: var(--lime); box-shadow: 0 4px 14px color-mix(in srgb, var(--lime) 35%, transparent); }
+.jc-pane { padding: 2px 14px 22px; }
+.jc-card { background: var(--w60); border: 1px solid var(--line); border-radius: 16px; padding: 14px 14px 16px; margin-top: 12px; }
+.jc-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 0 0 12px; font-family: var(--head); font-size: 19px; letter-spacing: .05em; text-transform: uppercase; color: var(--text); }
+.jc-h small { font-family: var(--body, Inter, sans-serif); font-size: 12.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--mut); }
+.jc-note { margin: 0 0 10px; font-size: 13.5px; line-height: 1.4; color: var(--soft); }
+/* readable controls */
+.jc2-editor .tog { min-height: 42px; padding: 9px 16px; font-size: 15px; border-width: 1.5px; letter-spacing: .05em; }
+.jc2-editor .seg { gap: 8px; margin: 0 0 8px; }
+.jc2-editor .minis { background: var(--w50); border: 1.5px solid var(--line2); padding: 4px; gap: 4px; } .jc2-editor .minis .mini { min-height: 38px; padding: 8px 15px; font-size: 14.5px; color: var(--text); opacity: .78; } .jc2-editor .minis .mini:hover { opacity: 1; } .jc2-editor .minis .mini.on { opacity: 1; background: var(--lime); color: #0a1204; }
+.jc2-editor .minis.big .mini { font-size: 16px; padding: 9px 20px; }
+.jc2-editor .jc-sw-l, .jc2-editor .rng span { font-size: 14px; letter-spacing: .08em; color: var(--text); opacity: .85; }
+.jc2-editor .jc-sw { gap: 8px; margin-bottom: 10px; } .jc2-editor .sw { width: 32px; height: 32px; }
+.jc2-editor .rng { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin: 8px 0; } .jc2-editor .rng input { grid-column: 1 / -1; height: 30px; } .jc2-editor .rng b { font-size: 15px; }
+.jc2-editor .design em, .jc2-editor .theme em { font-size: 13px; color: var(--text); opacity: .85; }
+.jc2-editor .hint { font-size: 12.5px; }
+.jc2-editor select.input, .jc2-editor input.input { min-height: 44px; font-size: 15px; }
+.jc2-editor .zp-row { background: var(--w40); }
+.jc2-editor .lk-note { padding: 4px 4px 0; }
+@media (max-width: 720px) {
+  .jc2-editor { max-height: none; }
+  .jc2-editor .jc-actions { padding: 8px 10px 6px; gap: 6px; grid-template-columns: 1.2fr 1fr 1.2fr; } .jc2-editor .jc-actions .btn { min-height: 42px; font-size: 12.5px; letter-spacing: .02em; }
+  .jc-tabs { top: 54px; padding: 4px 10px 8px; gap: 5px; } .jc-tab { min-height: 42px; padding: 7px 12px; font-size: 14px; }
+  .jc-pane { padding: 0 10px 18px; } .jc-card { padding: 12px 12px 14px; margin-top: 10px; } .jc-h { font-size: 17px; margin-bottom: 10px; }
+  .jc2-editor .tog { min-height: 44px; padding: 9px 14px; font-size: 14.5px; }
+}
+@media (min-width: 721px) { .jc-tabs { flex-wrap: wrap; overflow-x: visible; } .jc-tab { padding: 8px 13px; font-size: 14px; } }
+.jc2-editor .jc-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; align-items: end; margin: 8px 0; } .jc2-editor .jc-sel { display: grid; gap: 4px; } .jc2-editor .jc-sel span { font-family: var(--head); font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: var(--text); opacity: .85; }
+.jc2-editor .lk-num { display: flex; gap: 10px; margin: 8px 0; }
+@media (max-width: 720px) { .jc2-editor .jc-grid2 { grid-template-columns: 1fr; } }
+/* never let a grid inside the editor push it wider than the screen */
+.jc2 > *, .jc2-editor, .jc-pane, .jc-card { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.designs, .themes, .jc-parts { grid-template-columns: repeat(auto-fill, minmax(0, 1fr)); }
+.designs { grid-template-columns: repeat(4, minmax(0, 1fr)); } .themes.pals { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.design, .theme { min-width: 0; } .design .jersey, .design svg { width: 100%; height: auto; min-width: 0; }
+@media (max-width: 720px) { .designs { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } .themes.pals { grid-template-columns: repeat(3, minmax(0, 1fr)); } .jc-parts { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 720px) { .jc2-preview .frame { max-width: min(100%, 34dvh); margin-left: auto; margin-right: auto; } .jc2-preview .jc2-bar { justify-content: center; } }

@@ -1402,7 +1402,7 @@ function normJersey(c) {
   o.torsoLogo = !!o.torsoLogo; o.logoX = clamp(Number(o.logoX) || 150, 8, 292); o.logoY = clamp(Number(o.logoY) || 112, 8, 337); o.logoSize = clamp(Number(o.logoSize) || 100, 40, 220);
   o.sleeveStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.sleeveStyle) ? o.sleeveStyle : 'even'; o.sleeveThick = clamp(Number(o.sleeveThick) || 100, 60, 200); o.sleeveNumY = clamp(Number(o.sleeveNumY) || 0, -50, 40);
   o.zp = jcNormZones(o.zp);
-  o.showWord = o.showWord !== false; o.swoosh = !!o.swoosh; o.sleeveLogo = !!o.sleeveLogo; o.sleeveLogoFlipL = !!o.sleeveLogoFlipL; o.sleeveLogoFlipR = !!o.sleeveLogoFlipR; o.sleeveLogoSize = clamp(Number(o.sleeveLogoSize) || 100, 40, 160); o.sleeveNums = !!o.sleeveNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
+  o.showWord = o.showWord !== false; o.swoosh = !!o.swoosh; o.sleeveLogo = !!o.sleeveLogo; o.sleeveLogoFlipL = !!o.sleeveLogoFlipL; o.sleeveLogoFlipR = !!o.sleeveLogoFlipR; o.sleeveLogoSize = clamp(Number(o.sleeveLogoSize) || 100, 40, 160); o.noSideNums = !!o.noSideNums; o.sleeveNums = !!o.sleeveNums && !o.noSideNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
   const hx = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d; o.primary = hx(o.primary, '#FFFFFF'); o.secondary = hx(o.secondary, '#111418'); o.accent = hx(o.accent, '#FFFFFF');
   o.numSize = clamp(Number(o.numSize) || 100, 50, 150); o.nameSize = clamp(Number(o.nameSize) || 100, 50, 150); o.numY = clamp(Number(o.numY) || 0, -60, 70); o.numYFront = clamp(o.numYFront !== undefined && o.numYFront !== null && Number.isFinite(Number(o.numYFront)) ? Number(o.numYFront) : o.numY, -60, 70);   // number height: the front and the back are independent
   o.numOutlineW = clamp(Number(o.numOutlineW) || 0, 0, 8); o.nameOutlineW = clamp(Number(o.nameOutlineW) || 0, 0, 5);
@@ -1427,7 +1427,7 @@ function randomJersey(teamId, current) {
   if (rnd() < 0.15) c.collarContrast = false;
   c.numFont = pick(['cond', 'cond', 'block', 'athletic']); c.nameFont = c.numFont; c.numOutlineW = pick([0, 3.2, 3.2, 4.5]);
   c.sleeveStyle = pick(JC_SLEEVE_STYLES)[0]; c.sleeveThick = pick([90, 100, 120, 150]);
-  if (current) { c.numSize = current.numSize; c.numY = current.numY; c.numYFront = current.numYFront; c.nameSize = current.nameSize; c.zp = current.zp; c.swoosh = current.swoosh; c.sleeveLogo = current.sleeveLogo; c.sleeveLogoFlipL = current.sleeveLogoFlipL; c.sleeveLogoFlipR = current.sleeveLogoFlipR; c.sleeveLogoSize = current.sleeveLogoSize; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
+  if (current) { c.numSize = current.numSize; c.numY = current.numY; c.numYFront = current.numYFront; c.noSideNums = current.noSideNums; c.nameSize = current.nameSize; c.zp = current.zp; c.swoosh = current.swoosh; c.sleeveLogo = current.sleeveLogo; c.sleeveLogoFlipL = current.sleeveLogoFlipL; c.sleeveLogoFlipR = current.sleeveLogoFlipR; c.sleeveLogoSize = current.sleeveLogoSize; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
   return autoText(c);
 }
 
@@ -1488,6 +1488,7 @@ const JC_SHOULDER = {
   back: { L: { x: 51.4, y: 19.4, r: 67.784, sx: 0.8417 }, R: { x: 238.4, y: 51.27, r: -67.216, sx: 0.8417 } },
 };
 function jcShoulderTexts(c, view, number) {
+  if (c.noSideNums) return [];                   // the side numbers can be removed altogether
   if (c.sleeveNums) return jcSleeveTexts(c, view, number);
   const f = jcFont(c.numFont), size = 41.55 * 0.73 / f.cap, adv = f.wf * size, cap = 41.55 * 0.73;   // 138.5px Anton in the drawing = 41.55 here
   const run = f.glyph ? jcJetsRun(number) : null, two = f.glyph ? (JETS.glyphs['0'].w * 2 + JETS.gap) / 100 * cap / 2 : adv;
@@ -2280,6 +2281,8 @@ function renderTrades() {
    Every control is bound with data-jc="<path>" (e.g. primary, parts.collar, numOutlineW): typing/dragging updates the
    jersey instantly (jcLive); releasing saves it into S.jerseys[teamId]. */
 let jcView = 'front'; // FRONT / BACK
+let jcTab = 'colors';  // editor tab
+const JC_TABS = [['colors', '🎨', 'Colors'], ['style', '👕', 'Style'], ['patterns', '🔳', 'Patterns'], ['extras', '🏷', 'Sleeves & logos'], ['text', '🔤', 'Name & number']];
 function renderLocker(keepScroll) {
   const ed0 = document.querySelector('.jc2-editor'), ey = ed0 ? ed0.scrollTop : 0, ay = app.scrollTop;
   const y = window.scrollY, P = S.player, id = S.teamId, t = TEAM[id], cfg = jerseyFor(id), C = jcColors(cfg), bg = S.jerseyBg || 'team';
@@ -2298,7 +2301,7 @@ function renderLocker(keepScroll) {
   const dets = JC_DETAILS.map(([k, l]) => `<button class="tog ${cfg[k] ? 'on' : ''}" data-act="jcToggle" data-k="${k}"><i></i>${l}</button>`).join('');
   const parts = JC_PARTS.map(([k, l]) => `<div class="jc-part">${colorRow(l, 'parts.' + k, C[k], cfg.parts[k] ? `<button class="mini" data-act="jcPartAuto" data-k="${k}">Auto</button>` : '<span class="hint">auto</span>')}</div>`).join('');
   const nStr = jcSleeveCount(cfg);
-  const sleeveSel = `<div class="lk-sub">Sleeve lines <span class="hint">add or remove them</span></div><div class="minis big sl-sel">${[0, 1, 2, 3].map(n => chip('jcSleeve', n, n ? String(n) : 'None', nStr === n)).join('')}</div>${nStr ? `<div class="minis sl-styles">${JC_SLEEVE_STYLES.map(x => chip('jcSleeveStyle', x[0], x[1], cfg.sleeveStyle === x[0])).join('')}</div>${range('Line thickness', 'sleeveThick', 60, 200, 5, cfg.sleeveThick, '%')}${colorRow('Line color', 'parts.decor', C.decor)}` : ''}`;
+  const sleeveSel = `<div class="minis big sl-sel">${[0, 1, 2, 3].map(n => chip('jcSleeve', n, n ? String(n) : 'None', nStr === n)).join('')}</div>${nStr ? `<div class="minis sl-styles">${JC_SLEEVE_STYLES.map(x => chip('jcSleeveStyle', x[0], x[1], cfg.sleeveStyle === x[0])).join('')}</div>${range('Line thickness', 'sleeveThick', 60, 200, 5, cfg.sleeveThick, '%')}${colorRow('Line color', 'parts.decor', C.decor)}` : ''}`;
   setScreen(`<div class="wrap jc-wrap" style="${themeVars(id)}">
     <div class="topbar"><button class="btn btn-ghost" data-act="goHome">◂ BACK</button><span class="eyebrow">JERSEY CREATOR</span></div>
     <h2 class="h-xl title-logo">${badge(id, 'lg')}<span>NFL JERSEY CREATOR</span></h2>
@@ -2317,43 +2320,71 @@ function renderLocker(keepScroll) {
           <button class="btn btn-ghost btn-sm" data-act="jcReset">↺ RESET DESIGN</button>
           <button class="btn btn-secondary btn-sm" data-act="jcExport">⬇ DOWNLOAD PNG</button>
         </div>
-        <div class="lk-label">1 · COLORS</div>
+        <nav class="jc-tabs" role="tablist">${JC_TABS.map(([k, ic, l]) => `<button class="jc-tab ${jcTab === k ? 'on' : ''}" data-act="jcTab" data-k="${k}" role="tab"><span>${ic}</span>${l}</button>`).join('')}</nav>
+        <div class="jc-pane">
+        ${jcTab === 'colors' ? `
+<section class="jc-card"><h4 class="jc-h">🎨 Team colors<small>primary · secondary · accent</small></h4>
         <div class="jc-colors stack">${colorRow('Primary', 'primary', cfg.primary)}${colorRow('Secondary', 'secondary', cfg.secondary)}${colorRow('Accent', 'accent', cfg.accent)}</div>
-        <div class="lk-sub">Color presets <span class="hint">${t.name} colors</span></div>
+</section>
+<section class="jc-card"><h4 class="jc-h">✨ Color presets<small>${t.name} colors</small></h4>
         <div class="themes pals">${pals}</div>
-        <div class="lk-label">2 · DESIGN</div>
+</section>
+<section class="jc-card"><h4 class="jc-h">🧩 Color each part<small>give any part its own color</small></h4>
+        <div class="jc-parts">${parts}</div>
+</section>
+        ` : ''}
+        ${jcTab === 'style' ? `
+<section class="jc-card"><h4 class="jc-h">👕 Design</h4>
         <div class="designs jc-pats">${pats}</div>
+</section>
+<section class="jc-card"><h4 class="jc-h">🛠 Details<small>combine them freely</small></h4>
+        <div class="seg">${dets}</div>
+</section>
+        ` : ''}
+        ${jcTab === 'patterns' ? `
+<section class="jc-card"><h4 class="jc-h">🔳 Patterns by zone</h4>
+<p class="jc-note">Put a pattern on just one part of the jersey. Each zone has its own scale, a 90° turn and its own color.</p>
+        ${ZP_ZONES.map(zpRow).join('')}
+</section>
+        ` : ''}
+        ${jcTab === 'extras' ? `
+<section class="jc-card"><h4 class="jc-h">〰️ Sleeve lines</h4>
         ${sleeveSel}
-        <div class="lk-sub">Nike swoosh <span class="hint">on both sleeves</span></div>
+</section>
+<section class="jc-card"><h4 class="jc-h">✔ Nike swoosh<small>on both sleeves</small></h4>
         <div class="seg"><button class="tog ${cfg.swoosh ? 'on' : ''}" data-act="jcSwoosh"><i></i>Nike swoosh</button></div>
         ${cfg.swoosh ? colorRow('Swoosh color', 'parts.swoosh', C.swoosh, cfg.parts.swoosh ? '<button class="mini" data-act="jcPartAuto" data-k="swoosh">Auto</button>' : '<span class="hint">auto</span>') : ''}
-        <div class="lk-sub">Team logo on the sleeves <span class="hint">right as is, left mirrored</span></div>
+</section>
+<section class="jc-card"><h4 class="jc-h">🏷 Team logo on the sleeves<small>right as is, left mirrored</small></h4>
         <div class="seg"><button class="tog ${cfg.sleeveLogo ? 'on' : ''}" data-act="jcSleeveLogo"><i></i>Logo on sleeves</button></div>
         ${cfg.sleeveLogo ? range('Sleeve logo size', 'sleeveLogoSize', 40, 160, 5, cfg.sleeveLogoSize, '%') + `<div class="seg"><button class="tog ${cfg.sleeveLogoFlipR ? 'on' : ''}" data-act="jcSleeveFlip" data-s="R"><i></i>Flip right sleeve</button><button class="tog ${cfg.sleeveLogoFlipL ? 'on' : ''}" data-act="jcSleeveFlip" data-s="L"><i></i>Flip left sleeve</button></div>` : ''}
-        <div class="lk-sub">Team logo on the chest <span class="hint">drag it on the jersey to move it</span></div>
+</section>
+<section class="jc-card"><h4 class="jc-h">🏈 Team logo on the chest<small>drag it on the jersey to move it</small></h4>
         <div class="seg"><button class="tog ${cfg.torsoLogo ? 'on' : ''}" data-act="jcTorsoLogo"><i></i>Logo on chest</button>${cfg.torsoLogo ? '<button class="mini" data-act="jcLogoCenter">Reset position</button>' : ''}</div>
         ${cfg.torsoLogo ? range('Logo size', 'logoSize', 40, 220, 5, cfg.logoSize, '%') + (jcView === 'back' ? '<div class="muted small">Switch to FRONT to see and move the logo.</div>' : '') : ''}
-        <div class="lk-sub">Details — combine them freely</div>
-        <div class="seg">${dets}</div>
-        <div class="lk-sub">Patterns <span class="hint">on one part of the jersey</span></div>
-        ${ZP_ZONES.map(zpRow).join('')}
-        <div class="lk-label">3 · PARTS <span class="hint">give any part its own color</span></div>
-        <div class="jc-parts">${parts}</div>
-        <div class="lk-label">4 · PLAYER NAME</div>
+</section>
+        ` : ''}
+        ${jcTab === 'text' ? `
+<section class="jc-card"><h4 class="jc-h">🔤 Name on the jersey</h4>
         <div class="seg"><button class="tog ${cfg.showWord ? 'on' : ''}" data-act="jcWord"><i></i>Team name on the front</button></div>
         <div class="lk-num"><input class="input" maxlength="12" value="${esc(jName(P))}" data-change="jerseyName" aria-label="Player name on the jersey" placeholder="NAME ON JERSEY"></div>
         <div class="jc-grid2"><label class="jc-sel"><span>Font</span><select class="input" data-jc="nameFont">${opt(JC_FONTS, cfg.nameFont)}</select></label>${range('Size', 'nameSize', 50, 150, 5, cfg.nameSize, '%')}</div>
         <div class="jc-colors stack">${colorRow('Name color', 'nameColor', cfg.nameColor)}${colorRow('Name outline', 'nameOutline', cfg.nameOutline)}</div>
         ${range('Outline width', 'nameOutlineW', 0, 5, 0.5, cfg.nameOutlineW)}
-        <div class="lk-label">5 · NUMBER</div>
-        <div class="lk-sub">Side numbers <span class="hint">on the shoulders or moved down to the sleeves</span></div>
-        <div class="minis big">${chip('jcNumPos', 'shoulder', 'SHOULDERS', !cfg.sleeveNums)}${chip('jcNumPos', 'sleeve', 'SLEEVES', cfg.sleeveNums)}</div>${cfg.sleeveNums ? `<div class="muted small">Drag a sleeve number up or down on the jersey.${(cfg.sleeveNumY || 0) ? ' <button class="mini" data-act="jcNumReset">Reset height</button>' : ''}</div>` : ''}
+</section>
+<section class="jc-card"><h4 class="jc-h">🔢 Number</h4>
         <div class="lk-num"><input class="input" type="number" min="0" max="99" value="${playerNumber()}" data-change="jerseyNumber" aria-label="Jersey number" style="max-width:110px"><button class="btn btn-ghost btn-sm" data-act="randNumber2">RANDOM #</button><span class="hint" id="numHint2">${P.pos} numbers: ${numberRule(P.pos)}</span></div>
         <div class="jc-grid2"><label class="jc-sel"><span>Font</span><select class="input" data-jc="numFont">${opt(JC_FONTS, cfg.numFont)}</select></label>${range('Size', 'numSize', 50, 150, 5, cfg.numSize, '%')}</div>
         ${range(jcView === 'back' ? 'Position · BACK' : 'Position · FRONT', jcView === 'back' ? 'numY' : 'numYFront', -60, 70, 2, jcView === 'back' ? cfg.numY : cfg.numYFront)}<div class="muted small">Front and back have their own height — switch FRONT / BACK above to set each one.</div>
         <div class="jc-colors stack">${colorRow('Number color', 'numColor', cfg.numColor)}${colorRow('Number outline', 'numOutline', cfg.numOutline)}</div>
         ${range('Outline width', 'numOutlineW', 0, 8, 0.5, cfg.numOutlineW)}
+</section>
+<section class="jc-card"><h4 class="jc-h">↕ Shoulder / sleeve numbers<small>show, move down to the sleeves, or remove</small></h4>
+        <div class="minis big">${chip('jcNumPos', 'shoulder', 'SHOULDERS', !cfg.sleeveNums && !cfg.noSideNums)}${chip('jcNumPos', 'sleeve', 'SLEEVES', cfg.sleeveNums)}${chip('jcNumPos', 'none', 'NONE', cfg.noSideNums)}</div>${cfg.sleeveNums ? `<div class="muted small">Drag a sleeve number up or down on the jersey.${(cfg.sleeveNumY || 0) ? ' <button class="mini" data-act="jcNumReset">Reset height</button>' : ''}</div>` : ''}
+</section>
         <div class="muted small lk-note">The jersey name is separate from your player name (<b>${esc(P.name)}</b>). Each team keeps its own design; when you change teams you get a fresh home jersey.</div>
+        ` : ''}
+        </div>
       </section>
     </div></div>`);
   if (keepScroll) { window.scrollTo(0, y); app.scrollTop = ay; const ed = document.querySelector('.jc2-editor'); if (ed) ed.scrollTop = ey; }
@@ -2739,6 +2770,7 @@ const actions = {
   tradeDone: () => { closeModal(); renderDashboard(); },
   viewLocker: () => renderLocker(),
   jcView: (d) => { jcView = d.k; renderLocker(true); },
+  jcTab: (d) => { jcTab = d.k; renderLocker(false); const ed = document.querySelector('.jc2-editor'); if (ed) ed.scrollTop = 0; },
   jcPattern: (d) => editJersey(c => Object.assign(c, applyPattern(c, d.k))),
   jcZonePat: (d) => editJersey(c => { c.zp = jcNormZones(c.zp); c.zp[d.z].p = d.p; }),
   jcZoneOff: (d) => editJersey(c => { c.zp = jcNormZones(c.zp); c.zp[d.z].p = ''; }),
@@ -2752,7 +2784,7 @@ const actions = {
     if (['numColor', 'numOutline', 'nameColor', 'nameOutline'].includes(path)) c.textCustom = true;
     if (['primary', 'secondary', 'accent'].includes(path)) autoText(c);
   }),
-  jcNumPos: (d) => editJersey(c => { c.sleeveNums = d.k === 'sleeve'; }),
+  jcNumPos: (d) => editJersey(c => { c.sleeveNums = d.k === 'sleeve'; c.noSideNums = d.k === 'none'; }),
   jcTorsoLogo: () => { jcView = 'front'; editJersey(c => { c.torsoLogo = !c.torsoLogo; }); },
   jcLogoCenter: () => editJersey(c => { c.logoX = 150; c.logoY = 112; c.logoSize = 100; }),
   jcNumReset: () => editJersey(c => { c.sleeveNumY = 0; }),

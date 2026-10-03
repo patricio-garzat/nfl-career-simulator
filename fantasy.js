@@ -26,7 +26,7 @@ function ffRankOf(pos, ppg) {
 function ffAdpOf(pos, rank, year) {
   const real = ['QB', 'RB', 'WR', 'TE', 'K'].includes(pos);
   if (real) {
-    const arr = FF_ADP[year].filter(p => p[1] === pos).map(p => p[3]).sort((a, b) => a - b), n = arr.length;
+    const arr = (FF_ADP[year] || FF_ADP[2026]).filter(p => p[1] === pos).map(p => p[3]).sort((a, b) => a - b), n = arr.length;
     if (rank >= n) return arr[n - 1] + (rank - n + 1) * 3.4;
     const i = Math.max(0, Math.floor(rank) - 1), f = rank - Math.floor(rank);
     return arr[i] + (arr[Math.min(n - 1, i + 1)] - arr[i]) * (rank < 1 ? 0 : f);
@@ -72,6 +72,7 @@ function ffEvaluate(se) {
 // kickers and defenses at the end, a bit of noise), with you taken at your ADP
 function ffBoard(F) {
   const N = FF_TEAMS, R = FF_ROUNDS, total = N * R, P = S.player;
+  if (!FF_ADP[F.year]) F.year = 2026;                                     // boards saved with an older list now use the current one
   const avail = FF_ADP[F.year].map(p => ({ n: p[0], pos: p[1], tm: p[2], adp: p[3] })).sort((x, y) => x.adp - y.adp);
   // some years' lists are shorter than a 12 x 15 draft (2022 has 157 names): top it up with the best players from the other years so the board always fills
   const have = new Set(avail.map(x => x.n)); have.add(P.name);
@@ -129,7 +130,7 @@ function ffPreseason(se, reuse) {
     const ov = document.createElement('div'); ov.className = 'ff-overlay'; ov.style.cssText = themeVars(S.teamId);
     ov.innerHTML = `<div class="ff-wrap">
       <div class="ff-top"><span class="ff-tag">📊 FANTASY DRAFT DAY</span><button class="mini" id="ffSkip">SKIP ▸</button></div>
-      <h2 class="ff-h">${se.year} FANTASY BOARD</h2><div class="ff-sub">12-team PPR · ADP of the ${F.year} real-life drafts${idp ? ' · IDP league' : ''}</div>
+      <h2 class="ff-h">${se.year} FANTASY BOARD</h2><div class="ff-sub">12-team PPR · FantasyPros expert consensus ${F.year}${idp ? ' · IDP league' : ''}</div>
       <div class="ff-hero">
         <div class="ff-ring"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="bg"/><circle cx="60" cy="60" r="52" class="fg" id="ffArc" style="stroke:${col}"/></svg>
           <div class="ff-rank"><small>${pos}</small><b id="ffRank">${F.rank}</b><em>${esc(trend)}</em></div></div>

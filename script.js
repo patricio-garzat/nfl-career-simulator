@@ -408,9 +408,12 @@ const atSlot = (tbl, pos, slot) => tbl[pos][Math.min(slot, tbl[pos].length) - 1]
 const snapShare = (pos, slot) => atSlot(SNAP, pos, slot);
 const expPPG = (pos, slot) => POS[pos].bench * atSlot(SLOTX, pos, slot); // what is "normal" for that slot
 const teamTalent = id => 65.5 + (S.teamRatings[id] - 72) * 0.55;
+// the team's real players at a position (nfl-depth.js), best first; null when there is no real data
+const realMates = (teamId, pos) => { const t = typeof NFL_DEPTH !== 'undefined' && NFL_DEPTH[teamId]; return t && t[pos] ? t[pos].map(([name, ovr]) => ({ name, ovr })) : null; };
 function buildDepth(teamId) {
-  const P = S.player, D = DEPTH[P.pos], mu = teamTalent(teamId), mates = [];
-  for (let i = 0; i < D.n - 1; i++) mates.push({ name: `${pick(FIRST)[0]}. ${pick(LAST)}`, ovr: Math.round(clamp(mu + D.top - D.step * i + gauss(0, 3), 45, 93)) });
+  const P = S.player, D = DEPTH[P.pos], mu = teamTalent(teamId), real = D.n ? realMates(teamId, P.pos) : null, mates = [];
+  if (real) real.slice(0, D.n - 1).forEach(m => mates.push(m));      // the real teammates at your position
+  else for (let i = 0; i < D.n - 1; i++) mates.push({ name: `${pick(FIRST)[0]}. ${pick(LAST)}`, ovr: Math.round(clamp(mu + D.top - D.step * i + gauss(0, 3), 45, 93)) });
   mates.sort((a, b) => b.ovr - a.ovr);
   const eff = P.ovr + (S.contract ? S.contract.bias : 0); // coaches favor high draft picks
   let slot = 1 + mates.filter(m => m.ovr > eff).length;
@@ -419,8 +422,8 @@ function buildDepth(teamId) {
 }
 // Expected slot on another team (used to describe free-agent and trade offers)
 function projSlot(teamId, ovr, bias, pos) {
-  const D = DEPTH[pos], mu = teamTalent(teamId);
-  let slot = 1; for (let i = 0; i < D.n - 1; i++) if (mu + D.top - D.step * i > ovr + bias) slot++;
+  const D = DEPTH[pos], mu = teamTalent(teamId), real = D.n ? realMates(teamId, pos) : null;
+  let slot = 1; if (real) real.slice(0, D.n - 1).forEach(m => { if (m.ovr > ovr + bias) slot++; }); else for (let i = 0; i < D.n - 1; i++) if (mu + D.top - D.step * i > ovr + bias) slot++;
   return D.n ? Math.min(slot, D.n) : 1;
 }
 const slotLabel = (pos, slot) => DEPTH[pos].labels[slot - 1] || `${pos}${slot}`;

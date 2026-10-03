@@ -465,17 +465,9 @@ async function openLiveGame(game, notes, season) {
   const $ = id => document.getElementById(id), setScore = () => { $('lvScore_away').textContent = L.score.away; $('lvScore_home').textContent = L.score.home; };
   const setClock = (q, clock) => { $('lvQ').textContent = ['1st', '2nd', '3rd', '4th'][q - 1] + ' Q'; $('lvClock').textContent = clock; };
   const setBugDD = txt => { const el = $('lvBugDD'); if (el) el.textContent = txt; };
-  // the clock keeps running between plays: it counts down towards the next play's time at the pace the game is being watched
+  // the clock only runs while a play is live, in real seconds (at 2x / 4x it simply runs faster, like the play itself); between plays it just shows the next snap's time
   const clockOf = gt => { const q = Math.min(4, Math.floor(gt / 900) + 1), left = Math.max(0, 900 - (gt - (q - 1) * 900)); return [q, `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`]; };
-  L.gt = 0; L.gtTarget = 0; L.gtRate = 0; L.avg = 6; L.lastEv = 0; L.frozen = false;
-  const tickFrom = (e, next) => {
-    const now = performance.now(); if (L.lastEv) L.avg = L.avg * 0.6 + Math.max(2, (now - L.lastEv) / 1000 * L.speed) * 0.4; L.lastEv = now;
-    L.gt = e.t; L.gtTarget = Math.max(e.t, Math.min(next ? next.t : 3600, e.q * 900) - 0.5); L.gtRate = (L.gtTarget - L.gt) / L.avg;
-  };
-  L.tick = setInterval(() => {
-    if (L.frozen || !document.getElementById('lvOverlay')) return;
-    if (L.gt < L.gtTarget) { L.gt = Math.min(L.gtTarget, L.gt + L.gtRate * 0.1 * L.speed); const [q, c] = clockOf(L.gt); setClock(q, c); }
-  }, 100);
+  L.frozen = false;
   const sleep = ms => new Promise(r => { const t = setTimeout(r, ms / L.speed); L.waits = L.waits || []; L.waits.push(() => { clearTimeout(t); r(); }); });
   const alive = () => LV.run === L.token && document.getElementById('lvOverlay') && !L.skipped;
   const log = (q, clock, text, cls = '') => { const el = $('lvLog'); if (!el) return; el.insertAdjacentHTML('afterbegin', `<div class="lv-row ${cls}"><em>Q${q} ${clock}</em><span>${text}</span></div>`); };
@@ -483,7 +475,7 @@ async function openLiveGame(game, notes, season) {
   tiles();
   ov.querySelectorAll('[data-lv-speed]').forEach(b => b.addEventListener('click', () => { L.speed = Number(b.dataset.lvSpeed); LV.speed = L.speed; ov.querySelectorAll('[data-lv-speed]').forEach(x => x.classList.toggle('on', x === b)); }));
   const finish = () => {
-    if (L.finished) return; L.finished = true; L.skipped = true; clearInterval(L.tick); (L.waits || []).splice(0).forEach(f => f()); if (L.cancelAnim) L.cancelAnim();
+    if (L.finished) return; L.finished = true; L.skipped = true;  (L.waits || []).splice(0).forEach(f => f()); if (L.cancelAnim) L.cancelAnim();
     const el = document.getElementById('lvOverlay'); if (el) el.remove();
     if (game.st !== 'OUT') { /* the box score is the truth */ }
     LV.done && LV.done();
@@ -507,7 +499,7 @@ async function openLiveGame(game, notes, season) {
   for (let si = 0; si < script.length; si++) {
     const e = script[si];
     if (!alive()) break;
-    setClock(e.q, e.clock); tickFrom(e, script[si + 1]);
+    setClock(e.q, e.clock);
     if (e.type === 'score') {
       const side = sideOf(e.side); poss(side); L.score[side] += e.pts; setScore(); bumpScore(side);
       const t = TEAM[e.side === 'me' ? myId : oppId];
@@ -532,7 +524,7 @@ async function openLiveGame(game, notes, season) {
       const frame = ts => {
         if (!alive()) return resolve();
         if (start === null) { start = ts; last = ts; }
-        const t = ((ts - start) / 1000) * L.speed; T.render(t);
+        const t = ((ts - start) / 1000) * L.speed; T.render(t); { const nx = script[si + 1], [cq, cc] = clockOf(Math.min(e.t + Math.min(t, res.dur), nx ? nx.t - 0.5 : e.q * 900)); if (!L.frozen) setClock(cq, cc); }
         while (pending.length && pending[0].t <= t) { const f = pending.shift(); const el = document.createElementNS('http://www.w3.org/2000/svg', 'text'); el.setAttribute('class', `lv-pop ${f.cls}${f.sticky ? ' sticky' : ''}`); el.setAttribute('x', Math.min(1090, Math.max(110, f.p.x))); el.setAttribute('y', Math.max(60, f.p.y - 28)); el.setAttribute('text-anchor', 'middle'); el.textContent = f.text; fxLayer.appendChild(el); Snd.play(f.cls === 'td' ? 'roar' : (f.cls === 'good' ? 'pick' : 'click')); }
         if (t >= res.dur) return resolve();
         raf = requestAnimationFrame(frame);

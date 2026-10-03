@@ -748,3 +748,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .mg-chaser .mg-you { stroke: #ff5d5d !important; }
 .mg-upr.hit { stroke: #fff !important; filter: drop-shadow(0 0 5px #fff); animation: mgPing .5s ease-out; } @keyframes mgPing { from { stroke-width: 9; } }
 .mg-rbd, .mg-defn, .mg-chaser { transition: none !important; }
+
+/* patterns by zone */
+.zp-row { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; margin: 6px 0; background: var(--w60); } .zp-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; } .zp-h b { font-family: var(--head); letter-spacing: .08em; text-transform: uppercase; font-size: 15px; } .zp-seg { margin: 0; }
+.zp-ctl { margin-top: 8px; display: grid; gap: 8px; } .zp-line { display: flex; align-items: center; gap: 8px; } .zp-line small { opacity: .6; margin-left: 4px; }

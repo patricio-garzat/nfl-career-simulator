@@ -1359,11 +1359,49 @@ function migrateJersey(o) {
   c.numSize = o.numSize || 100; c.numY = o.numY || 0; c.nameSize = o.nameSize || 100;
   return c;
 }
+/* ---- patterns by zone (patterns.js): any of the front, side panels, shoulders or sleeves can carry the knit or the tiger stripes, with its own scale, 90° turns and color ---- */
+const ZP_ZONES = [['torso', 'Front'], ['sides', 'Side panels'], ['shoulders', 'Shoulders'], ['sleeves', 'Sleeves']];
+function jcNormZones(zp) {
+  const out = {};
+  ZP_ZONES.forEach(([z]) => { const v = (zp && zp[z]) || {}; out[z] = { p: JC_PATS.some(x => x.k === v.p) ? v.p : '', s: clamp(Number(v.s) || 100, 40, 400), r: [0, 90, 180, 270].includes(Number(v.r)) ? Number(v.r) : 0, c: /^#[0-9a-f]{6}$/i.test(v.c || '') ? v.c : '' }; });
+  return out;
+}
+// writes a value into the config: 'parts.collar' -> cfg.parts.collar, 'zp.torso.s' -> cfg.zp.torso.s, anything else -> cfg[path]
+function jcSetPath(cfg, path, v) {
+  if (path.startsWith('parts.')) cfg.parts[path.slice(6)] = v;
+  else if (path.startsWith('zp.')) { const [, z, f] = path.split('.'); cfg.zp = jcNormZones(cfg.zp); cfg.zp[z][f] = v; }
+  else cfg[path] = v;
+}
+function jcZonePatterns(cfg, Z, id, C, back) {
+  let defs = '', out = '', imgs = {};
+  const zone = {
+    torso: { clip: `<path d="${Z.torso}"/>`, col: C.body },
+    sides: { clip: `<path d="${Z.sideL}"/><path d="${Z.sideR}"/>`, col: (cfg.sidePanels || cfg.parts.sidePanels) ? C.sidePanels : C.body },
+    shoulders: { clip: back ? `<path d="${Z.yoke}"/>` : `<path d="${Z.yokeL}"/><path d="${Z.yokeR}"/>`, col: C.shoulders },
+    sleeves: { clip: `<path d="${Z.sleeveVisL}"/><path d="${Z.sleeveVisR}"/>`, col: C.sleeveL },
+  };
+  ZP_ZONES.forEach(([z]) => {
+    const v = cfg.zp[z], P = JC_PATS.find(x => x.k === v.p); if (!P) return;
+    const k = P.base * v.s / 100, zc = zone[z].col, col = v.c || (lum(zc) > 0.5 ? mixHex(zc, '#000000', 0.38) : mixHex(zc, '#ffffff', 0.34));
+    let content, PW = P.w, PH = P.h;
+    if (P.img) {
+      if (!imgs[P.k]) { defs += `<image id="${id}im${P.k}" href="${P.img}" width="${P.w}" height="${P.h}"/>`; imgs[P.k] = 1; }
+      const u = `<use href="#${id}im${P.k}"`;
+      content = P.mirror ? `${u}/>${u} transform="translate(${2 * P.w} 0) scale(-1 1)"/>${u} transform="translate(0 ${2 * P.h}) scale(1 -1)"/>${u} transform="translate(${2 * P.w} ${2 * P.h}) scale(-1 -1)"/>` : `${u}/>`;
+      if (P.mirror) { PW = 2 * P.w; PH = 2 * P.h; }
+    } else content = P.inner;
+    defs += `<pattern id="${id}pz${z}" width="${PW}" height="${PH}" patternUnits="userSpaceOnUse" patternTransform="translate(150 150) rotate(${v.r}) scale(${k.toFixed(4)}) translate(${-PW / 2} ${-PH / 2})">${content}</pattern>`
+      + `<mask id="${id}pm${z}" maskUnits="userSpaceOnUse" x="0" y="0" width="300" height="345"><rect width="300" height="345" fill="url(#${id}pz${z})"/></mask><clipPath id="${id}zc${z}">${zone[z].clip}</clipPath>`;
+    out += `<g clip-path="url(#${id}zc${z})"><rect width="300" height="345" fill="${col}" mask="url(#${id}pm${z})"/></g>`;
+  });
+  return { defs, out };
+}
 function normJersey(c) {
   let o = c && c.primary !== undefined ? { ...c } : migrateJersey(c || {});
   o = { ...JC_EL_DEFAULT, numFont: 'jets', nameFont: 'jets', numSize: 100, numY: 0, nameSize: 100, numOutlineW: 2.4, nameOutlineW: 0, pattern: 'solid', ...o };
   o.torsoLogo = !!o.torsoLogo; o.logoX = clamp(Number(o.logoX) || 150, 8, 292); o.logoY = clamp(Number(o.logoY) || 112, 8, 337); o.logoSize = clamp(Number(o.logoSize) || 100, 40, 220);
   o.sleeveStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.sleeveStyle) ? o.sleeveStyle : 'even'; o.sleeveThick = clamp(Number(o.sleeveThick) || 100, 60, 200); o.sleeveNumY = clamp(Number(o.sleeveNumY) || 0, -50, 40);
+  o.zp = jcNormZones(o.zp);
   o.showWord = o.showWord !== false; o.swoosh = !!o.swoosh; o.sleeveLogo = !!o.sleeveLogo; o.sleeveLogoFlipL = !!o.sleeveLogoFlipL; o.sleeveLogoFlipR = !!o.sleeveLogoFlipR; o.sleeveLogoSize = clamp(Number(o.sleeveLogoSize) || 100, 40, 160); o.sleeveNums = !!o.sleeveNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
   const hx = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d; o.primary = hx(o.primary, '#FFFFFF'); o.secondary = hx(o.secondary, '#111418'); o.accent = hx(o.accent, '#FFFFFF');
   o.numSize = clamp(Number(o.numSize) || 100, 50, 150); o.nameSize = clamp(Number(o.nameSize) || 100, 50, 150); o.numY = clamp(Number(o.numY) || 0, -60, 70);
@@ -1389,7 +1427,7 @@ function randomJersey(teamId, current) {
   if (rnd() < 0.15) c.collarContrast = false;
   c.numFont = pick(['cond', 'cond', 'block', 'athletic']); c.nameFont = c.numFont; c.numOutlineW = pick([0, 3.2, 3.2, 4.5]);
   c.sleeveStyle = pick(JC_SLEEVE_STYLES)[0]; c.sleeveThick = pick([90, 100, 120, 150]);
-  if (current) { c.numSize = current.numSize; c.numY = current.numY; c.nameSize = current.nameSize; c.swoosh = current.swoosh; c.sleeveLogo = current.sleeveLogo; c.sleeveLogoFlipL = current.sleeveLogoFlipL; c.sleeveLogoFlipR = current.sleeveLogoFlipR; c.sleeveLogoSize = current.sleeveLogoSize; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
+  if (current) { c.numSize = current.numSize; c.numY = current.numY; c.nameSize = current.nameSize; c.zp = current.zp; c.swoosh = current.swoosh; c.sleeveLogo = current.sleeveLogo; c.sleeveLogoFlipL = current.sleeveLogoFlipL; c.sleeveLogoFlipR = current.sleeveLogoFlipR; c.sleeveLogoSize = current.sleeveLogoSize; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
   return autoText(c);
 }
 
@@ -1493,6 +1531,7 @@ function jerseyOne(cfg, view, name, number, o = {}) {
   const pieces = back
     ? [['sleeveL', C.sleeveL], ['sideL', side], ['torso', bodyFill], ['sleeveR', C.sleeveR], ['yoke', C.shoulders], ['sideR', side], ['collarBack', C.collar]]
     : [['sleeveL', C.sleeveL], ['neckB', dB], ['neckA', dA], ['sideL', side], ['collarL', C.collar], ['neckBand', C.collar], ['torso', bodyFill], ['sleeveR', C.sleeveR], ['yokeL', C.shoulders], ['yokeR', C.shoulders], ['sideR', side], ['collarR', C.collar], ['neckTip', C.collar]];
+  const zpl = o.cls === 'thumb' ? { defs: '', out: '' } : jcZonePatterns(cfg, Z, id, C, back);
   const bottom = Z.meta.bottom, B = UNI.bands, nStr = jcSleeveCount(cfg);
   const bandsOf = side2 => (cfg.cuffs ? `<path d="${B[side2].cuff}" fill="${C.cuffs}"/>` : '') + jcStripeBands(cfg).map(([a, b]) => `<path d="${jcBandPath(side2, a, b)}" fill="${C.decor}"/>`).join('');
   const tid = o.teamId || (typeof S !== 'undefined' && S && S.teamId), lkey = lum(C.body) > 0.45 ? 'light' : 'dark';
@@ -1523,9 +1562,11 @@ function jerseyOne(cfg, view, name, number, o = {}) {
       <linearGradient id="${id}s" x1="0" x2="1"><stop offset="0" stop-color="#000" stop-opacity=".2"/><stop offset=".2" stop-color="#000" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".2"/></linearGradient>
       <linearGradient id="${id}v" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".1"/><stop offset=".3" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".16"/></linearGradient>
       <pattern id="${id}m" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="1.2" cy="1.2" r=".75" fill="rgba(0,0,0,.14)"/></pattern>
+      ${zpl.defs}
     </defs>
     <g clip-path="url(#${id}bo)">
       ${pieces.map(([k, fill]) => `<path d="${Z[k]}" fill="${fill}"/>`).join('')}
+      ${zpl.out}
       <g clip-path="url(#${id}sl)">${bandsOf('L')}</g><g clip-path="url(#${id}sr)">${bandsOf('R')}</g>
       ${hem}
       <g clip-path="url(#${id}sp)"><rect width="${M.w}" height="${M.h}" fill="url(#${id}m)"/></g><rect width="${M.w}" height="${M.h}" fill="url(#${id}s)"/><rect width="${M.w}" height="${M.h}" fill="url(#${id}v)"/>
@@ -2249,6 +2290,11 @@ function renderLocker(keepScroll) {
   const range = (label, path, min, max, step, val, unit = '') => `<label class="rng"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${val}" data-jc="${path}"><b data-rv="${path}">${val}${unit}</b></label>`;
   const pals = jcPalettes(id).map((p, i) => `<button class="theme" data-act="jcPalette" data-i="${i}" title="${p.label}"><span class="tri"><i style="background:${p.p}"></i><i style="background:${p.s}"></i><i style="background:${p.a}"></i></span><em>${p.label}</em></button>`).join('');
   const pats = JC_PATTERNS.map(p => `<button class="design ${patternMatches(cfg, p.k) ? 'on' : ''}" data-act="jcPattern" data-k="${p.k}" title="${p.label}">${jerseySVG(applyPattern(cfg, p.k), '', playerNumber(), { view: 'front', cls: 'thumb', noText: false })}<em>${p.label}</em></button>`).join('');
+  const zpRow = ([z, l]) => {
+    const v = cfg.zp[z], P = JC_PATS.find(x => x.k === v.p);
+    return `<div class="zp-row"><div class="zp-h"><b>${l}</b><div class="seg zp-seg"><button class="tog ${!v.p ? 'on' : ''}" data-act="jcZoneOff" data-z="${z}"><i></i>Off</button>${JC_PATS.map(p => `<button class="tog ${v.p === p.k ? 'on' : ''}" data-act="jcZonePat" data-z="${z}" data-p="${p.k}"><i></i>${p.name}</button>`).join('')}</div></div>`
+      + (P ? `<div class="zp-ctl">${range('Scale', 'zp.' + z + '.s', 40, 400, 10, v.s, '%')}<div class="zp-line"><button class="btn btn-ghost btn-sm" data-act="jcZoneRot" data-z="${z}">⟳ Rotate 90° <small>${v.r}°</small></button></div>${colorRow('Color', 'zp.' + z + '.c', v.c || '#', v.c ? `<button class="mini" data-act="jcZoneAuto" data-z="${z}">Auto</button>` : '<span class="hint">auto</span>')}</div>` : '') + '</div>';
+  };
   const dets = JC_DETAILS.map(([k, l]) => `<button class="tog ${cfg[k] ? 'on' : ''}" data-act="jcToggle" data-k="${k}"><i></i>${l}</button>`).join('');
   const parts = JC_PARTS.map(([k, l]) => `<div class="jc-part">${colorRow(l, 'parts.' + k, C[k], cfg.parts[k] ? `<button class="mini" data-act="jcPartAuto" data-k="${k}">Auto</button>` : '<span class="hint">auto</span>')}</div>`).join('');
   const nStr = jcSleeveCount(cfg);
@@ -2289,6 +2335,8 @@ function renderLocker(keepScroll) {
         ${cfg.torsoLogo ? range('Logo size', 'logoSize', 40, 220, 5, cfg.logoSize, '%') + (jcView === 'back' ? '<div class="muted small">Switch to FRONT to see and move the logo.</div>' : '') : ''}
         <div class="lk-sub">Details — combine them freely</div>
         <div class="seg">${dets}</div>
+        <div class="lk-sub">Patterns <span class="hint">on one part of the jersey</span></div>
+        ${ZP_ZONES.map(zpRow).join('')}
         <div class="lk-label">3 · PARTS <span class="hint">give any part its own color</span></div>
         <div class="jc-parts">${parts}</div>
         <div class="lk-label">4 · PLAYER NAME</div>
@@ -2520,11 +2568,11 @@ function jcLive() {
 function jcInput(el, commit) {
   const path = el.dataset.jc, cfg = JSON.parse(JSON.stringify(jerseyFor(S.teamId)));
   const v = el.type === 'range' ? Number(el.value) : el.value;
-  if (path.startsWith('parts.')) cfg.parts[path.slice(6)] = v; else cfg[path] = v;
+  jcSetPath(cfg, path, v);
   if (['numColor', 'numOutline', 'nameColor', 'nameOutline'].includes(path)) cfg.textCustom = true;
   if (['primary', 'secondary', 'accent'].includes(path)) autoText(cfg);
   jcSave(cfg);
-  const lab = document.querySelector(`[data-rv="${path}"]`); if (lab && el.type === 'range') lab.textContent = v + (/(Size|Thick)$/.test(path) ? '%' : '');
+  const lab = document.querySelector(`[data-rv="${path}"]`); if (lab && el.type === 'range') lab.textContent = v + (/(Size|Thick|\.s)$/.test(path) ? '%' : '');
   const code = el.parentNode && el.parentNode.querySelector('code'); if (code) code.textContent = path.startsWith('parts.') ? 'CUSTOM' : String(v).toUpperCase();
   if (commit) { saveGame(); renderLocker(true); } else jcLive();
 }
@@ -2692,11 +2740,15 @@ const actions = {
   viewLocker: () => renderLocker(),
   jcView: (d) => { jcView = d.k; renderLocker(true); },
   jcPattern: (d) => editJersey(c => Object.assign(c, applyPattern(c, d.k))),
+  jcZonePat: (d) => editJersey(c => { c.zp = jcNormZones(c.zp); c.zp[d.z].p = d.p; }),
+  jcZoneOff: (d) => editJersey(c => { c.zp = jcNormZones(c.zp); c.zp[d.z].p = ''; }),
+  jcZoneRot: (d) => editJersey(c => { c.zp = jcNormZones(c.zp); c.zp[d.z].r = (c.zp[d.z].r + 90) % 360; }),
+  jcZoneAuto: (d) => editJersey(c => { c.zp = jcNormZones(c.zp); c.zp[d.z].c = ''; }),
   jcToggle: (d) => editJersey(c => { c[d.k] = !c[d.k]; c.pattern = 'custom'; }),
   jcPalette: (d) => editJersey(c => { const p = jcPalettes(S.teamId)[Number(d.i)]; c.primary = p.p; c.secondary = p.s; c.accent = p.a; c.parts = {}; c.textCustom = false; autoText(c); }),
   jcColor: (d) => editJersey(c => {
     const path = d.path, v = d.c;
-    if (path.startsWith('parts.')) c.parts[path.slice(6)] = v; else c[path] = v;
+    jcSetPath(c, path, v);
     if (['numColor', 'numOutline', 'nameColor', 'nameOutline'].includes(path)) c.textCustom = true;
     if (['primary', 'secondary', 'accent'].includes(path)) autoText(c);
   }),

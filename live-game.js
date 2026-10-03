@@ -198,7 +198,7 @@ function lvEndZone(x, team, rot, endIdx) {
     return `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="${bg}"/><g transform="translate(${cx} ${cy}) rotate(${rot})"><text text-anchor="middle" y="22" font-family="'Anton',sans-serif" font-size="70" fill="${txt}">${esc(team.nick.toUpperCase())}</text></g>`;
   }
   const items = d.ends[Math.min(endIdx, d.ends.length - 1)];
-  const turf = `<rect x="${x}" y="${top}" width="50" height="${LV_FH}" fill="#2a8044"/><rect x="${x + 50}" y="${top}" width="50" height="${LV_FH}" fill="#2f8a4a"/>`;   // mowed grass shows through unpainted zones
+  const turf = `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="#2d8647"/>`;   // unpainted grass: a single flat green
   const paint = turf + (d.bg ? `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="${d.bg}" opacity="${d.op || 0.94}"/>` : '');
   const local = (d.deco === 'tiger' ? lvTiger() : '') + (d.deco === 'band' ? `<rect x="-270" y="-50" width="540" height="7" fill="#fff" opacity=".85"/>` : '')
     + (d.deco === 'sband' ? `<rect x="-270" y="-50" width="540" height="9" fill="#101010" opacity=".92"/><rect x="-270" y="-39" width="540" height="2" fill="#D3BC8D"/>` : '') + lvEzItems(items, team);

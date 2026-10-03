@@ -64,7 +64,8 @@ function csPlayGame() {
 
 function csEnv() {
   const opp = CS.schedule[Math.min(CS.idx, CS.G - 1)], oi = COLLEGE_INFO[opp.name];
-  return { se: CS, P: CS.P, t: csPack(CS.P.college, CS.info), o: csPack(opp.name, oi), number: CS.num, theme: csTheme(CS.info), save: false, onDone: () => renderCollege() };
+  return { se: CS, P: CS.P, t: csPack(CS.P.college, CS.info), o: csPack(opp.name, oi), number: CS.num, theme: csTheme(CS.info), save: false, onDone: () => renderCollege(),
+    jersey: view => jerseySVG(collegeJersey(CS.P.college), jName(CS.P), CS.num, { view, noShield: true, word: CS.P.college.toUpperCase(), backLogo: collegeLogo(CS.info.id, 80) }) };
 }
 // same as seasonTotals(), but for the college season (there is no career save yet, so S is null)
 function csTotals() {

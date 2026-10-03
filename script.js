@@ -1150,6 +1150,18 @@ const Snd = (() => {
     draftEnd: t => { lib.chime(t, 880); applause(t + 0.2, 1.2, 0.04); },
     anthem: t => { [130.81, 196, 261.63, 329.63].forEach((f, i) => bowl(f, t + i * 0.9, 0.05)); },
     phone: t => { pluck(880, t, 0.04); pluck(880, t + 0.5, 0.04); pluck(1046.5, t + 1.0, 0.04); },
+    // ---- mini games: very quiet, single events (no loops), a little random pitch each time so it never feels repetitive ----
+    mgSnap: t => { thump(t, 0.1); noise(t, 0.06, { type: 'lowpass', f: 900, vol: 0.06, crisp: true, attack: 0.002 }); },
+    mgThrow: t => { air(t, 0.55, 0.03); tone(rr(300, 380), t, 0.3, { vol: 0.014, attack: 0.08, to: rr(520, 640) }); },
+    mgPat: t => { noise(t, 0.06, { type: 'bandpass', f: rr(620, 820), q: 0.8, vol: 0.1, attack: 0.002, crisp: true }); tone(rr(140, 170), t, 0.1, { vol: 0.09, attack: 0.002, to: 90 }); },
+    mgKick: t => { thump(t, 0.2); noise(t, 0.12, { type: 'lowpass', f: 1500, vol: 0.07, crisp: true, attack: 0.002 }); air(t + 0.06, 0.9, 0.028); },
+    mgHit: t => { thump(t, 0.15); noise(t, 0.09, { type: 'lowpass', f: 650, vol: 0.07, attack: 0.002 }); },
+    mgSwish: t => air(t, 0.35, 0.03),
+    mgGood: (t, lvl = 0) => { pluck(P[Math.min(6, 1 + lvl)] * (rnd() < 0.5 ? 1 : 1.0), t, 0.045); if (lvl >= 2) pluck(P[Math.min(6, 3 + lvl)], t + 0.09, 0.03); },
+    mgMiss: t => tone(rr(130, 165), t, 0.55, { vol: 0.035, attack: 0.06, to: 105 }),
+    mgCrowd: (t, lvl = 1) => { noise(t, 1.1 * lvl, { type: 'bandpass', f: 420, to: 650, q: 0.6, vol: 0.022, attack: 0.45 }); applause(t + 0.25, 0.7 * lvl, 0.012); },
+    mgTension: t => tone(115, t, 1.5, { vol: 0.025, attack: 0.7, to: 150 }),
+    mgTick: t => tap(t, 0.04, rr(800, 1000)),
     trade: t => { air(t, 0.7, 0.04); pluck(P[2], t + 0.3, 0.05); pluck(P[4], t + 0.45, 0.05); applause(t + 0.5, 1.0, 0.022); },
   };
 

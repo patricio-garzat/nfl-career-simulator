@@ -135,10 +135,10 @@ const LV_EZ = {
   DAL: { bg: '#1B3A8C', ends: [[{ t: { s: 'COWBOYS', f: '#A9B0B4', o: '#FFFFFF', w: 3, ff: 'Russo One', h: 60, n: 270, sh: ['#0B1F5A', 3, 3] } }, { l: { k: 'team', x: -215, y: 0, w: 82, g: 1 } }, { l: { k: 'team', x: 215, y: 0, w: 82, g: 1 } }]] },
   NYG: { bg: '#1E5FB5', ends: [[{ t: { s: 'GIANTS', f: '#FFFFFF', ff: 'Archivo Black', h: 66, n: 320, x: 20, sh: ['#0B2265', 4, 4] } }, { l: { k: 'team', x: -225, y: 0, w: 76 } }]] },
   PHI: { bg: '#00494F', ends: [[{ t: { s: 'EAGLES', f: '#EDF1F1', ff: 'Squada One', h: 72, n: 360 } }]] },
-  WAS: { bg: null, ends: [[{ t: { s: 'COMMANDERS', f: '#5A1414', ff: 'Barlow Condensed', fw: 800, h: 46, n: 400 } }, { x: 'rule', py: -34, n: 430 }, { x: 'rule', py: 34, n: 430 }, { l: { k: 'team', x: -235, y: 0, w: 62 } }, { l: { k: 'team', x: 235, y: 0, w: 62 } }]] },
+  WAS: { bg: '#5A1414', ends: [[{ t: { s: 'COMMANDERS', f: '#FFB612', ff: 'Barlow Condensed', fw: 800, h: 46, n: 370 } }, { x: 'rule', py: -34, n: 370, th: 8, c: '#FFB612' }, { x: 'rule', py: 34, n: 370, th: 8, c: '#FFB612' }]] },   // gold COMMANDERS between two gold bars on burgundy (approximation of the supplied wordmark)
   CHI: { bg: null, ends: [[{ t: { s: 'CHICAGO', f: '#C83803', o: '#0B162A', w: 3, ff: 'Archivo Black', h: 56, n: 380 } }, { l: { k: 'nfc', x: -232, y: 8, w: 52 } }, { l: { k: 'nfl', x: 232, y: 8, w: 48 } }], [{ t: { s: 'BEARS', f: '#C83803', o: '#0B162A', w: 3, ff: 'Archivo Black', h: 60, n: 290 } }, { l: { k: 'nfc', x: -232, y: 8, w: 52 } }, { l: { k: 'nfl', x: 232, y: 8, w: 48 } }]] },
   DET: { bg: '#0076B6', ends: [[{ t: { s: 'LIONS', f: 'none', o: '#FFFFFF', w: 3, ff: 'Russo One', h: 66, n: 330 } }]] },
-  GB: { bg: '#2E6B2E', op: 0.9, ends: [[{ t: { s: 'PACKERS', f: '#FFB612', o: '#FFFFFF', w: 3, ff: 'Alfa Slab One', h: 66, n: 340 } }], [{ t: { s: 'GREEN BAY', f: '#FFB612', o: '#FFFFFF', w: 3, ff: 'Alfa Slab One', h: 66, n: 410 } }]] },
+  GB: { bg: '#203731', ends: [[{ t: { s: 'PACKERS', f: '#FFFFFF', o: '#FFB612', w: 3.5, ff: 'Alfa Slab One', h: 62, n: 350 } }], [{ t: { s: 'GREEN BAY', f: '#FFFFFF', o: '#FFB612', w: 3.5, ff: 'Alfa Slab One', h: 62, n: 410 } }]] },   // white letters with a gold border on Packers green (stand-in lettering until the exact wordmark file is available)
   MIN: { bg: '#4F2683', ends: [[{ l: { k: 'img', src: 'assets/nfl/vikings-wordmark-white.png', x: 0, y: 0, w: 230, h: 73 } }]] },   // white VIKINGS wordmark, big and centered with margin, on the team's purple
   ATL: { bg: null, ends: [[{ l: { k: 'img', src: 'assets/nfl/falcons-atl.png', x: 0, y: 0, w: 240, h: 92 } }]] },   // the ATL logo on bare turf
   CAR: { bg: '#000000', op: 0.96, ends: [[{ l: { k: 'img', src: 'assets/nfl/panthers-wordmark.png', x: 0, y: 0, w: 302, h: 76 } }]] },   // PANTHERS script on black
@@ -157,7 +157,7 @@ function lvEzScale(items) {
   items.forEach(it => {
     if (it.t) { ex = Math.max(ex, Math.abs(it.t.x || 0) + it.t.n / 2); ey = Math.max(ey, Math.abs(it.t.y || 0) + it.t.h / 2 + (it.t.w || 0) / 2); }
     else if (it.l) { ex = Math.max(ex, Math.abs(it.l.x) + it.l.w / 2); ey = Math.max(ey, Math.abs(it.l.y) + (it.l.h || it.l.w) / 2); }
-    else if (it.x === 'rule') { ex = Math.max(ex, it.n / 2); ey = Math.max(ey, Math.abs(it.py) + 2); }
+    else if (it.x === 'rule') { ex = Math.max(ex, it.n / 2); ey = Math.max(ey, Math.abs(it.py) + (it.th || 3.2) / 2); }
     else if (it.px !== undefined) { ex = Math.max(ex, Math.abs(it.px) + it.r); ey = Math.max(ey, Math.abs(it.py) + it.r); }
   });
   return Math.min(1, 232 / (ex || 1), 38 / (ey || 1));
@@ -179,7 +179,7 @@ function lvEzItemsRaw(items, team) {
     }
     if (it.x === 'spark') return lvSpark(it.px, it.py, it.r);
     if (it.x === 'bolt') return lvBolt(it.px, it.py, it.r);
-    if (it.x === 'rule') return `<rect x="${-it.n / 2}" y="${it.py - 1.6}" width="${it.n}" height="3.2" fill="#5A1414" opacity=".95"/>`;
+    if (it.x === 'rule') { const th = it.th || 3.2; return `<rect x="${-it.n / 2}" y="${it.py - th / 2}" width="${it.n}" height="${th}" fill="${it.c || '#5A1414'}" opacity=".95"/>`; }
     return '';
   }).join('');
 }

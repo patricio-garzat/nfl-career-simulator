@@ -581,7 +581,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
   .wrap.create .pos-btn { padding: 6px 0; border-radius: 10px; } .wrap.create .pos-btn b { font-size: 17px; } .wrap.create .pos-btn span { display: none; }
   .wrap.create .college-pick { flex: 1; min-height: 0; gap: 6px; margin-top: 2px; }
   .wrap.create .cp-cur { padding: 6px 10px; gap: 10px; border-radius: 12px; } .wrap.create .cp-cur .col-logo.lg { width: 34px; height: 34px; } .wrap.create .cp-cur b { font-size: 18px; } .wrap.create .cp-cur span { font-size: 11px; }
-  .wrap.create .cp-tools { gap: 6px; flex-wrap: nowrap; } .wrap.create .cp-search { min-width: 0; } .wrap.create .cp-tools .mini { padding: 5px 7px; font-size: 11px; }
+  .wrap.create .cp-tools { gap: 6px; flex-wrap: wrap; } .wrap.create .cp-search { min-width: 0; flex: 1 1 100%; } .wrap.create .cp-tools .minis { flex: 1 1 100%; overflow-x: auto; scrollbar-width: none; justify-content: flex-start; } .wrap.create .cp-tools .minis::-webkit-scrollbar { display: none; } .wrap.create .cp-tools .mini { padding: 5px 9px; font-size: 11px; white-space: nowrap; flex: none; }
   .wrap.create .cp-grid { flex: 1; min-height: 96px; max-height: none; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 4px; }
   .wrap.create .cp-tile { min-height: 84px; padding: 6px 4px 8px; } .wrap.create .cp-tile img { width: 36px; height: 36px; } .wrap.create .cp-tile span { font-size: 10px; }
   .wrap.create .row3 { grid-template-columns: .8fr 1fr 1fr; gap: 8px; margin-top: 0; } .wrap.create .row3 > :last-child { grid-column: auto; } .wrap.create #numHint { display: none; }

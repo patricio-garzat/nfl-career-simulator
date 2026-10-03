@@ -139,7 +139,7 @@ const LV_EZ = {
   CHI: { bg: null, ends: [[{ t: { s: 'CHICAGO', f: '#C83803', o: '#0B162A', w: 3, ff: 'Archivo Black', h: 56, n: 380 } }, { l: { k: 'nfc', x: -232, y: 8, w: 52 } }, { l: { k: 'nfl', x: 232, y: 8, w: 48 } }], [{ t: { s: 'BEARS', f: '#C83803', o: '#0B162A', w: 3, ff: 'Archivo Black', h: 60, n: 290 } }, { l: { k: 'nfc', x: -232, y: 8, w: 52 } }, { l: { k: 'nfl', x: 232, y: 8, w: 48 } }]] },
   DET: { bg: '#0076B6', ends: [[{ t: { s: 'LIONS', f: 'none', o: '#FFFFFF', w: 3, ff: 'Russo One', h: 66, n: 330 } }]] },
   GB: { bg: '#2E6B2E', op: 0.9, ends: [[{ t: { s: 'PACKERS', f: '#FFB612', o: '#FFFFFF', w: 3, ff: 'Alfa Slab One', h: 66, n: 340 } }], [{ t: { s: 'GREEN BAY', f: '#FFB612', o: '#FFFFFF', w: 3, ff: 'Alfa Slab One', h: 66, n: 410 } }]] },
-  MIN: { bg: '#4F2683', ends: [[{ t: { s: 'VIKINGS', f: '#F4F1EA', ff: 'Cinzel', fw: 900, h: 64, n: 400, cap: 0.7 } }]] },
+  MIN: { bg: '#4F2683', ends: [[{ l: { k: 'img', src: 'assets/nfl/vikings-wordmark-white.png', x: 0, y: 0, w: 230, h: 73 } }]] },   // white VIKINGS wordmark, big and centered with margin, on the team's purple
   ATL: { bg: null, ends: [[{ l: { k: 'img', src: 'assets/nfl/falcons-atl.png', x: 0, y: 0, w: 240, h: 92 } }]] },   // the ATL logo on bare turf
   CAR: { bg: null, ends: [[{ l: { k: 'img', src: 'assets/nfl/panthers-wordmark.png', x: 0, y: 0, w: 302, h: 76 } }]] },   // PANTHERS script on bare turf
   NO: { bg: '#D3BC8D', ends: [[{ l: { k: 'img', src: 'assets/nfl/saints-wordmark.png', x: 0, y: 0, w: 328, h: 76 } }]] },   // SAINTS in black on old gold

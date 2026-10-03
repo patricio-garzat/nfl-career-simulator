@@ -1792,27 +1792,47 @@ let collegeDiv = 'ALL';
 const collegeImg = (name, size = 80, cls = 'col-logo') => { const c = COLLEGE_INFO[name]; return c ? `<img class="${cls}" src="${collegeLogo(c.id, size)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ''; };
 const collegeChip = name => `<span class="chip chip-col">${collegeImg(name, 40, 'col-logo xs')}${esc(name)}</span>`;
 const DIV_LABEL = { FBS: 'FBS', FCS: 'FCS', OTHER: 'Other', MX: 'México', LFA: 'LFA', UFL: 'UFL' };
+// leagues shown first; picking one reveals its teams
+const COLLEGE_LEAGUES = [
+  { k: 'NCAA', name: 'NCAA', sub: 'College football', logo: 'assets/leagues/ncaa.png', divs: ['FBS', 'FCS', 'OTHER'] },
+  { k: 'MX', name: 'ONEFA', sub: 'México · universities', logo: 'assets/leagues/onefa.png', divs: ['MX'] },
+  { k: 'LFA', name: 'LFA', sub: 'México · pro league', logo: 'assets/leagues/lfa.png', divs: ['LFA'] },
+  { k: 'UFL', name: 'UFL', sub: 'United Football League', logo: 'assets/leagues/ufl.png', divs: ['UFL'] },
+];
+const leagueOfDiv = d => (COLLEGE_LEAGUES.find(l => l.divs.includes(d)) || {}).k || 'NCAA';
+let collegeLeague = '';   // '' = the league screen
 function collegePickerHTML() {
   const cur = COLLEGE_INFO[form.college] || COLLEGE_INFO['Alabama'];
-  const tabs = [['ALL', 'All'], ['FBS', 'FBS'], ['FCS', 'FCS'], ['OTHER', 'Other'], ['MX', '🇲🇽 ONEFA'], ['LFA', '🇲🇽 LFA'], ['UFL', '🏈 UFL']].map(([k, l]) => `<button type="button" class="mini ${collegeDiv === k ? 'on' : ''}" data-act="collegeTab" data-d="${k}">${l}</button>`).join('');
-  const tiles = NCAA.map(([id, name, div, conf]) => `<button type="button" class="cp-tile ${name === form.college ? 'on' : ''}" data-act="pickCollege" data-n="${esc(name)}" data-d="${div}" data-q="${esc((name + ' ' + conf + (div === 'MX' ? ' mexico méxico onefa' : div === 'LFA' ? ' lfa mexico méxico liga profesional' : div === 'UFL' ? ' ufl united football league professional pro' : '')).toLowerCase())}" title="${esc(name)}${conf ? ' · ' + esc(conf) : ''}"><img src="${collegeLogo(id, 80)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><span>${esc(name)}</span></button>`).join('');
-  return `<div class="college-pick">
+  const count = l => NCAA.filter(r => l.divs.includes(r[2])).length;
+  const leagues = COLLEGE_LEAGUES.map(l => `<button type="button" class="cp-league" data-act="collegeLeague" data-l="${l.k}"><img src="${l.logo}" alt=""><div><b>${l.name}</b><span>${l.sub}</span><em>${count(l)} teams</em></div></button>`).join('');
+  const subs = [['ALL', 'All'], ['FBS', 'FBS'], ['FCS', 'FCS'], ['OTHER', 'Other']].map(([k, l]) => `<button type="button" class="mini ${collegeDiv === k ? 'on' : ''}" data-act="collegeTab" data-d="${k}">${l}</button>`).join('');
+  const tiles = NCAA.map(([id, name, div, conf]) => `<button type="button" class="cp-tile ${name === form.college ? 'on' : ''}" data-act="pickCollege" data-n="${esc(name)}" data-d="${div}" data-l="${leagueOfDiv(div)}" data-q="${esc((name + ' ' + conf + (div === 'MX' ? ' mexico méxico onefa' : div === 'LFA' ? ' lfa mexico méxico liga profesional' : div === 'UFL' ? ' ufl united football league professional pro' : ' ncaa')).toLowerCase())}" title="${esc(name)}${conf ? ' · ' + esc(conf) : ''}"><img src="${collegeLogo(id, 80)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><span>${esc(name)}</span></button>`).join('');
+  return `<div class="college-pick" id="cpRoot">
     <div class="cp-cur" id="cpCur">${collegeImg(form.college, 120, 'col-logo lg')}<div><b>${esc(form.college)}</b><span>${cur ? (cur.conf ? esc(cur.conf) + ' · ' : '') + DIV_LABEL[cur.div] : ''}</span></div></div>
-    <div class="cp-tools"><input class="input cp-search" data-filter="college" placeholder="Search ${NCAA.length} schools…" autocomplete="off"><div class="minis">${tabs}</div></div>
-    <div class="cp-grid" id="cpGrid">${tiles}<div class="cp-empty" hidden>No school matches that search.</div></div>
+    <div class="cp-tools"><button type="button" class="mini cp-back" id="cpBack" data-act="collegeBack" hidden>◂ LEAGUES</button><input class="input cp-search" data-filter="college" placeholder="Search ${NCAA.length} teams…" autocomplete="off"></div>
+    <div class="cp-leagues" id="cpLeagues">${leagues}</div>
+    <div class="minis cp-subs" id="cpSubs" hidden>${subs}</div>
+    <div class="cp-grid" id="cpGrid" hidden>${tiles}<div class="cp-empty" hidden>No team matches that search.</div></div>
   </div>`;
 }
 function applyCollegeFilter() {
   const grid = document.getElementById('cpGrid'); if (!grid) return;
   const q = ((document.querySelector('[data-filter="college"]') || {}).value || '').trim().toLowerCase();
+  const showTeams = !!collegeLeague || !!q;
+  document.getElementById('cpLeagues').hidden = showTeams; grid.hidden = !showTeams;
+  document.getElementById('cpBack').hidden = !showTeams; document.getElementById('cpSubs').hidden = collegeLeague !== 'NCAA' || !!q;
+  document.querySelectorAll('#cpSubs .mini').forEach(b => b.classList.toggle('on', b.dataset.d === collegeDiv));
   let n = 0;
-  grid.querySelectorAll('.cp-tile').forEach(t => { const ok = (collegeDiv === 'ALL' || t.dataset.d === collegeDiv) && (!q || t.dataset.q.includes(q)); t.hidden = !ok; if (ok) n++; });
+  grid.querySelectorAll('.cp-tile').forEach(t => {
+    const lg = !q && collegeLeague ? t.dataset.l === collegeLeague && (collegeLeague !== 'NCAA' || collegeDiv === 'ALL' || t.dataset.d === collegeDiv) : true;
+    const ok = lg && (!q || t.dataset.q.includes(q)); t.hidden = !ok; if (ok) n++;
+  });
   const e = grid.querySelector('.cp-empty'); if (e) e.hidden = n > 0;
 }
 let form = { name: '', pos: 'WR', college: 'Alabama', age: 22, number: NUM_DEFAULT.WR, jerseyName: '' };
 let preview = null, rerolls = 3;
 function renderCreate() {
-  collegeDiv = 'ALL';
+  collegeDiv = 'ALL'; collegeLeague = '';
   setScreen(`<div class="wrap create">
     <div class="eyebrow">STEP 1 OF 2</div><h2 class="h-xl">CREATE YOUR PLAYER</h2>
     <div class="create-grid">
@@ -2635,7 +2655,12 @@ const actions = {
     const cur = document.getElementById('cpCur'); if (cur && c) cur.innerHTML = `${collegeImg(d.n, 120, 'col-logo lg')}<div><b>${esc(d.n)}</b><span>${c.conf ? esc(c.conf) + ' · ' : ''}${DIV_LABEL[c.div]}</span></div>`;
     Snd.play('click'); updateCreateJersey();
   },
-  collegeTab: (d) => { collegeDiv = d.d; document.querySelectorAll('.college-pick .cp-tools .mini').forEach(b => { const on = b.dataset.d === collegeDiv; b.classList.toggle('on', on); if (on && b.scrollIntoView) b.scrollIntoView({ inline: 'center', block: 'nearest' }); }); applyCollegeFilter(); },
+  collegeTab: (d) => { collegeDiv = d.d; applyCollegeFilter(); const g = document.getElementById('cpGrid'); if (g) g.scrollTop = 0; },
+  collegeLeague: (d) => {
+    collegeLeague = d.l; collegeDiv = 'ALL'; applyCollegeFilter(); Snd.play('click');
+    const g = document.getElementById('cpGrid'); if (g) { g.scrollTop = 0; const on = g.querySelector('.cp-tile.on:not([hidden])'); if (on) on.scrollIntoView({ block: 'nearest' }); }
+  },
+  collegeBack: () => { collegeLeague = ''; collegeDiv = 'ALL'; const i = document.querySelector('[data-filter="college"]'); if (i) i.value = ''; applyCollegeFilter(); },
   randNumber: () => { form.number = randomNumber(form.pos); const i = document.querySelector('[data-model="number"]'); if (i) i.value = form.number; updateCreateJersey(); },
   egg: () => {
     const se = curSeason(), live = se && se.status !== 'done' && !se.complete;

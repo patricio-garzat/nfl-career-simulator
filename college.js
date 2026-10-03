@@ -14,7 +14,7 @@ const csIcon = () => csYouth() ? '🧒' : '🎓';
 const rcLevel = (P, perf = 0) => clamp((P.ovr - 60) / 26 + perf * 0.35, 0, 1);
 const rcLabel = l => l < 0.3 ? 'Low' : l < 0.55 ? 'Growing' : l < 0.8 ? 'High' : 'Elite';
 const csColors = info => ({ c1: info.c1 || '#1b3a6b', c2: info.c2 || '#ffffff' });
-const csTheme = info => { const c = csColors(info); return `--t1:${c.c1};--t2:${c.c2};--ta:${accentOf(c)}`; };
+const csTheme = info => { const c = csColors(info), tb = brightOf(c); return `--t1:${c.c1};--t2:${c.c2};--ta:${accentOf(c)};--tb:${tb};--tx:${textOn(tb)}`; };
 const csBadge = (info, size = '') => { const c = csColors(info); return `<span class="team-badge logo ${size}" style="--t1:${c.c1};--t2:${c.c2};color:${textOn(c.c1)}"><img src="${collegeLogo(info.id, 120)}" alt="" onerror="this.style.visibility='hidden'"></span>`; };
 const csPack = (name, info) => { const c = csColors(info); return { id: info.id, name, nick: name, c1: c.c1, c2: c.c2, logo: collegeLogo(info.id, 120) }; };
 
@@ -91,11 +91,11 @@ function renderCollege() {
   const sum = cfg.summary(T), done = CS.done;
   const nxt = CS.schedule[CS.idx], oi = nxt ? csInfoOf(nxt.name) : null, yth = csYouth();
   const next = done ? `<div class="next-card done"><div class="eyebrow">SEASON COMPLETE</div><div class="nc-big">${rec.w}–${rec.l} · ${yth ? 'time to meet the recruiters' : 'time for the draft board'}</div></div>`
-    : `<div class="next-card"><div class="eyebrow">GAME ${CS.idx + 1} OF ${CS.G}</div><div class="nc-row">${csBadge(oi, 'lg')}<div><div class="nc-big">${nxt.home ? 'vs' : '@'} ${esc(nxt.name)}</div><div class="muted">${oi.conf ? esc(oi.conf) + ' · ' : ''}Team strength ${Math.round(nxt.r)}</div></div></div></div>`;
+    : `<div class="next-card" style="--o1:${csColors(oi).c1};--o2:${csColors(oi).c2}"><img class="nc-ghost" src="${collegeLogo(oi.id, 200)}" alt="" onerror="this.style.display='none'"><div class="eyebrow">GAME ${CS.idx + 1} OF ${CS.G}</div><div class="nc-row">${csBadge(oi, 'lg')}<div><div class="nc-big">${nxt.home ? 'vs' : '@'} ${esc(nxt.name)}</div><div class="muted">${oi.conf ? esc(oi.conf) + ' · ' : ''}Team strength ${Math.round(nxt.r)}</div></div></div></div>`;
   const lastCard = last ? `<div class="last-game"><span class="muted">Last game:</span> <b class="r${last.rate}-t">${RATING[last.rate].icon} ${RATING[last.rate].k}</b> · ${fmt1(last.fp)} FP · ${last.w ? 'W' : 'L'} ${last.my}-${last.op} vs ${esc(last.opp)}</div>` : '';
   const mgBanner = CS.mg && MG_META[CS.mg.kind] ? `<div class="banner dec-banner"><span>🎮 <b>${yth ? 'YOUTH CAMP' : 'COLLEGE CAMP'}</b> — ${MG_META[CS.mg.kind](P).title}</span><button class="btn btn-primary btn-sm" data-act="csMini">PLAY</button></div>` : '';
   const buffs = CS.buffs.length ? `<div class="dec-buffs">${CS.buffs.map(x => `<span class="chip ${x.perf < 0 ? 'bad' : 'gold'}">${esc(x.label)} · ${x.left}g</span>`).join('')}</div>` : '';
-  setScreen(`<div class="wrap" style="${csTheme(info)}">
+  setScreen(`<div class="wrap dashx" style="${csTheme(info)}">
     <div class="brandbar"><span>${csIcon()} ${csLabel()}</span><i></i><span class="muted">${esc(CS.name).toUpperCase()}</span></div>
     <header class="hero"><span class="hero-num">${CS.num}</span>
       <div class="hero-l">${csBadge(info, 'xl')}
@@ -162,7 +162,7 @@ function csFinishSeason() {
 function renderCollegeReport() {
   const P = CS.P, R = CS.result, cfg = POS[P.pos], up = R.ovrTo > R.ovrFrom, down = R.ovrTo < R.ovrFrom, rise = R.pick1 < CS.pick0 - 3, fall = R.pick1 > CS.pick0 + 3;
   const yth = csYouth(), lvl = rcLevel(P, R.perf);
-  setScreen(`<div class="wrap narrow" style="${csTheme(CS.info)}">
+  setScreen(`<div class="wrap narrow dashx" style="${csTheme(CS.info)}">
     <div class="eyebrow">${csLabel()} REVIEW</div><h2 class="h-xxl">${R.grade[1]} ${R.grade[0]}</h2>
     <section class="card dev-card">
       <div class="cs-sum">${csBadge(CS.info, 'lg')}<div><b>${esc(CS.name)}</b><span>${R.w}–${R.l} · ${R.T.gp} games · ${fmt1(R.T.ppg)} fantasy PPG</span></div></div>

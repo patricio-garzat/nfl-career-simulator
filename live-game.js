@@ -795,10 +795,10 @@ function lvScoreboardHTML(L) {
 // background track by broadcast window: Thursday night, Sunday game day, Sunday night, Monday night
 function lvTrack(game) {
   const n = String(game.slotName || ''), r = String(game.round || '');
-  if (/monday/i.test(n)) return 'assets/sounds/live-monday-night.mp3';
-  if (/thursday|thanksgiving|wednesday|friday|christmas/i.test(n)) return 'assets/sounds/live-thursday-night.mp3';
+  if (/monday/i.test(n)) return 'assets/sounds/live-monday-night.m4a';
+  if (/thursday|thanksgiving|wednesday|friday|christmas/i.test(n)) return 'assets/sounds/live-thursday-night.m4a';
   if (/night/i.test(n) || /super bowl/i.test(r + n)) return 'assets/sounds/live-sunday-night.mp3';
-  return 'assets/sounds/live-sunday-gameday.mp3';
+  return 'assets/sounds/live-sunday-gameday.m4a';
 }
 async function openLiveGame(game, notes, season) {
   const myId = game.tm, oppId = game.opp, away = game.home ? oppId : myId, home = game.home ? myId : oppId, P = S.player;
@@ -818,7 +818,7 @@ async function openLiveGame(game, notes, season) {
       <div class="lv-log card" id="lvLog"></div>
     </div></div>`;
   document.body.appendChild(ov);
-  const musicVol = () => { let v = 55; try { const x = parseInt(localStorage.getItem('nfl_music_vol2'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
+  const musicVol = () => { let v = 70; try { const x = parseInt(localStorage.getItem('nfl_music_vol2'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
   const vol = v => Math.pow(v / 100, 1.6);                            // wide range: whisper-quiet at the left, full volume at the right, fine control in between
   Snd.music(lvTrack(game), vol(musicVol()));
   const mv = ov.querySelector('#lvMusic'); if (mv) { mv.value = musicVol(); mv.addEventListener('input', () => { Snd.setMusicVol(vol(mv.value)); try { localStorage.setItem('nfl_music_vol2', mv.value); } catch (e) { /* ignore */ } }); }

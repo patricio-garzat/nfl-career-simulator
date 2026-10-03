@@ -128,7 +128,7 @@ const LV_EZ = {
   IND: { bg: '#1A4FB0', ends: [[{ l: { k: 'img', src: 'assets/nfl/colts-wordmark.png', x: 0, y: 0, w: 250, h: 76, stretch: 1 } }]] },   // the COLTS wordmark in white on blue (stretched wide, as painted on a field)
   JAX: { bg: '#000000', op: 0.96, ends: [[{ l: { k: 'img', src: 'assets/nfl/jaguars-wordmark.png', x: 0, y: 0, w: 250, h: 76 } }]] },   // JACKSONVILLE JAGUARS on black
   TEN: { bg: null, ends: [[{ t: { s: 'TITANS', f: '#0C2340', o: '#FFFFFF', w: 5, ff: 'Russo One', h: 66, n: 480, sh: ['#4B92DB', 4, 4] } }]] },
-  DEN: { bg: '#0C2340', ends: [[{ l: { k: 'team', x: -158, y: 0, w: 76, h: 76 } }, { l: { k: 'img', src: 'assets/nfl/broncos-wordmark.png', x: 46, y: 0, w: 300, h: 34 } }]] },   // orange BRONCOS (no DENVER) with the logo before it, on Broncos navy
+  DEN: { bg: '#0C2340', ey: 43, ends: [[{ l: { k: 'team', x: -198, y: 0, w: 86, h: 86 } }, { l: { k: 'img', src: 'assets/nfl/broncos-wordmark.png', x: 51, y: 0, w: 380, h: 43 } }]] },   // orange BRONCOS (no DENVER) with the logo before it, on Broncos navy; bigger art (ey = a slimmer safety margin)
   KC: { bg: '#FFB81C', ends: [[{ l: { k: 'img', src: 'assets/nfl/chiefs-wordmark.png', x: 0, y: 0, w: 315, h: 76 } }]] },   // CHIEFS wordmark, white outline, on gold
   LV: { bg: '#111214', ends: [[{ l: { k: 'img', src: 'assets/nfl/raiders-wordmark.png', x: 0, y: 0, w: 400, h: 75 } }]] },   // silver RAIDERS on a soft black (not pure black)
   LAC: { bg: '#0080C6', deco: 'band', ends: [[{ t: { s: 'CHARGERS', f: '#FFFFFF', ff: 'Russo One', h: 50, n: 330, x: 14, y: 4 } }, { x: 'bolt', px: -230, py: 6, r: 22 }], [{ t: { s: 'LOS ANGELES', f: '#FFFFFF', ff: 'Russo One', h: 46, n: 380, x: 14, y: 4 } }, { x: 'bolt', px: -230, py: 6, r: 22 }]] },
@@ -152,7 +152,7 @@ const LV_EZ = {
 const lvSpark = (x, y, r) => `<path d="M${x} ${y - r}Q${x + r * 0.15} ${y - r * 0.15} ${x + r} ${y}Q${x + r * 0.15} ${y + r * 0.15} ${x} ${y + r}Q${x - r * 0.15} ${y + r * 0.15} ${x - r} ${y}Q${x - r * 0.15} ${y - r * 0.15} ${x} ${y - r}z" fill="#E8ECEF"/>`;
 const lvBolt = (x, y, r) => `<path transform="translate(${x} ${y}) scale(${r / 22})" d="M-14 -30L10 -30L0 -8L16 -8L-10 30L-2 4L-16 4Z" fill="#FFC20E"/>`;
 // every end zone's art keeps a margin from the white border: shrink the whole group if its extent goes past the safe box (232 px along the length, 38 px across the depth)
-function lvEzScale(items) {
+function lvEzScale(items, safeY = 38) {
   let ex = 0, ey = 0;
   items.forEach(it => {
     if (it.t) { ex = Math.max(ex, Math.abs(it.t.x || 0) + it.t.n / 2); ey = Math.max(ey, Math.abs(it.t.y || 0) + it.t.h / 2 + (it.t.w || 0) / 2); }
@@ -160,10 +160,10 @@ function lvEzScale(items) {
     else if (it.x === 'rule') { ex = Math.max(ex, it.n / 2); ey = Math.max(ey, Math.abs(it.py) + (it.th || 3.2) / 2); }
     else if (it.px !== undefined) { ex = Math.max(ex, Math.abs(it.px) + it.r); ey = Math.max(ey, Math.abs(it.py) + it.r); }
   });
-  return Math.min(1, 232 / (ex || 1), 38 / (ey || 1));
+  return Math.min(1, 232 / (ex || 1), safeY / (ey || 1));
 }
-function lvEzItems(items, team) {
-  const k = lvEzScale(items);
+function lvEzItems(items, team, safeY) {
+  const k = lvEzScale(items, safeY);
   return `<g transform="scale(${k.toFixed(3)})">${lvEzItemsRaw(items, team)}</g>`;
 }
 function lvEzItemsRaw(items, team) {
@@ -202,7 +202,7 @@ function lvEndZone(x, team, rot, endIdx) {
   const turf = `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="#2d8647"/>`;   // unpainted grass: a single flat green
   const paint = turf + (d.bg ? `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="${d.bg}" opacity="${d.op || 0.94}"/>` : '');
   const local = (d.deco === 'tiger' ? lvTiger() : '') + (d.deco === 'band' ? `<rect x="-270" y="-50" width="540" height="7" fill="#fff" opacity=".85"/>` : '')
-    + (d.deco === 'sband' ? `<rect x="-270" y="-50" width="540" height="9" fill="#101010" opacity=".92"/><rect x="-270" y="-39" width="540" height="2" fill="#D3BC8D"/>` : '') + lvEzItems(items, team);
+    + (d.deco === 'sband' ? `<rect x="-270" y="-50" width="540" height="9" fill="#101010" opacity=".92"/><rect x="-270" y="-39" width="540" height="2" fill="#D3BC8D"/>` : '') + lvEzItems(items, team, d.ey);
   const cid = 'lvEzC' + x;                                          // nothing may spill over the white border: clip to the end zone itself
   return `<defs><clipPath id="${cid}"><rect x="${x}" y="${top}" width="100" height="${LV_FH}"/></clipPath></defs><g clip-path="url(#${cid})">${paint}<g transform="translate(${cx} ${cy}) rotate(${rot})">${local}</g></g>`;
 }

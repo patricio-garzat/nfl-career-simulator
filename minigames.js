@@ -88,7 +88,7 @@ function mgEndZone(ctx, x, y, w, h, k) {
     return `<g><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${team.c1}"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#mgStripe)" opacity=".2"/>${Array.from({ length: n }, (_, i) => `<image href="${team.logo}" x="${cx + (i - (n - 1) / 2) * w * 0.3 - lg / 2}" y="${cy - lg / 2}" width="${lg}" height="${lg}" opacity=".92" preserveAspectRatio="xMidYMid meet"/>`).join('')}</g>`;
   }
   const items = d.ends[0], local = (d.deco === 'tiger' ? lvTiger() : '') + (d.deco === 'band' ? '<rect x="-270" y="-50" width="540" height="7" fill="#fff" opacity=".85"/>' : '')
-    + (d.deco === 'sband' ? '<rect x="-270" y="-50" width="540" height="9" fill="#101010" opacity=".92"/><rect x="-270" y="-39" width="540" height="2" fill="#D3BC8D"/>' : '') + lvEzItems(items, team);
+    + (d.deco === 'sband' ? '<rect x="-270" y="-50" width="540" height="9" fill="#101010" opacity=".92"/><rect x="-270" y="-39" width="540" height="2" fill="#D3BC8D"/>' : '') + lvEzItems(items, team, d.ey);
   return `<defs><clipPath id="${cid}"><rect x="${x}" y="${y}" width="${w}" height="${h}"/></clipPath></defs><g clip-path="url(#${cid})"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#2d8647"/>${d.bg ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${d.bg}" opacity="${d.op || 0.94}"/>` : ''}<g transform="translate(${cx} ${cy}) scale(${k})">${local}</g></g>`;
 }
 const mgPylon = (x, y, s = 1) => `<rect x="${x - 4 * s}" y="${y - 4 * s}" width="${8 * s}" height="${8 * s}" fill="#ff6a13" stroke="#fff" stroke-width="1"/>`;

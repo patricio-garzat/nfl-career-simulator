@@ -942,10 +942,12 @@ async function openLiveGame(game, notes, season) {
   /* ---- play the script ---- */
   await sleep(700);
   const script = lvBuild(game);
+  let prevQ = 1;                                              // the teams switch ends at every change of quarter
   for (let si = 0; si < script.length; si++) {
     const e = script[si];
     if (!alive()) break;
     setClock(e.q, e.clock);
+    if (e.q !== prevQ) { prevQ = e.q; await banner(`${['1ST', '2ND', '3RD', '4TH'][e.q - 1]} QUARTER · CHANGING SIDES`, 'quarter', 1300); if (!alive()) break; }
     if (e.type === 'score') {
       const side = sideOf(e.side); poss(side); L.score[side] += e.pts; setScore(); bumpScore(side);
       const t = TEAM[e.side === 'me' ? myId : oppId];
@@ -953,7 +955,7 @@ async function openLiveGame(game, notes, season) {
       Snd.play(e.side === 'me' ? 'cheer' : 'down'); await banner(`${t.id} ${e.label}`, e.side === 'me' ? 'good' : 'bad', 1300); await sleep(300);
       continue;
     }
-    const p = e.play, sc = lvScene(p, { myDir, myId, oppId, col: L.col });
+    const p = e.play, sc = lvScene(p, { myDir: e.q % 2 === 0 ? -myDir : myDir, myId, oppId, col: L.col });
     poss(sideOf(p.off));
     const dd = p.kind === 'xp' ? 'Extra point' : p.kind === 'fg' ? `Field goal · ${p.yards} yds` : `${['', '1st', '2nd', '3rd', '4th'][p.down]} & ${p.dist}`;
     const spot = p.los < 50 ? `${TEAM[p.off === 'me' ? myId : oppId].id} ${p.los}` : (p.los === 50 ? 'Midfield' : `${TEAM[p.off === 'me' ? oppId : myId].id} ${100 - p.los}`);

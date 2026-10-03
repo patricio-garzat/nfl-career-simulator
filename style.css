@@ -908,3 +908,40 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 /* career timeline: seasons before the NFL */
 .tl-row.pre { cursor: default; opacity: .92; } .tl-row.pre .tl-pl { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 12px; background: rgba(255, 255, 255, .07); border: 1px solid var(--line); } .tl-row.pre .tl-pl img { width: 34px; height: 34px; object-fit: contain; }
 .tl-row.pre:hover { transform: none; border-color: var(--line); }
+
+/* ================= home dashboard: the current team's theme, minimal but colorful ================= */
+.dashx { position: relative; }
+.dashx::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; background:
+  radial-gradient(900px 520px at 6% -10%, color-mix(in srgb, var(--t1) 36%, transparent), transparent 62%),
+  radial-gradient(760px 480px at 100% 4%, color-mix(in srgb, var(--t2) 20%, transparent), transparent 60%),
+  radial-gradient(800px 520px at 50% 125%, color-mix(in srgb, var(--t1) 18%, transparent), transparent 70%); }
+.dashx .brandbar > span:nth-of-type(1) { color: var(--tb); }
+.dashx .hero { border: 1px solid color-mix(in srgb, var(--tb) 34%, var(--line)); background:
+  radial-gradient(520px 260px at 0% 0%, color-mix(in srgb, var(--t1) 70%, transparent), transparent 72%),
+  linear-gradient(115deg, color-mix(in srgb, var(--t1) 44%, #0c1322), color-mix(in srgb, var(--t1) 14%, #0c1322) 58%, #0b1120);
+  box-shadow: 0 22px 54px -24px color-mix(in srgb, var(--t1) 80%, transparent); }
+.dashx .hero::before { content: ''; position: absolute; left: 0; top: 16px; bottom: 16px; width: 5px; border-radius: 0 6px 6px 0; background: linear-gradient(var(--tb), var(--t2)); z-index: 2; }
+.dashx .player-name { text-shadow: 0 8px 34px color-mix(in srgb, var(--t1) 70%, transparent); }
+.dashx .hero .eyebrow { color: var(--tb); }
+.dashx .chip { background: color-mix(in srgb, var(--tb) 13%, rgba(255, 255, 255, .04)); border-color: color-mix(in srgb, var(--tb) 30%, var(--line)); }
+.dashx .card { border-color: color-mix(in srgb, var(--tb) 16%, var(--line)); background: linear-gradient(180deg, color-mix(in srgb, var(--t1) 9%, var(--card2)), var(--card)); position: relative; }
+.dashx .card::before { content: ''; position: absolute; left: 18px; right: 18px; top: -1px; height: 3px; border-radius: 0 0 4px 4px; background: linear-gradient(90deg, var(--tb), var(--t2) 55%, transparent); }
+.dashx .card-h h3 { color: var(--text); display: flex; align-items: center; gap: 10px; }
+.dashx .card-h h3::before { content: ''; width: 8px; height: 8px; border-radius: 2px; background: var(--tb); box-shadow: 0 0 12px var(--tb); }
+.dashx .rec { color: var(--tb); }
+.dashx .tile { background: color-mix(in srgb, var(--t1) 13%, var(--w40)); border-color: color-mix(in srgb, var(--tb) 14%, var(--line)); }
+.dashx .tile:hover { border-color: var(--tb); }
+.dashx .tile.hl { background: linear-gradient(160deg, color-mix(in srgb, var(--tb) 30%, transparent), color-mix(in srgb, var(--t2) 8%, transparent)); border-color: color-mix(in srgb, var(--tb) 55%, transparent); }
+.dashx .tile.hl .tile-v { color: var(--tb); text-shadow: 0 0 26px color-mix(in srgb, var(--tb) 55%, transparent); }
+.dashx .fp-row b { color: var(--tb); }
+.dashx .next-card { position: relative; overflow: hidden; border-color: color-mix(in srgb, var(--o1, var(--tb)) 42%, var(--line)); background: linear-gradient(105deg, color-mix(in srgb, var(--o1, var(--t1)) 46%, #0e1524), color-mix(in srgb, var(--o1, var(--t1)) 10%, var(--card)) 72%); }
+.dashx .next-card > *:not(.nc-ghost) { position: relative; z-index: 1; } .dashx .next-card .eyebrow { color: var(--tb); }
+.dashx .nc-ghost { position: absolute; right: -16px; top: 50%; transform: translateY(-50%); width: 190px; opacity: .17; filter: saturate(1.15); pointer-events: none; z-index: 0; }
+.dashx .actions .btn-primary { background: linear-gradient(135deg, var(--tb), color-mix(in srgb, var(--tb) 55%, var(--t1))); color: var(--tx); border-color: transparent; box-shadow: 0 12px 32px -10px color-mix(in srgb, var(--tb) 70%, transparent); }
+.dashx .btn-ghost:hover { border-color: var(--tb); color: var(--tb); }
+.dashx .dc-row.you { background: linear-gradient(90deg, color-mix(in srgb, var(--tb) 24%, transparent), color-mix(in srgb, var(--tb) 4%, transparent)); } .dashx .dc-row.you .dc-pos, .dashx .dc-row.you b { color: var(--tb); }
+.dashx .ff-line { border-left: 3px solid var(--tb); background: color-mix(in srgb, var(--t1) 16%, rgba(255, 255, 255, .04)); } .dashx .ff-line b { color: var(--tb); }
+.dashx .banner:not(.warn):not(.trade) { border-color: color-mix(in srgb, var(--tb) 40%, transparent); }
+.dashx .ovr-ring { background: conic-gradient(var(--tb) calc(var(--p) * 1%), var(--w80) 0); box-shadow: 0 0 34px color-mix(in srgb, var(--tb) 40%, transparent); }
+.dashx .ovr-ring::before { background: color-mix(in srgb, var(--t1) 22%, #0c1322); }
+.dashx .pos-badge { background: var(--tb); color: var(--tx); }

@@ -1948,6 +1948,8 @@ function countUp(el, from, to, ms = 1100) {
 const lum = hex => { const n = parseInt(hex.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; };
 const accentOf = t => (lum(t.c1) < 0.2 ? t.c2 : t.c1);
 const textOn = hex => (lum(hex) > 0.6 ? '#101820' : '#ffffff');
+// a readable accent for text / glows on the dark UI: the brighter of the two team colors, lightened if it is still dark
+const brightOf = t => { let c = lum(t.c1) >= lum(t.c2) ? t.c1 : t.c2; if (lum(c) < 0.32) c = mixHex(c, '#ffffff', 0.5); return c; };
 // Team logos come from Sleeper's CDN (…/team_logos/nfl/<abbr>.png). If an image can't load (offline), the badge
 // falls back to the colored abbreviation chip. The NFL shield comes from ESPN's CDN.
 const logoUrl = id => `assets/nfl-logos/${id}.svg`;   // vector logos from nfl.com: razor sharp at any size
@@ -2189,13 +2191,13 @@ function renderDashboard() {
   const last = se.games.concat(se.playoffGames).slice(-1)[0];
   let nextCard = '';
   if (done) nextCard = `<div class="next-card done"><div class="eyebrow">SEASON COMPLETE</div><div class="nc-big">${se.po && se.po.champion ? '🏆 SUPER BOWL CHAMPIONS' : 'The season has ended'}</div><div class="muted">View your season summary to see awards and player development.</div></div>`;
-  else { const n = nextGameInfo(se); nextCard = `<div class="next-card ${se.status === 'playoffs' ? 'po' : ''}"><div class="eyebrow">${n.title}${se.status === 'playoffs' ? ' · PLAYOFFS' : ''}</div><div class="nc-row">${badge(n.opp.id, 'lg')}<div><div class="nc-big">${n.ha} ${n.opp.name}</div><div class="muted">${n.opp.conf} ${n.opp.div} · Team strength ${Math.round(S.teamRatings[n.opp.id])}</div></div></div></div>`; }
+  else { const n = nextGameInfo(se); nextCard = `<div class="next-card ${se.status === 'playoffs' ? 'po' : ''}" style="--o1:${n.opp.c1};--o2:${n.opp.c2}"><img class="nc-ghost" src="${logoUrl(n.opp.id)}" alt=""><div class="eyebrow">${n.title}${se.status === 'playoffs' ? ' · PLAYOFFS' : ''}</div><div class="nc-row">${badge(n.opp.id, 'lg')}<div><div class="nc-big">${n.ha} ${n.opp.name}</div><div class="muted">${n.opp.conf} ${n.opp.div} · Team strength ${Math.round(S.teamRatings[n.opp.id])}</div></div></div></div>`; }
   const inj = se.injury ? `<div class="banner warn">⚠️ <b>INJURY</b> — ${esc(se.injury.name)} · Expected recovery: ${se.injury.weeksLeft} week${se.injury.weeksLeft > 1 ? 's' : ''}</div>` : '';
   const sum = cfg.summary(T), car = cfg.career(C), divLine = divisionLine(se);
   const pend = offersOf(se).length, dlText = deadlineText(se);
   const tradeBanner = pend ? `<div class="banner trade"><span>📞 <b>TRADE OFFER${pend > 1 ? 'S' : ''}</b> — ${pend} team${pend > 1 ? 's want' : ' wants'} to acquire you.</span><button class="btn btn-ghost btn-sm" data-act="viewTrades">OPEN TRADE CENTER</button></div>` : '';
   const lastCard = last ? (last.st === 'OUT' ? `<div class="last-game"><span class="muted">Last game:</span> ${last.dnp ? '📋 DNP — ' : '⚠️ Inactive — '}${esc(last.inj)}</div>` : `<div class="last-game"><span class="muted">Last game:</span> <b class="r${last.rate}-t">${RATING[last.rate].icon} ${RATING[last.rate].k}</b> · ${fmt1(last.fp)} FP · ${last.w ? 'W' : 'L'} ${last.my}-${last.op} vs ${last.opp}</div>`) : '';
-  setScreen(`<div class="wrap" style="${themeVars(S.teamId)}">
+  setScreen(`<div class="wrap dashx" style="${themeVars(S.teamId)};--tb:${brightOf(team)};--tx:${textOn(brightOf(team))}">
     <div class="brandbar">${nflLogo('brand')}<span>NFL CAREER</span><i></i><span class="muted">${se.year} SEASON</span></div>
     <header class="hero"><span class="hero-num">${playerNumber()}</span>
       <div class="hero-l"><span class="egg-hit" data-act="egg">${badge(S.teamId, 'xl')}</span>

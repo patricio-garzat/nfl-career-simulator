@@ -85,7 +85,15 @@ function contractPaper(o) {
     </g>
     <g clip-path="url(#${id}cl)"><rect id="sgShine" class="sg-shine" x="-260" y="-40" width="220" height="900" fill="url(#${id}sh)" transform="skewX(-18)" opacity="0"/></g>
     <circle id="sgRing" class="sg-ring" cx="470" cy="590" r="30" fill="none" stroke="${bright}" stroke-width="5" opacity="0"/>
-    <g transform="translate(470 590) rotate(-12)"><g id="sgStamp" class="sg-stamp" opacity="0"><rect x="-70" y="-26" width="140" height="52" rx="6" fill="none" stroke="${mixHex(bright, '#000000', 0.2)}" stroke-width="4"/><rect x="-64" y="-20" width="128" height="40" rx="3" fill="none" stroke="${mixHex(bright, '#000000', 0.2)}" stroke-width="1.4"/><text y="9" text-anchor="middle" class="sg-stampt" fill="${mixHex(bright, '#000000', 0.2)}">SIGNED</text></g></g>
+    <g transform="translate(466 592) rotate(-7)"><g id="sgStamp" class="sg-stamp" opacity="0">
+      <rect x="-100" y="-36" width="200" height="72" rx="5" fill="rgba(255,255,255,.35)" stroke="#0b2a5c" stroke-width="3.2"/>
+      <rect x="-94" y="-30" width="188" height="60" rx="2.5" fill="none" stroke="#0b2a5c" stroke-width="1"/>
+      <image href="${NFL_LOGO}" x="-90" y="-24" width="48" height="48" preserveAspectRatio="xMidYMid meet"/>
+      <rect x="-38" y="-24" width="1.4" height="48" fill="#0b2a5c"/>
+      <rect x="-30" y="-24" width="116" height="5" fill="#c8102e"/>
+      <text x="28" y="9" text-anchor="middle" class="sg-stampt" fill="#0b2a5c">SIGNED</text>
+      <text x="28" y="22" text-anchor="middle" class="sg-stamps" fill="#0b2a5c">OFFICIALLY REGISTERED · ${y0}</text>
+    </g></g>
     <g id="sgPen" class="sg-pen" style="--pc:${bright}">
       <ellipse cx="14" cy="6" rx="22" ry="5" fill="rgba(0,0,0,.28)" class="sg-penshadow"/>
       <g class="sg-penbody" transform="rotate(32)">
@@ -110,7 +118,7 @@ async function contractSign(o) {
     const ov = document.createElement('div'); ov.className = 'sg-overlay'; ov.style.cssText = `${themeVars(o.teamId)};--tb:${bright};--tx:${textOn(bright)}`;
     ov.innerHTML = `<div class="sg-top"><span class="sg-tag">✍️ ${esc(o.kind || 'NEW CONTRACT')}</span><button class="mini" id="sgSkip">SKIP ▸</button></div>
       <div class="sg-desk">${contractPaper(o)}</div>
-      <div class="sg-actions"><button class="btn btn-primary btn-xl sg-sign" id="sgSign" hidden>✍️ SIGN</button><button class="btn btn-primary btn-xl" id="sgGo" hidden>CONTINUE ▸</button></div>`;
+      <div class="sg-actions"><button class="btn btn-primary btn-xl sg-sign" id="sgSign" hidden><span>SIGN CONTRACT</span><i></i></button><button class="btn btn-primary btn-xl" id="sgGo" hidden>CONTINUE ▸</button></div>`;
     document.body.appendChild(ov);
     const pen = ov.querySelector('#sgPen'), stamp = ov.querySelector('#sgStamp'), strokes = SIGN_STROKES;
     // the signature is painted on a canvas as the pen goes: a white trail is laid along the pen's path and the real signature image shows only where that trail is

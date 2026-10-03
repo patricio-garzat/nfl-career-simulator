@@ -389,9 +389,10 @@ function lvTimeline(actors) {
     if (!list) return p;
     for (const s of list) {
       if (t < s.t0) break;
-      const k = clamp((t - s.t0) / Math.max(0.001, s.t1 - s.t0), 0, 1);
+      const tc = s.cut != null ? Math.min(t, s.cut) : t;               // a step cut by the whistle freezes where he was
+      const k = clamp((tc - s.t0) / Math.max(0.001, s.t1 - s.t0), 0, 1);
       if (s.follow) {
-        const tt = Math.min(t, s.t1), q = at(s.follow, tt - (s.lag || 0));
+        const tt = Math.min(tc, s.t1), q = at(s.follow, tt - (s.lag || 0));
         const b = s.bl ? 1 - smooth(clamp((t - s.t0) / s.bl, 0, 1)) : 0;      // the starting offset to the target fades out, so he keeps moving with the target while he closes in
         p = { x: q.x + (s.dx || 0) + s.rel.x * b, y: q.y + (s.dy || 0) + (s.wob ? s.wob * Math.sin(tt * s.fq + s.ph) : 0) + s.rel.y * b, z: 0 }; continue;
       }
@@ -428,7 +429,8 @@ function lvTimeline(actors) {
         if (a.tag) { const p = at(a.follow, t); a.el.setAttribute('x', p.x); a.el.setAttribute('y', p.y - 21); return; }
         const p = at(a.id, t);
         if (a.ball) { a.el.setAttribute('transform', `translate(${p.x} ${p.y - p.z}) scale(${1 + p.z / 90})`); a.el.querySelector('.sh').setAttribute('cy', 6 + p.z * 0.9); a.el.querySelector('.sh').setAttribute('opacity', Math.max(0.1, 0.3 - p.z / 300)); return; }
-        a.el.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`);
+        const hy = a.hop && t >= a.hop[0] && t <= a.hop[1] ? Math.abs(Math.sin((t - a.hop[0]) * 9)) * 5 : 0;     // celebration jumps
+        a.el.setAttribute('transform', `translate(${p.x.toFixed(1)} ${(p.y - hy).toFixed(1)})`);
         const q = at(a.id, t - 0.09), vx = p.x - q.x, vy = p.y - q.y;      // players face where they are running
         if (vx * vx + vy * vy > 0.9) { let d = Math.atan2(vy, vx) - a.face; d = Math.atan2(Math.sin(d), Math.cos(d)); a.face += d * 0.35; }
         a.fc.setAttribute('transform', `rotate(${(a.face * 180 / Math.PI).toFixed(0)})${a.isMe ? ' scale(1.25)' : ''}`);
@@ -778,6 +780,70 @@ function lvPlayScript(play, sc, A, T) {
     }
     case 'fg': case 'xp': kickPlay(); break;
   }
+  /* ---- life: pursuit while the ball carrier is still running, then the reaction once he is down (or the celebration on a score) ---- */
+  const livePlay = () => {
+    if (k === 'fg' || k === 'xp') return;
+    const ids = Object.keys(A).filter(i => !A[i].ball && !A[i].tag), steps = T.steps, td = !!play.td;
+    const lastEnd = id => (steps[id] || []).reduce((m, st) => Math.max(m, st.t1), 0);
+    const bl = (steps[ballId] || []).filter(st => st.follow), car = bl.length ? bl[bl.length - 1].follow : null;
+    const FW = [lvX(-9.4), lvX(109.4)], FY = [lvY(-25.5), lvY(25.5)], cl = p => ({ x: clamp(p.x, FW[0], FW[1]), y: clamp(p.y, FY[0], FY[1]) });
+    const tEnd0 = result.dur - (td ? 0 : 0.9);
+    const tW = td && car ? Math.min(result.dur - 0.6, lastEnd(car)) : tEnd0;
+    if (!(tW > SN + 0.4)) return;
+    const carOff = car && A[car] ? A[car].off : null;
+    // 1. everybody who has finished his scripted job keeps playing: blockers escort the carrier, the rest of the defense pursues
+    if (car && car !== 'QB') ids.forEach(id => {
+      const a = A[id]; if (id === car) return;
+      const e = lastEnd(id); if (e >= tW - 0.2) return;
+      const mine = a.off === carOff, cp = T.posAt(car, tW), j = rr(-1, 1);
+      if (mine) { const spd = /^OL/.test(id) ? 4.4 : 6.8, back = (/^OL/.test(id) ? 4.5 : 2.6 + rnd() * 2.5) * 10 * (carOff ? -dir : dir); T.run(id, [cl({ x: cp.x + back, y: cp.y + j * 22 })], e, spd, { pa: 0.3 }); }
+      else { const spd = /^DL/.test(id) ? 5.8 : 7, tr = (1.0 + rnd() * 1.2) * 10 * (carOff ? dir : -dir); T.run(id, [cl({ x: cp.x + tr * 0.4, y: cp.y + j * 14 })], e, spd, { pa: 0.3 }); }
+    });
+    // 2. the whistle (or the score): cut the scripted moves there
+    const cutT = td ? tW + 0.25 : tW;
+    ids.concat([ballId]).forEach(id => {
+      if (td && id === car) return;
+      steps[id] = (steps[id] || []).filter(st => st.t0 < cutT); steps[id].forEach(st => { if (st.t1 > cutT) st.cut = cutT; });
+    });
+    const spot = car ? T.posAt(car, tW) : (result.end || T.posAt(ballId, tW)); let spotP = { x: spot.x, y: spot.y };
+    const velAt = (id, t) => { const p0 = T.posAt(id, t), q0 = T.posAt(id, t - 0.08); return { p: p0, vx: (p0.x - q0.x) / 0.08, vy: (p0.y - q0.y) / 0.08 }; };
+    if (td && car) { const v = velAt(car, tW); spotP = cl({ x: v.p.x + v.vx * 0.22, y: v.p.y + v.vy * 0.22 }); }      // the scorer coasts a few yards into the end zone
+    const hitters = car ? ids.filter(id => id !== car && (steps[id] || []).some(st => st.follow === car && st.t1 >= tW - 0.6)) : [];
+    const hop = (id, a, b) => { A[id].hop = [a, b]; };
+    let ring = 0, dHero = null;
+    if (!car || (!td && !hitters.length)) { let bd = 1e9; ids.forEach(id => { if (!A[id].off) { const d = Math.hypot(T.posAt(id, tW).x - spotP.x, T.posAt(id, tW).y - spotP.y); if (d < bd) { bd = d; dHero = id; } } }); if (bd > 90) dHero = null; }
+    ids.forEach(id => {
+      const a = A[id], scorer = td && id === car, { p: p0, vx, vy } = velAt(id, scorer ? tW : cutT), sp = Math.hypot(vx, vy), same = car ? a.off === carOff : null;
+      let tA = (scorer ? tW : cutT) + rr(0, scorer ? 0 : 0.14), pA = p0;
+      if (sp > 14) { pA = cl({ x: p0.x + vx * 0.22, y: p0.y + vy * 0.22 }); T.move(id, pA, tA, tA + 0.5, { prof: 1, pa: 0, pd: 1 }); tA += 0.5; }
+      const dist = Math.hypot(pA.x - spotP.x, pA.y - spotP.y), ux = (pA.x - spotP.x) / (dist || 1), uy = (pA.y - spotP.y) / (dist || 1);
+      if (td) {
+        if (id === car) { hop(id, tA + 0.15, tA + 1.5); return; }
+        if (same) {                                                    // the scoring team runs to him and jumps around him
+          const myAng = (ring++ / 6) * Math.PI * 2 + 0.6, tg = cl({ x: spotP.x + Math.cos(myAng) * 26, y: spotP.y + Math.sin(myAng) * 26 });
+          if (dist < 520) { const t1 = T.run(id, [tg], tW - 0.15, 8.6, { pa: 0.25, pd: 0.2 }); hop(id, t1 + 0.1, t1 + 1.0 + rnd() * 0.4); }
+          else T.move(id, cl({ x: pA.x + (spotP.x - pA.x) * 0.4, y: pA.y + (spotP.y - pA.y) * 0.4 }), tA, tA + 1.3, { prof: 1, pa: 0.3, pd: 0.4 });
+        } else T.move(id, cl({ x: pA.x + (carOff ? -dir : dir) * 14, y: pA.y + uy * 8 }), tA + 0.2, tA + 1.3, { prof: 1, pa: 0.3, pd: 0.4 });   // the defense stops and walks off
+        return;
+      }
+      if (id === car) { T.move(id, cl({ x: pA.x + (carOff ? -dir : dir) * 9, y: pA.y + 3 }), tW + 0.85, tW + 1.45, { prof: 1, pa: 0.3, pd: 0.4 }); return; }   // stays down for a moment, then gets up
+      if (hitters.includes(id)) {                                      // the tacklers: the pile, then they get up (the first one celebrates a big hit)
+        const tg = cl({ x: spotP.x + (carOff ? dir : -dir) * 8, y: spotP.y + (hitters.indexOf(id) % 2 ? 13 : -13) });
+        T.move(id, tg, tW + 0.6, tW + 1.15, { prof: 1, pa: 0.3, pd: 0.4 });
+        if (hitters.indexOf(id) === 0 && (play.yards <= 0 || k === 'sack' || k === 'sackAllowed' || play.ff || k === 'int')) hop(id, tW + 1.0, tW + 1.55);
+        return;
+      }
+      if (car) {
+        if (same) { if (dist < 120) T.move(id, cl({ x: spotP.x + ux * 28, y: spotP.y + uy * 28 }), tA + 0.1, tA + 1.0, { prof: 1, pa: 0.3, pd: 0.4 }); else T.move(id, cl({ x: pA.x - (pA.x - spotP.x) * 0.3, y: pA.y - (pA.y - spotP.y) * 0.3 }), tA + 0.1, tA + 1.2, { prof: 1, pa: 0.3, pd: 0.4 }); }     // teammates come to help him up
+        else T.move(id, cl({ x: spotP.x + ux * Math.max(40, dist * 0.55), y: spotP.y + uy * Math.max(40, dist * 0.55) }), tA + 0.1, tA + 1.1, { prof: 1, pa: 0.3, pd: 0.4 });   // the defense gathers around the pile
+      } else {                                                         // no carrier (incomplete, break-up, kick): back toward the line
+        const offTeam = a.off, lx = lvX(sc.los) + (offTeam ? -dir * 32 : dir * 36), tg = cl({ x: pA.x + (lx - pA.x) * 0.5, y: pA.y });
+        if (id === dHero) hop(id, tA + 0.1, tA + 0.7); else T.move(id, tg, tA + 0.15, tA + 1.2, { prof: 1, pa: 0.3, pd: 0.4 });
+      }
+    });
+    result.tw = tW; if (!td) result.dur = Math.max(result.dur, tW + 1.55);
+  };
+  try { livePlay(); } catch (err) { console.warn('live play layer', err); }
   if (play.td) result.fx.push({ t: Math.max(0, result.dur - 1.1), p: result.end || P(0, 0), text: 'TOUCHDOWN!', cls: 'td', sticky: true });
   if (play.td) result.dur += 1.1;
   return result;

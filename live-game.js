@@ -128,7 +128,7 @@ const LV_EZ = {
   JAX: { bg: '#0A5B7B', ends: [[{ t: { s: 'JAGUARS', f: '#FFFFFF', ff: 'Archivo Black', h: 40, n: 330, y: 6 } }, { t: { s: 'JACKSONVILLE', f: '#E8F1F4', ff: 'Archivo Black', h: 16, n: 250, y: -30 } }]] },
   TEN: { bg: null, ends: [[{ t: { s: 'TITANS', f: '#0C2340', o: '#FFFFFF', w: 5, ff: 'Russo One', h: 66, n: 480, sh: ['#4B92DB', 4, 4] } }]] },
   DEN: { bg: null, ends: [[{ t: { s: 'BRONCOS', f: '#FB4F14', o: '#FFFFFF', w: 4, ff: 'Russo One', h: 60, n: 360 } }]] },
-  KC: { bg: null, ends: [[{ t: { s: 'CHIEFS', f: '#E31837', ff: 'Alfa Slab One', h: 60, n: 350 } }]] },
+  KC: { bg: '#FFB81C', ends: [[{ l: { k: 'img', src: 'assets/nfl/chiefs-wordmark.png', x: 0, y: 0, w: 315, h: 76 } }]] },   // CHIEFS wordmark, white outline, on gold
   LV: { bg: '#0A0A0A', ends: [[{ t: { s: 'Las Vegas', f: '#DADDE0', ff: 'Pacifico', h: 52, n: 340, cap: 0.62 } }, { x: 'spark', px: -170, py: -30, r: 12 }, { x: 'spark', px: 150, py: 28, r: 9 }, { x: 'spark', px: 205, py: -26, r: 7 }, { x: 'spark', px: -215, py: 26, r: 6 }], [{ t: { s: 'RAIDERS', f: '#A5ACAF', o: '#FFFFFF', w: 1.5, ff: 'Russo One', h: 64, n: 340 } }]] },
   LAC: { bg: '#0080C6', deco: 'band', ends: [[{ t: { s: 'CHARGERS', f: '#FFFFFF', ff: 'Russo One', h: 50, n: 330, x: 14, y: 4 } }, { x: 'bolt', px: -230, py: 6, r: 22 }], [{ t: { s: 'LOS ANGELES', f: '#FFFFFF', ff: 'Russo One', h: 46, n: 380, x: 14, y: 4 } }, { x: 'bolt', px: -230, py: 6, r: 22 }]] },
   DAL: { bg: '#1B3A8C', ends: [[{ t: { s: 'COWBOYS', f: '#A9B0B4', o: '#FFFFFF', w: 3, ff: 'Russo One', h: 60, n: 270, sh: ['#0B1F5A', 3, 3] } }, { l: { k: 'team', x: -215, y: 0, w: 82, g: 1 } }, { l: { k: 'team', x: 215, y: 0, w: 82, g: 1 } }]] },

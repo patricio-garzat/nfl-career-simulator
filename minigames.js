@@ -308,14 +308,14 @@ function mgRB(ctx, i, st) {
     await sleep(500); if (!ctx.alive()) return res(false);
     const inp = mgInput(ctx);
     const R = { x: 170, w: 0, stun: 0 }, C = { x: 170, w: -(78 - 3 * i) }, els = [...ctx.stage.querySelectorAll('.mg-rbd')], world = ctx.stage.querySelector('#mgRW'), me = ctx.stage.querySelector('#mgMe'), ch = ctx.stage.querySelector('#mgChaser'), ydT = ctx.stage.querySelector('#mgYd'), gapB = ctx.stage.querySelector('#mgGap');
-    let last = performance.now(), t = 0, ended = false, stumbles = 0, raf = 0, lean = 0;
+    let last = performance.now(), t = 0, ended = false, stumbles = 0, raf = 0, lean = 0, scored = false;
     ctx.say('<b>GO!</b>', 'go'); Snd.play('mgSnap', 0);
     const end = async (win) => {
       if (ended) return; ended = true; cancelAnimationFrame(raf); inp.dispose(); ctx.ctrl.innerHTML = '';
       const got = Math.max(0, Math.min(yds, Math.round(R.w / 10)));
       if (win) {
         const perfect = stumbles === 0; if (perfect) ctx.perfects++;
-        mgPop(ctx, 170, 100, perfect ? 'UNTOUCHED TD!' : 'TOUCHDOWN!', 'good'); Snd.play('td', 0.05); mgShake(ctx);
+        mgPop(ctx, 170, 100, perfect ? 'UNTOUCHED TD!' : 'TOUCHDOWN!', 'good'); mgShake(ctx);
         ctx.say(`🏈 <b>TOUCHDOWN!</b> ${yds}-yard run${perfect ? ' · ✨ untouched' : stumbles ? ` · ${stumbles} stumble${stumbles > 1 ? 's' : ''}` : ''}`, 'good'); res(true);
       } else {
         mgPop(ctx, 170, 120, 'STOPPED SHORT!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx);
@@ -340,8 +340,9 @@ function mgRB(ctx, i, st) {
       me.style.transform = `translate(${R.x}px,${RY}px) rotate(${lean * 0.9}deg)`; ch.style.transform = `translate(${C.x}px,${RY + (R.w - C.w)}px)`;
       const gap = R.w - C.w; gapB.style.transform = `scaleY(${-clamp(gap / 90, 0.03, 1)})`; gapB.setAttribute('fill', gap < 28 ? '#ff5d5d' : gap < 55 ? '#ffd23d' : '#6dffbb');
       ydT.textContent = `${Math.max(0, yds - Math.floor(R.w / 10))} YDS TO TD`;
-      if (R.w >= GOAL) return end(true);
-      if (C.w >= R.w - 14 && Math.abs(C.x - R.x) < 20) return end(false);
+      if (R.w >= GOAL && !scored) { scored = true; Snd.play('td', 0.05); mgPop(ctx, 170, 100, 'TOUCHDOWN!', 'good'); }      // over the goal line: nobody can stop him now
+      if (R.w >= GOAL + 48) return end(true);                         // he runs into the end zone before the play is over
+      if (!scored && C.w >= R.w - 14 && Math.abs(C.x - R.x) < 20) return end(false);
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);

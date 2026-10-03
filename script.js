@@ -1498,9 +1498,9 @@ function jcTexts(c, view, name, number, word) {
     const nm = String(name || '').toUpperCase(), len = nm.length, capN = (len > 8 ? 19 - (len - 8) * 1.2 : 19) * c.nameSize / 100, ny = 97 + (c.nameY || 0), sizeN = capN / nf.cap, lsN = 1.5, maxWN = 150;
     if (c.nameBox && len) {                                   // the name sits in a rectangle that wraps it with a small margin and grows / shrinks with its length
       const real = jcTextW(nm, sizeN, nf.css, nf.w, lsN), w = Math.min(maxWN, real == null ? len * sizeN * nf.wf + (len - 1) * lsN : real), vis = Math.max(6, w - lsN);     // letter-spacing trails the last letter: the glyphs are centred without it
-      const padX = Math.max(3.5, capN * 0.3), padY = Math.max(2.6, capN * 0.2), body = jcColors(c).body, light = lum(c.nameColor) > 0.5;
-      const fill = c.nameBoxFill || (light ? mixHex(body, '#000000', 0.34) : mixHex(body, '#ffffff', 0.72));
-      out.push({ k: 'plate', x: UNI.meta.cx - lsN / 2, y: ny - capN - padY, w: vis + 2 * padX, h: capN + 2 * padY, fill, line: c.nameOutline && c.nameOutlineW > 0 ? c.nameOutline : c.nameColor });
+      const padX = Math.max(3.5, capN * 0.3), padY = Math.max(2.6, capN * 0.2), body = jcColors(c).body;
+      const fill = c.nameBoxFill || body;                                    // same color as the jersey, outlined in the same black line as the other seams
+      out.push({ k: 'plate', x: UNI.meta.cx - lsN / 2, y: ny - capN - padY, w: vis + 2 * padX, h: capN + 2 * padY, fill, line: '#14171c' });
     }
     out.push({ k: 'name', t: nm, x: UNI.meta.cx, y: ny, size: sizeN, css: nf.css, w: nf.w, wf: nf.wf, fill: c.nameColor, stroke: c.nameOutlineW > 0 ? c.nameOutline : null, sw: c.nameOutlineW > 0 ? c.nameOutlineW : 2.4, ls: lsN, maxW: maxWN });
   } else if (word && c.showWord !== false) {
@@ -1542,7 +1542,7 @@ function jcShoulderTexts(c, view, number) {
   return [mk('L'), mk('R')];
 }
 const jcTextSVG = s => {
-  if (s.k === 'plate') return `<rect x="${(s.x - s.w / 2).toFixed(2)}" y="${s.y.toFixed(2)}" width="${s.w.toFixed(2)}" height="${s.h.toFixed(2)}" rx="1.4" fill="${s.fill}" stroke="${s.line}" stroke-width=".9"/>`;
+  if (s.k === 'plate') return `<rect x="${(s.x - s.w / 2).toFixed(2)}" y="${s.y.toFixed(2)}" width="${s.w.toFixed(2)}" height="${s.h.toFixed(2)}" rx="1.4" fill="${s.fill}" stroke="${s.line}" stroke-width=".85"/>`;
   if (s.jets) {
     const k = s.cap / 100, w = s.run.w * k, sq = w > s.maxW ? s.maxW / w : 1;
     const attrs = `fill="${s.fill}" fill-rule="evenodd"${s.stroke ? ` stroke="${s.stroke}" stroke-width="${(s.sw / k).toFixed(2)}" paint-order="stroke" stroke-linejoin="round"` : ''}`;
@@ -1674,7 +1674,7 @@ async function jcDrawJersey(ctx, cfg, view, name, num, word, id, logoData, ox, o
     if (view === 'front') await drawCollarLogo(ctx, ox, oy, sc);
     jcTexts(cfg, view, name, num, word).concat(jcShoulderTexts(cfg, view, num)).forEach(s => {
       ctx.save();
-      if (s.k === 'plate') { ctx.fillStyle = s.fill; ctx.strokeStyle = s.line; ctx.lineWidth = 0.9 * sc; const rx = ox + (s.x - s.w / 2) * sc, ry = oy + s.y * sc; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(rx, ry, s.w * sc, s.h * sc, 1.4 * sc); else ctx.rect(rx, ry, s.w * sc, s.h * sc); ctx.fill(); ctx.stroke(); ctx.restore(); return; }
+      if (s.k === 'plate') { ctx.fillStyle = s.fill; ctx.strokeStyle = s.line; ctx.lineWidth = 0.85 * sc; const rx = ox + (s.x - s.w / 2) * sc, ry = oy + s.y * sc; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(rx, ry, s.w * sc, s.h * sc, 1.4 * sc); else ctx.rect(rx, ry, s.w * sc, s.h * sc); ctx.fill(); ctx.stroke(); ctx.restore(); return; }
       if (s.clip) { ctx.translate(ox, oy); ctx.scale(sc, sc); ctx.clip(new Path2D(s.clip === 'bo' ? UNI[view].bodyOuter : UNI[view][s.clip])); ctx.setTransform(1, 0, 0, 1, 0, 0); }
       if (s.jets) {
         const k = s.cap / 100, w = s.run.w * k, sq = w > s.maxW ? s.maxW / w : 1;

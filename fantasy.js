@@ -61,7 +61,7 @@ function ffEvaluate(se) {
   let rank = ffRankOf(pos, perceived * (0.88 + 0.12 * proj.avail));
   if (!prev && S.draft && !S.draft.undrafted) rank *= S.draft.round === 1 ? 0.8 : S.draft.round === 2 ? 0.92 : S.draft.round >= 5 ? 1.2 : 1;     // rookie hype follows draft capital
   rank = clamp(rank * Math.exp(gauss(0, 0.07)), 1, 260);
-  const years = Object.keys(FF_ADP).map(Number), year = years[(Math.max(0, S.seasons.indexOf(se)) + 6) % years.length];      // cycles the real ADP years: 2025, 2019, 2020...
+  const years = Object.keys(FF_ADP).map(Number), year = FF_ADP[se.year] ? se.year : FF_ADP[se.year - 1] ? se.year - 1 : years[(Math.max(0, S.seasons.indexOf(se)) + 6) % years.length];      // the season's own ESPN ADP (2026), the latest real one for 2027, then it cycles the older real years
   let adp = ffAdpOf(pos, rank, year); if (adp != null) adp = Math.min(adp, 999);
   const lastRank = lastPPG == null ? null : Math.round(ffRankOf(pos, lastPPG));
   const undrafted = adp != null && adp > FF_TEAMS * FF_ROUNDS;
@@ -89,20 +89,26 @@ function ffBoard(F) {
     if (p.pos === 'DEF') return T.DEF === 0 && round >= 11;
     return T[p.pos] < 6;
   };
+  const recent = [];                                                      // positions of the last picks (positional runs)
   for (let pick = 1; pick <= total; pick++) {
     const round = Math.ceil(pick / N), k = (pick - 1) % N, ti = round % 2 ? k : N - 1 - k, T = teams[ti];
     let choice;
     if (mePick && pick === mePick) choice = me;
     else {
-      const pool = []; for (const p of avail) { if (fits(p, T, round)) pool.push(p); if (pool.length >= 8) break; }
+      const pool = []; for (const p of avail) { if (fits(p, T, round)) pool.push(p); if (pool.length >= 30) break; }
       // late rounds: a team still without a kicker / defense takes one
       const need = round >= 14 && T.K === 0 ? pool.find(x => x.pos === 'K') || avail.find(x => x.pos === 'K') : round >= 13 && T.DEF === 0 ? pool.find(x => x.pos === 'DEF') || avail.find(x => x.pos === 'DEF') : null;
       if (need && rnd() < 0.7) choice = need;
-      else { const w = pool.map((_, i) => Math.exp(-i * 0.55)); let r = rnd() * w.reduce((x, y) => x + y, 0), i = 0; for (; i < pool.length - 1; i++) { r -= w[i]; if (r <= 0) break; } choice = pool[i] || avail[0]; }
+      else {                                                              // how people really draft: everyone follows the ADP list loosely (the later the pick, the bigger the spread), fills starting spots, and positional runs pull others in
+        const want = round >= 6 ? { RB: 2, WR: 3, TE: 1, QB: 1 } : round >= 3 ? { RB: 1, WR: 2 } : {};
+        const score = p => p.adp + gauss(0, 0.6 + 0.09 * p.adp) - (T[p.pos] < (want[p.pos] || 0) ? 7 : 0) - (recent.filter(x => x === p.pos).length >= 2 ? 2.5 : 0);
+        let bs = 1e9; pool.forEach(p => { const v = score(p); if (v < bs) { bs = v; choice = p; } });
+        if (!choice) choice = avail[0];
+      }
     }
     if (!choice) choice = { n: 'Free Agent', pos: 'WR', tm: 'FA', adp: 999 };      // never leave a hole in the board
     if (!choice.me && avail.includes(choice)) avail.splice(avail.indexOf(choice), 1);
-    teams[ti][choice.pos] = (teams[ti][choice.pos] || 0) + 1;
+    teams[ti][choice.pos] = (teams[ti][choice.pos] || 0) + 1; recent.push(choice.pos); if (recent.length > 6) recent.shift();
     cells.push({ ...choice, pick, team: ti, row: round - 1, col: ti });
   }
   const idx = cells.findIndex(c => c.me);

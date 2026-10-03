@@ -554,7 +554,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 @keyframes sbTwinkle { 0%, 100% { transform: scale(0); opacity: 0; } 50% { transform: scale(var(--s, 1)); opacity: 1; } }
 @keyframes sbSlam { 0% { opacity: 0; transform: scale(2.6); } 100% { opacity: 1; transform: scale(1); } }
 
-.jc2-preview .jc-tlogo { cursor: grab; touch-action: none; } .jc2-preview .jc-tlogo.drag { cursor: grabbing; } .jc2-preview svg { touch-action: pan-y; }
+.jc2-preview .jc-tlogo, .jc2-preview .jc-thit { cursor: grab; touch-action: none; } .jc2-preview .jc-tlogo.drag { cursor: grabbing; } .jc2-preview svg { touch-action: pan-y; }
 
 /* =====================================================================
    PHONE MODE (<= 720px): the page itself never scrolls. #app is a fixed full-screen frame; the key screens are compact enough to fit,

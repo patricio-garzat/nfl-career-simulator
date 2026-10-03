@@ -1549,7 +1549,7 @@ function jerseyOne(cfg, view, name, number, o = {}) {
   const backHref = !back ? '' : (o.backLogo !== undefined ? o.backLogo : (tid && TEAM[tid] ? (o.logoData ? o.logoData[lkey] : jcLogoUrl(tid, lkey)) : ''));
   const backLogo = backHref ? `<image href="${backHref}" x="${M.cx - 8.5}" y="35" width="17" height="17" preserveAspectRatio="xMidYMid meet"/>` : '';
   const tSz = 34 * cfg.logoSize / 100, tHref = (!back && cfg.torsoLogo && tid && TEAM[tid]) ? (o.logoData ? o.logoData[lkey] : jcLogoUrl(tid, lkey)) : '';
-  const torsoLogo = tHref ? `<g clip-path="url(#${id}bo)"><image class="jc-tlogo" data-tlogo="1" href="${tHref}" x="${(cfg.logoX - tSz / 2).toFixed(1)}" y="${(cfg.logoY - tSz / 2).toFixed(1)}" width="${tSz.toFixed(1)}" height="${tSz.toFixed(1)}" preserveAspectRatio="xMidYMid meet"/></g>` : '';
+  const torsoLogo = tHref ? `<g clip-path="url(#${id}bo)"><image class="jc-tlogo" data-tlogo="1" href="${tHref}" x="${(cfg.logoX - tSz / 2).toFixed(1)}" y="${(cfg.logoY - tSz / 2).toFixed(1)}" width="${tSz.toFixed(1)}" height="${tSz.toFixed(1)}" preserveAspectRatio="xMidYMid meet"/><circle class="jc-thit" data-thit="1" cx="${cfg.logoX.toFixed(1)}" cy="${cfg.logoY.toFixed(1)}" r="${Math.max(tSz / 2, 24).toFixed(1)}" fill="transparent"/></g>` : '';   // the round hit area makes a small logo easy to grab
   const swoosh = cfg.swoosh && Z.swooshL ? `<g clip-path="url(#${id}bo)" fill="${C.swoosh}"><path d="${Z.swooshL}"/><path d="${Z.swooshR}"/></g>` : '';
   // team logo on both sleeves (spot from the user's JERSEY2Logos.svg; whatever sticks out of the jersey outline is cut off by the clip below): the wearer's right sleeve as it is, the wearer's left one mirrored (so on the front view the screen-right logo is the mirrored one), so faces/birds look the same way on both arms
   const sl = (cfg.sleeveLogo && tid && TEAM[tid] && UNI.slogo) ? ['L', 'R'].map(sd => {
@@ -2396,9 +2396,9 @@ function renderLocker(keepScroll) {
         <div class="seg"><button class="tog ${cfg.sleeveLogo ? 'on' : ''}" data-act="jcSleeveLogo"><i></i>Logo on sleeves</button></div>
         ${cfg.sleeveLogo ? range('Sleeve logo size', 'sleeveLogoSize', 40, 160, 5, cfg.sleeveLogoSize, '%') + `<div class="seg"><button class="tog ${cfg.sleeveLogoFlipR ? 'on' : ''}" data-act="jcSleeveFlip" data-s="R"><i></i>Flip right sleeve</button><button class="tog ${cfg.sleeveLogoFlipL ? 'on' : ''}" data-act="jcSleeveFlip" data-s="L"><i></i>Flip left sleeve</button></div>` : ''}
 </section>
-<section class="jc-card"><h4 class="jc-h">🏈 Team logo on the chest<small>drag it on the jersey to move it</small></h4>
+<section class="jc-card"><h4 class="jc-h">🏈 Team logo on the chest<small>drag it on the jersey, or use the sliders</small></h4>
         <div class="seg"><button class="tog ${cfg.torsoLogo ? 'on' : ''}" data-act="jcTorsoLogo"><i></i>Logo on chest</button>${cfg.torsoLogo ? '<button class="mini" data-act="jcLogoCenter">Reset position</button>' : ''}</div>
-        ${cfg.torsoLogo ? range('Logo size', 'logoSize', 40, 220, 5, cfg.logoSize, '%') + (jcView === 'back' ? '<div class="muted small">Switch to FRONT to see and move the logo.</div>' : '') : ''}
+        ${cfg.torsoLogo ? range('Logo size', 'logoSize', 40, 220, 5, cfg.logoSize, '%') + range('Move left ↔ right', 'logoX', 8, 292, 2, Math.round(cfg.logoX)) + range('Move up ↕ down', 'logoY', 8, 337, 2, Math.round(cfg.logoY)) + (jcView === 'back' ? '<div class="muted small">Switch to FRONT to see and move the logo.</div>' : '') : ''}
 </section>
         ` : ''}
         ${jcTab === 'text' ? `
@@ -2956,14 +2956,15 @@ document.addEventListener('pointermove', e => {
 ['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, () => { if (!jcNumDrag) return; jcSave(jcNumDrag.cfg); saveGame(); jcNumDrag = null; renderLocker(true); }));
 const jcPoint = (svg, e) => { const m = svg.getScreenCTM(); if (!m) return null; const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(m.inverse()); };
 document.addEventListener('pointerdown', e => {
-  const el = e.target.closest && e.target.closest('image[data-tlogo]'); if (!el || !el.closest('.jc2-preview')) return;
+  const el = e.target.closest && e.target.closest('image[data-tlogo], circle[data-thit]'); if (!el || !el.closest('.jc2-preview')) return;
   const svg = el.ownerSVGElement, p = jcPoint(svg, e); if (!p) return;
-  const cfg = JSON.parse(JSON.stringify(jerseyFor(S.teamId))); jcDrag = { svg, cfg, dx: cfg.logoX - p.x, dy: cfg.logoY - p.y }; el.classList.add('drag'); e.preventDefault();
+  const cfg = JSON.parse(JSON.stringify(jerseyFor(S.teamId))); jcDrag = { svg, cfg, dx: cfg.logoX - p.x, dy: cfg.logoY - p.y }; svg.querySelector('image[data-tlogo]').classList.add('drag'); e.preventDefault();
 });
 document.addEventListener('pointermove', e => {
   if (!jcDrag) return; const p = jcPoint(jcDrag.svg, e); if (!p) return; const c = jcDrag.cfg;
   c.logoX = clamp(p.x + jcDrag.dx, 8, 292); c.logoY = clamp(p.y + jcDrag.dy, 8, 337);
   const el = jcDrag.svg.querySelector('image[data-tlogo]'), sz = Number(el.getAttribute('width')); el.setAttribute('x', (c.logoX - sz / 2).toFixed(1)); el.setAttribute('y', (c.logoY - sz / 2).toFixed(1));
+  const hit = jcDrag.svg.querySelector('circle[data-thit]'); if (hit) { hit.setAttribute('cx', c.logoX.toFixed(1)); hit.setAttribute('cy', c.logoY.toFixed(1)); }
 });
 ['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, () => { if (!jcDrag) return; jcSave(jcDrag.cfg); saveGame(); const el = jcDrag.svg.querySelector('image[data-tlogo]'); if (el) el.classList.remove('drag'); jcDrag = null; }));
 document.addEventListener('input', e => {

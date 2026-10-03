@@ -144,13 +144,28 @@ const LV_EZ = {
   NO: { bg: null, deco: 'sband', ends: [[{ t: { s: 'SAINTS', f: '#000000', o: '#D3BC8D', w: 2.5, ff: 'Alfa Slab One', h: 58, n: 330 } }]] },
   TB: { bg: null, ends: [[{ t: { s: 'BUCCANEERS', f: '#D50A0A', o: '#FFFFFF', w: 1.5, ff: 'Alfa Slab One', h: 42, n: 400, sh: ['#111111', 4, 4] } }]] },
   ARI: { bg: null, ends: [[{ l: { k: 'img', src: 'assets/nfl/cardinals-wordmark.png', x: 0, y: 0, w: 430, h: 92 } }]] },   // ARIZONA CARDINALS wordmark with a white outline on bare turf
-  LAR: { bg: '#0B2A8A', ends: [[{ t: { s: 'RAMS', f: '#FFD100', ff: 'Alfa Slab One', h: 66, n: 280 } }]] },
+  LAR: { bg: '#0B2A8A', ends: [[{ l: { k: 'img', src: 'assets/nfl/rams-wordmark.png', x: 0, y: 0, w: 340, h: 75 } }]] },   // the LA Rams wordmark on blue
   SF: { bg: null, ends: [[{ t: { s: '49ERS', f: '#AA0000', o: '#B3995D', w: 4, ff: 'Rye', h: 56, n: 300, cap: 0.7 } }, { l: { k: 'nfl', x: -235, y: 10, w: 48 } }, { l: { k: 'nfc', x: 235, y: 10, w: 52 } }]] },
   SEA: { bg: '#002244', ends: [[{ t: { s: 'SEAHAWKS', f: '#A5ACAF', o: '#FFFFFF', w: 1.5, ff: 'Graduate', h: 52, n: 330, x: -4 } }, { l: { k: 'nfl', x: -232, y: 0, w: 46 } }, { l: { k: 'team', x: 232, y: 0, w: 70 } }]] },
 };
 const lvSpark = (x, y, r) => `<path d="M${x} ${y - r}Q${x + r * 0.15} ${y - r * 0.15} ${x + r} ${y}Q${x + r * 0.15} ${y + r * 0.15} ${x} ${y + r}Q${x - r * 0.15} ${y + r * 0.15} ${x - r} ${y}Q${x - r * 0.15} ${y - r * 0.15} ${x} ${y - r}z" fill="#E8ECEF"/>`;
 const lvBolt = (x, y, r) => `<path transform="translate(${x} ${y}) scale(${r / 22})" d="M-14 -30L10 -30L0 -8L16 -8L-10 30L-2 4L-16 4Z" fill="#FFC20E"/>`;
+// every end zone's art keeps a margin from the white border: shrink the whole group if its extent goes past the safe box (232 px along the length, 38 px across the depth)
+function lvEzScale(items) {
+  let ex = 0, ey = 0;
+  items.forEach(it => {
+    if (it.t) { ex = Math.max(ex, Math.abs(it.t.x || 0) + it.t.n / 2); ey = Math.max(ey, Math.abs(it.t.y || 0) + it.t.h / 2 + (it.t.w || 0) / 2); }
+    else if (it.l) { ex = Math.max(ex, Math.abs(it.l.x) + it.l.w / 2); ey = Math.max(ey, Math.abs(it.l.y) + (it.l.h || it.l.w) / 2); }
+    else if (it.x === 'rule') { ex = Math.max(ex, it.n / 2); ey = Math.max(ey, Math.abs(it.py) + 2); }
+    else if (it.px !== undefined) { ex = Math.max(ex, Math.abs(it.px) + it.r); ey = Math.max(ey, Math.abs(it.py) + it.r); }
+  });
+  return Math.min(1, 232 / (ex || 1), 38 / (ey || 1));
+}
 function lvEzItems(items, team) {
+  const k = lvEzScale(items);
+  return `<g transform="scale(${k.toFixed(3)})">${lvEzItemsRaw(items, team)}</g>`;
+}
+function lvEzItemsRaw(items, team) {
   return items.map(it => {
     if (it.t) {
       const t = it.t, cap = t.cap || 0.72, fs = t.h / cap, x = t.x || 0, y = (t.y || 0) + t.h / 2;

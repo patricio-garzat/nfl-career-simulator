@@ -208,7 +208,7 @@ function lvEndZone(x, team, rot, endIdx) {
 }
 
 /* ---------- the field ---------- */
-function lvFieldSVG(away, home) {
+function lvFieldSVG(away, home, sb) {
   const A = TEAM[away], H = TEAM[home], top = LV_PAD, bot = LV_PAD + LV_FH, cy = lvY(0);
   // grass: a tile of tiny blades (fixed seed, so it never shimmers) drawn over the turf, the aprons and the end zones at low opacity
   const grassTile = (() => { let sd = 7; const R = () => (sd = (sd * 16807) % 2147483647) / 2147483647; let b = '';
@@ -260,7 +260,8 @@ function lvFieldSVG(away, home) {
     ${stripes}${ezOf(0, A, -90, 0)}${ezOf(1100, H, 90, 0)}<rect x="0" y="${top}" width="1200" height="${LV_FH}" fill="url(#lvGrass)" pointer-events="none"/>
     <g class="lv-lines">${lines}${hashes}</g>
     <g class="lv-nums" fill="#fff" fill-opacity=".92">${nums}</g>
-    <image href="${logoUrl(home)}" x="${lvX(50) - 90}" y="${cy - 90}" width="180" height="180" opacity=".92" preserveAspectRatio="xMidYMid meet"/>
+    ${sb ? `<image href="${NFL_LOGO}" x="${lvX(50) - 90}" y="${cy - 90}" width="180" height="180" opacity=".95" preserveAspectRatio="xMidYMid meet"/>${[20, 80].map(y => `<image href="super-bowl-trophy.png" x="${lvX(y) - 40}" y="${cy - 49}" width="80" height="98" opacity=".95" preserveAspectRatio="xMidYMid meet"/>`).join('')}`   // Super Bowl: the NFL shield at midfield, a small Lombardi trophy on each 20
+      : `<image href="${logoUrl(home)}" x="${lvX(50) - 90}" y="${cy - 90}" width="180" height="180" opacity=".92" preserveAspectRatio="xMidYMid meet"/>`}
     ${pylons}${post(-10, 1)}${post(1210, -1)}
     <rect id="lvLos" y="${LV_PAD}" width="4" height="${LV_FH}" fill="#4aa8ff" opacity="0"/><rect id="lvFd" y="${LV_PAD}" width="4" height="${LV_FH}" fill="#ffd23d" opacity="0"/>
     <g id="lvActors"></g><g id="lvFx"></g></svg>`;
@@ -798,7 +799,7 @@ async function openLiveGame(game, notes, season) {
   ov.innerHTML = `<div class="lv-wrap">
     <div class="lv-top"><span class="lv-live"><i></i>LIVE</span><b>${label}</b><span class="muted">${TEAM[away].name} @ ${TEAM[home].name}</span><div class="lv-ctrl"><button class="mini on" data-lv-speed="1">1×</button><button class="mini" data-lv-speed="2">2×</button><button class="mini" data-lv-speed="4">4×</button><button class="btn btn-ghost btn-sm" id="lvSkip">SKIP ▸</button></div></div>
     ${lvScoreboardHTML(L)}
-    <div class="lv-stage">${lvFieldSVG(away, home)}<div class="lv-banner" id="lvBanner"></div></div>
+    <div class="lv-stage">${lvFieldSVG(away, home, /super bowl|^SB$/i.test(String(game.round || '')))}<div class="lv-banner" id="lvBanner"></div></div>
     <div class="lv-bottom">
       <div class="lv-info card"><div class="lv-dd" id="lvDD">Kickoff</div><div class="lv-text" id="lvText">${game.st === 'OUT' ? (game.dnp ? "You are not active today — you'll follow the game from the sideline." : 'You are out with an injury — you follow the game from the sideline.') : 'Watching every snap you are part of…'}</div></div>
       <div class="lv-me card"><div class="lv-me-h">${esc(P.name)} · ${P.pos} · #${playerNumber()}</div><div class="lv-tiles" id="lvTiles"></div></div>

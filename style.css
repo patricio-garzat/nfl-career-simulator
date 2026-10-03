@@ -1033,7 +1033,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .gm-board { display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch; border-radius: 18px; overflow: hidden; border: 1px solid var(--line2); box-shadow: 0 14px 40px rgba(0, 0, 0, .35); animation: slideUp .45s both; }
 .gm-side { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 18px 8px 16px; background: linear-gradient(160deg, color-mix(in srgb, var(--c1) 62%, #070b14), color-mix(in srgb, var(--c1) 24%, #070b14)); color: #fff; min-width: 0; }
 .gm-side::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: var(--c2); opacity: .9; }
-.gm-side.mine .gm-tn small { opacity: 1; color: var(--gc, #fff); }
+.gm-side.mine .gm-tn small { opacity: 1; font-weight: 800; }
 .gm-plate { width: 62px; height: 62px; border-radius: 50%; background: rgba(255, 255, 255, .95); display: grid; place-items: center; box-shadow: 0 4px 14px rgba(0, 0, 0, .4); } .gm-plate img { width: 44px; height: 44px; object-fit: contain; }
 .gm-tn { text-align: center; line-height: 1.05; max-width: 100%; } .gm-tn small { display: block; font: 700 10px var(--head); letter-spacing: .2em; opacity: .75; margin-bottom: 2px; } .gm-tn b { font: 800 clamp(15px, 3.4vw, 20px) var(--head); letter-spacing: .04em; text-transform: uppercase; overflow-wrap: anywhere; }
 .gm-sc { font: 800 italic 62px/1 var(--head); text-shadow: 0 3px 18px rgba(0, 0, 0, .5); } .gm-side.lose .gm-sc { opacity: .62; } .gm-side.win .gm-sc { text-shadow: 0 0 26px rgba(255, 255, 255, .45), 0 3px 18px rgba(0, 0, 0, .5); }

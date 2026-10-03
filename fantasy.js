@@ -6,8 +6,9 @@
    How you are valued: your projected points (simulated with the game's own stat engine) blended with last season's output, plus
    rookie draft-capital hype, mapped to a positional rank through the game's own fantasy scale; that rank picks a real ADP slot.
    ===================================================================== */
-const FF_COL = { QB: '#ff5d6c', RB: '#35e0a1', WR: '#4aa8ff', TE: '#ffb13d', K: '#b88cff', DEF: '#8a95a8', DL: '#e08a4a', LB: '#e08a4a', CB: '#e08a4a', S: '#e08a4a', OL: '#9aa6c0' };
+const FF_COL = { QB: '#ff2a6d', RB: '#00ceb8', WR: '#58a7ff', TE: '#ffae58', K: '#c471ed', DEF: '#b8a089', DL: '#e08a4a', LB: '#e08a4a', CB: '#e08a4a', S: '#e08a4a', OL: '#9aa6c0' };
 const FF_TEAMS = 12, FF_ROUNDS = 15;
+const FF_MGR = ['Dre', 'Mia', 'Jake', 'Luna', 'Omar', 'Zoe', 'Tito', 'Nico', 'Ana', 'Beto', 'Kai', 'Sofi'];
 const ffAnchors = pos => {
   const c = POS[pos], a = c.awd, raw = [[1, a.lead * 1.04], [3, a.ap1], [6, a.ap2], [12, a.pb], [24, c.bench * 1.08], [36, c.bench * 0.88], [60, c.bench * 0.64], [100, c.bench * 0.46], [160, c.bench * 0.3]];
   for (let i = 1; i < raw.length; i++) raw[i][1] = Math.min(raw[i][1], raw[i - 1][1] * 0.985);    // always strictly falling
@@ -68,15 +69,39 @@ function ffEvaluate(se) {
   return { year, pos, rank: Math.min(99, Math.max(1, Math.round(rank))), trueRank: Math.min(99, Math.round(trueRank)), adp, undrafted, adpYear: year, proj: proj.ppg, projSeason: proj.season, lastRank: lastRank == null ? null : Math.min(99, lastRank), lastPPG, label: adp == null || undrafted ? null : ffPickLabel(adp), round: adp == null || undrafted ? null : Math.ceil(Math.round(adp) / FF_TEAMS) };
 }
 
-// the board: the real ADP list with you slotted in, laid out in snake order
+// the board: a full snake draft simulated by 12 managers that follow the real ADP list, but draft like people do (roster needs, QBs and TEs once,
+// kickers and defenses at the end, a bit of noise), with you taken at your ADP
 function ffBoard(F) {
-  const list = FF_ADP[F.year].map(p => ({ n: p[0], pos: p[1], tm: p[2], adp: p[3] }));
-  const me = { n: S.player.name, pos: S.player.pos, tm: S.teamId, adp: F.adp == null ? 9999 : F.adp, me: true };
-  list.push(me); list.sort((a, b) => a.adp - b.adp);
-  const total = FF_TEAMS * FF_ROUNDS, cells = list.slice(0, total).map((p, i) => ({ ...p, pick: i + 1 }));
-  cells.forEach(c => { const r = Math.ceil(c.pick / FF_TEAMS), k = (c.pick - 1) % FF_TEAMS; c.row = r - 1; c.col = r % 2 ? k : FF_TEAMS - 1 - k; });
-  const mine = cells.find(c => c.me) || null;
-  return { cells, mine, idx: mine ? cells.indexOf(mine) : -1, list };
+  const N = FF_TEAMS, R = FF_ROUNDS, total = N * R, P = S.player;
+  const avail = FF_ADP[F.year].map(p => ({ n: p[0], pos: p[1], tm: p[2], adp: p[3] })).sort((x, y) => x.adp - y.adp);
+  const mePick = F.adp != null && !F.undrafted ? clamp(Math.round(F.adp), 1, total) : 0;
+  const me = { n: P.name, pos: P.pos, tm: S.teamId, adp: F.adp == null ? 9999 : F.adp, me: true };
+  const teams = Array.from({ length: N }, () => ({ QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 })), cells = [];
+  const fits = (p, T, round) => {
+    if (p.pos === 'QB') return T.QB === 0 || (T.QB === 1 && round >= 9 && rnd() < 0.5);                 // one QB, maybe a backup late
+    if (p.pos === 'TE') return T.TE === 0 || (T.TE === 1 && round >= 10 && rnd() < 0.4);
+    if (p.pos === 'K') return T.K === 0 && round >= 13;
+    if (p.pos === 'DEF') return T.DEF === 0 && round >= 11;
+    return T[p.pos] < 6;
+  };
+  for (let pick = 1; pick <= total; pick++) {
+    const round = Math.ceil(pick / N), k = (pick - 1) % N, ti = round % 2 ? k : N - 1 - k, T = teams[ti];
+    let choice;
+    if (mePick && pick === mePick) choice = me;
+    else {
+      const pool = []; for (const p of avail) { if (fits(p, T, round)) pool.push(p); if (pool.length >= 8) break; }
+      // late rounds: a team still without a kicker / defense takes one
+      const need = round >= 14 && T.K === 0 ? pool.find(x => x.pos === 'K') || avail.find(x => x.pos === 'K') : round >= 13 && T.DEF === 0 ? pool.find(x => x.pos === 'DEF') || avail.find(x => x.pos === 'DEF') : null;
+      if (need && rnd() < 0.7) choice = need;
+      else { const w = pool.map((_, i) => Math.exp(-i * 0.55)); let r = rnd() * w.reduce((x, y) => x + y, 0), i = 0; for (; i < pool.length - 1; i++) { r -= w[i]; if (r <= 0) break; } choice = pool[i] || avail[0]; }
+    }
+    if (!choice) break;
+    if (!choice.me) avail.splice(avail.indexOf(choice), 1);
+    teams[ti][choice.pos] = (teams[ti][choice.pos] || 0) + 1;
+    cells.push({ ...choice, pick, team: ti, row: round - 1, col: ti });
+  }
+  const idx = cells.findIndex(c => c.me);
+  return { cells, mine: idx >= 0 ? cells[idx] : null, idx, list: avail };
 }
 const ffShort = n => { const w = String(n).split(' '); return (w[w.length - 1] || n).replace(/[^A-Za-z'’.-]/g, '').slice(0, 7); };
 const ffOrd = n => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
@@ -104,7 +129,8 @@ function ffPreseason(se, reuse) {
         </div>
       </div>
       <div class="ff-ticker" id="ffTicker">Draft room is open…</div>
-      <div class="ff-board" id="ffBoard" style="grid-template-columns:repeat(${FF_TEAMS},1fr)">${Array.from({ length: FF_TEAMS * FF_ROUNDS }, (_, i) => `<i class="ff-c" data-i="${i}"></i>`).join('')}</div>
+      <div class="ff-bwrap" id="ffBWrap"><div class="ff-bhead">${Array.from({ length: FF_TEAMS }, (_, i) => `<div><i style="background:hsl(${(i * 47 + 200) % 360} 55% 48%)">${i + 1}</i><span>${FF_MGR[i]}</span></div>`).join('')}</div>
+        <div class="ff-board" id="ffBoard">${Array.from({ length: FF_TEAMS * FF_ROUNDS }, (_, i) => `<div class="ff-c" data-i="${i}"><em>${ffPickLabel(Math.floor(i / FF_TEAMS) % 2 ? (Math.floor(i / FF_TEAMS) + 1) * FF_TEAMS - (i % FF_TEAMS) : Math.floor(i / FF_TEAMS) * FF_TEAMS + (i % FF_TEAMS) + 1)}</em></div>`).join('')}</div></div>
       <div class="ff-leg">${['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].map(k => `<span><i style="background:${FF_COL[k]}"></i>${k}</span>`).join('')}<span><i class="you"></i>YOU</span></div>
       <div class="ff-near" id="ffNear">${B.idx >= 0 ? `Managers take <b>${esc(ffShort(nb ? nb.n : ''))}</b> right before you and <b>${esc(ffShort(na ? na.n : ''))}</b> right after.` : ''}</div>
       <div class="ff-actions"><button class="btn btn-primary btn-xl" id="ffGo">TO THE SEASON ▸</button></div>
@@ -112,16 +138,21 @@ function ffPreseason(se, reuse) {
     document.body.appendChild(ov);
     const cells = ov.querySelectorAll('.ff-c'), tick = ov.querySelector('#ffTicker'), arc = ov.querySelector('#ffArc'), rk = ov.querySelector('#ffRank');
     const C = 2 * Math.PI * 52; arc.style.strokeDasharray = C; arc.style.strokeDashoffset = C;
+    const bw = ov.querySelector('#ffBWrap');
+    const nameParts = n => { const w = String(n).trim().split(/\s+/); return w.length > 1 ? [w[0], w.slice(1).join(' ')] : ['', w[0] || '']; };
     const place = (i, instant) => {
       const c = B.cells[i], el = ov.querySelector(`.ff-c[data-i="${c.row * FF_TEAMS + c.col}"]`); if (!el) return;
-      el.className = 'ff-c on' + (c.me ? ' me' : ''); el.style.background = c.me ? '' : (FF_COL[c.pos] || '#8a95a8'); el.textContent = c.me ? 'YOU' : (c.pos === 'DEF' ? 'D' : c.pos);
-      if (!instant) tick.innerHTML = `<b>${ffPickLabel(c.pick)}</b> ${c.me ? '<span class="gold">YOU — ' + esc(P.name) + '</span>' : esc(c.n)} <small>${c.pos} · ${c.tm}</small>`;
+      const [fn, ln] = nameParts(c.n), col2 = FF_COL[c.pos] || '#8a95a8';
+      el.className = 'ff-c on' + (c.me ? ' me' : ''); el.style.setProperty('--pc', col2);
+      el.innerHTML = `<em>${ffPickLabel(c.pick)}</em><small>${esc(fn)}</small><b>${esc(ln)}</b><i>${c.pos === 'DEF' ? 'DEF' : c.pos} - ${c.me ? TEAM[S.teamId].id : esc(c.tm)}</i>`;
+      if (!instant) { tick.innerHTML = `<b>${ffPickLabel(c.pick)}</b> ${c.me ? '<span class="gold">YOU — ' + esc(P.name) + '</span>' : esc(c.n)} <small>${c.pos} · ${c.tm}</small>`; if (bw) { const top = el.offsetTop - bw.clientHeight / 2 + el.offsetHeight / 2; bw.scrollTop = Math.max(0, top); if (c.me) bw.scrollLeft = Math.max(0, el.offsetLeft - bw.clientWidth / 2 + el.offsetWidth / 2); } }
     };
     let done = false, alive = true;
     const finish = () => {
       if (done) return; done = true;
       B.cells.forEach((_, i) => place(i, true));
       const target = Math.min(60, F.rank); rk.textContent = F.rank; arc.style.transition = 'none'; arc.style.strokeDashoffset = C * (1 - clamp(1 - (Math.log(F.rank) / Math.log(60)), 0.06, 1) * 0.94);
+      const mc = ov.querySelector('.ff-c.me'); if (mc && bw) { bw.scrollTop = Math.max(0, mc.offsetTop - bw.clientHeight / 2 + mc.offsetHeight / 2); bw.scrollLeft = Math.max(0, mc.offsetLeft - bw.clientWidth / 2 + mc.offsetWidth / 2); }
       if (B.idx >= 0) tick.innerHTML = `<b>${F.label}</b> <span class="gold">YOU — ${esc(P.name)}</span> <small>${pos} · ${t.id}</small>`;
     };
     ov.querySelector('#ffSkip').addEventListener('click', () => { alive = false; finish(); });

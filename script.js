@@ -1219,7 +1219,16 @@ const Snd = (() => {
     if (master) master.gain.setTargetAtTime(m ? 0 : VOLUME, ctx.currentTime, 0.05);
     if (!m) unlock();
   }
-  return { play, unlock, setMuted, isMuted: () => muted };
+  // plays an audio file from the project (e.g. assets/sounds/draft-pick.mp3); if the file is missing or the browser refuses it, `fallback` (a synth sound name) plays instead
+  function file(url, fallback, vol = 0.9) {
+    if (muted) return;
+    try {
+      const au = new Audio(url); au.volume = vol; au.preload = 'auto';
+      au.addEventListener('error', () => { if (fallback) play(fallback); }, { once: true });
+      const p = au.play(); if (p && p.catch) p.catch(() => { if (fallback) play(fallback); });
+    } catch (e) { if (fallback) play(fallback); }
+  }
+  return { play, file, unlock, setMuted, isMuted: () => muted };
 })();
 
 /* ---------------------------------------------------------------------
@@ -2183,7 +2192,7 @@ async function renderDraft() {
   } else {
     const fake = [3, 2, 1].filter(k => d.overall - k >= 1).map(k => `<div class="tick-row"><b>#${d.overall - k}</b> ${pick(FIRST)} ${pick(LAST)} — ${pick(Object.keys(POS))}</div>`).join('');
     Snd.play("clock"); show(`<div class="clock">ON THE CLOCK…</div><div class="ticker">${fake}</div>`); await waitD(2200);
-    if (alive()) { Snd.play("pick"); show(`<div class="pick-line">Round ${d.round} — Pick #${d.pick}</div><div class="muted">Overall #${d.overall}</div>`); await waitD(1500); }
+    if (alive()) { Snd.file('assets/sounds/draft-pick.mp3', 'pick'); show(`<div class="pick-line">Round ${d.round} — Pick #${d.pick}</div><div class="muted">Overall #${d.overall}</div>`); await waitD(1500); }   // the draft-pick sound: drop your file at assets/sounds/draft-pick.mp3
     if (alive()) { Snd.play("pick"); show(collegeToNflHTML(P, d.teamId, false)); Snd.play("fanfare", 1.15); await waitD(3200); }
     if (alive()) { Snd.play("roar"); show(`<div class="badge-pop small">${badge(d.teamId, 'lg')}</div><div class="select-line">The ${t.name} select</div><div class="d-name big pop">${esc(P.name)}<span>${P.pos}</span></div><div class="muted">${esc(P.college)}</div>`); burst(stage, 36, [t.c1, t.c2, '#ffffff', '#ffc53d']); await waitD(2300); }
   }

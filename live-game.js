@@ -159,7 +159,7 @@ const LV_EZ = {
   GB: { bg: '#203731', ends: [[{ l: { k: 'img', src: 'assets/nfl/packers-wordmark.png', x: 0, y: 0, w: 330, h: 101 } }]] },   // white PACKERS with a gold border (supplied wordmark) on Packers green
   MIN: { bg: '#4F2683', ends: [[{ l: { k: 'img', src: 'assets/nfl/vikings-wordmark-white.png', x: 0, y: 0, w: 230, h: 73 } }]] },   // white VIKINGS wordmark, big and centered with margin, on the team's purple
   ATL: { bg: null, ends: [[{ l: { k: 'img', src: 'assets/nfl/falcons-atl.png', x: 0, y: 0, w: 240, h: 92 } }]] },   // the ATL logo on bare turf
-  CAR: { bg: '#000000', op: 0.96, ends: [[{ l: { k: 'img', src: 'assets/nfl/panthers-wordmark.png', x: 0, y: 0, w: 302, h: 76 } }]] },   // PANTHERS script on black
+  CAR: { bg: '#2A2D32', op: 0.96, ends: [[{ l: { k: 'img', src: 'assets/nfl/panthers-wordmark.png', x: 0, y: 0, w: 302, h: 76 } }]] },   // PANTHERS script on a charcoal (softer than black)
   NO: { bg: '#D3BC8D', ends: [[{ l: { k: 'img', src: 'assets/nfl/saints-wordmark.png', x: 0, y: 0, w: 328, h: 76 } }]] },   // SAINTS in black on old gold
   TB: { bg: '#D50A0A', ends: [[{ l: { k: 'img', src: 'assets/nfl/buccaneers-wordmark.png', x: 0, y: 0, w: 274, h: 76 } }]] },   // BUCCANEERS in black with pewter shadow on red
   ARI: { bg: null, ends: [[{ l: { k: 'img', src: 'assets/nfl/cardinals-wordmark.png', x: 0, y: 0, w: 430, h: 92 } }]] },   // ARIZONA CARDINALS wordmark with a white outline on bare turf

@@ -225,7 +225,7 @@ function lvFieldSVG(away, home) {
   }).join('');
   // yard numbers: 6 ft x 4 ft numerals (drawn 1.5x so they read on a small screen), base 12 yd from the sideline, clear of the line on both sides;
   // the 10-40 pairs carry a small arrow pointing at the nearest goal line. Far-side numbers are turned 180° so they read from the other sideline.
-  const NW = 20, NH = 30, GAP = 9, ARW = 13;
+  const NW = 17, NH = 25.5, GAP = 8, ARW = 11;
   const digit = (ch, cx, y0, rot) => `<text x="${cx}" y="${y0 + NH}" text-anchor="middle" font-size="${NH / 0.7}" ${ch === '1' ? '' : `textLength="${NW}" lengthAdjust="spacingAndGlyphs"`} ${rot ? `transform="rotate(180 ${cx} ${y0 + NH / 2})"` : ''}>${ch}</text>`;
   const nums = [1, 2, 3, 4, 5, 4, 3, 2, 1].map((n, i) => {
     const X = lvX((i + 1) * 10), toLeft = i < 4, toRight = i > 4;
@@ -233,8 +233,8 @@ function lvFieldSVG(away, home) {
       const L = X - GAP - NW / 2, R = X + GAP + NW / 2, d = far ? ['0', String(n)] : [String(n), '0'];   // upside-down "30" is seen as 0 then 3 along the field
       let g = digit(d[0], L, y0, far) + digit(d[1], R, y0, far);
       const ay = y0 + NH / 2;
-      if (toLeft) g += `<polygon points="${X - GAP - NW - 5 - ARW},${ay} ${X - GAP - NW - 5},${ay - 8} ${X - GAP - NW - 5},${ay + 8}"/>`;
-      if (toRight) g += `<polygon points="${X + GAP + NW + 5 + ARW},${ay} ${X + GAP + NW + 5},${ay - 8} ${X + GAP + NW + 5},${ay + 8}"/>`;
+      if (toLeft) g += `<polygon points="${X - GAP - NW - 5 - ARW},${ay} ${X - GAP - NW - 5},${ay - 7} ${X - GAP - NW - 5},${ay + 7}"/>`;
+      if (toRight) g += `<polygon points="${X + GAP + NW + 5 + ARW},${ay} ${X + GAP + NW + 5},${ay - 7} ${X + GAP + NW + 5},${ay + 7}"/>`;
       return g;
     };
     return place(bot - 120 - NH, false) + place(top + 120, true);

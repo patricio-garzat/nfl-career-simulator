@@ -870,10 +870,10 @@ function lvPlayScript(play, sc, A, T) {
 function lvStatLine(T) { const cfg = POS[S.player.pos], lines = cfg.line(T); return lines.map(l => `<div><b>${esc(String(l.v == null ? 0 : (typeof l.v === 'string' || Number.isInteger(l.v) ? l.v : fmt1(l.v))))}</b><span>${l.l}</span></div>`).join(''); }
 
 function lvScoreboardHTML(L) {
-  const a = TEAM[L.away], h = TEAM[L.home];
-  // broadcast-style score bug: a silver frame, a team window with a possession dot over a black score bar on each side, and the down & distance / quarter + clock block in the middle
-  const side = (t, s) => `<div class="bug-side ${s}"><div class="bug-logo"><img src="${logoUrl(t.id)}" alt=""><i class="lv-poss" id="lvPoss_${s}"></i></div><div class="bug-score"><b>${t.id}</b><span class="lv-score" id="lvScore_${s}">0</span></div></div>`;
-  return `<div class="lv-bug" id="lvBug">${side(a, 'away')}<div class="bug-mid"><div class="bug-dd" id="lvBugDD">KICKOFF</div><div class="bug-brand"><img src="${NFL_LOGO}" alt="NFL"></div><div class="bug-clock"><span id="lvQ">1st Q</span><b id="lvClock">15:00</b></div></div>${side(h, 'home')}</div>`;
+  // broadcast score bug (the Illustrator ScoreBug design): away block | down & distance (in the color of the team with the ball) over quarter + clock | home block.
+  // Each team block wears the team color; the middle top block takes the color of whoever has the ball.
+  const side = (t, s) => { const c = (L.col && L.col[t.id]) || t.c1; return `<div class="sb-side ${s}" style="--c:${c};--t:${textOn(c)}"><img class="sb-logo" src="${logoUrl(t.id)}" alt="${t.id}"><span class="lv-score sb-score" id="lvScore_${s}">0</span><i class="lv-poss" id="lvPoss_${s}"></i></div>`; };
+  return `<div class="sb" id="lvBug" style="--pc:#1d2a44;--pt:#fff">${side(TEAM[L.away], 'away')}<div class="sb-mid"><div class="sb-dd" id="lvBugDD">KICKOFF</div><div class="sb-clk"><span class="sb-q" id="lvQ">1<small>ST</small></span><i class="sb-bar"></i><b class="sb-time" id="lvClock">15:00</b></div></div>${side(TEAM[L.home], 'home')}</div>`;
 }
 
 // background track by broadcast window: Thursday night, Sunday game day, Sunday night, Monday night
@@ -907,8 +907,8 @@ async function openLiveGame(game, notes, season) {
   Snd.music(lvTrack(game), vol(musicVol()));
   const mv = ov.querySelector('#lvMusic'); if (mv) { mv.value = musicVol(); mv.addEventListener('input', () => { Snd.setMusicVol(vol(mv.value)); try { localStorage.setItem('nfl_music_vol2', mv.value); } catch (e) { /* ignore */ } }); }
   const $ = id => document.getElementById(id), setScore = () => { $('lvScore_away').textContent = L.score.away; $('lvScore_home').textContent = L.score.home; };
-  const setClock = (q, clock) => { $('lvQ').textContent = ['1st', '2nd', '3rd', '4th'][q - 1] + ' Q'; $('lvClock').textContent = clock; };
-  const setBugDD = txt => { const el = $('lvBugDD'); if (el) el.textContent = txt; };
+  const setClock = (q, clock) => { $('lvQ').innerHTML = `${q}<small>${['ST', 'ND', 'RD', 'TH'][q - 1]}</small>`; $('lvClock').textContent = clock; };
+  const setBugDD = txt => { const el = $('lvBugDD'); if (el) el.innerHTML = esc(String(txt).toUpperCase()).replace(/(\d)(ST|ND|RD|TH)\b/g, '$1<small>$2</small>'); };
   // the clock only runs while a play is live, in real seconds (at 2x / 4x it simply runs faster, like the play itself); between plays it just shows the next snap's time
   const clockOf = gt => { const q = Math.min(4, Math.floor(gt / 900) + 1), left = Math.max(0, 900 - (gt - (q - 1) * 900)); return [q, `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`]; };
   L.frozen = false;
@@ -926,7 +926,7 @@ async function openLiveGame(game, notes, season) {
     LV.done && LV.done();
   };
   $('lvSkip').addEventListener('click', () => { L.skipped = true; (L.waits || []).splice(0).forEach(f => f()); if (L.cancelAnim) L.cancelAnim(); finalScreen(true); });
-  const poss = side => { ['away', 'home'].forEach(s2 => { const e = $('lvPoss_' + s2); if (e) e.style.opacity = s2 === side ? 1 : 0; }); };
+  const poss = side => { ['away', 'home'].forEach(s2 => { const e = $('lvPoss_' + s2); if (e) e.style.opacity = s2 === side ? 1 : 0; }); const bug = $('lvBug'), id = side === 'away' ? away : home, c = (L.col && L.col[id]) || TEAM[id].c1; if (bug) { bug.style.setProperty('--pc', c); bug.style.setProperty('--pt', textOn(c)); } };      // the down & distance block wears the color of the team with the ball
   const sideOf = who => (who === 'me') === !!game.home ? 'home' : 'away';
   const bumpScore = side => { const el = $('lvScore_' + side); if (el) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } };
   const banner = async (text, cls, ms = 1500) => { const b = $('lvBanner'); if (!b || b.classList.contains('final')) return; b.className = 'lv-banner show ' + cls; b.textContent = text; await sleep(ms); if (b && !b.classList.contains('final')) b.className = 'lv-banner'; };

@@ -210,6 +210,10 @@ function lvEndZone(x, team, rot, endIdx) {
 /* ---------- the field ---------- */
 function lvFieldSVG(away, home) {
   const A = TEAM[away], H = TEAM[home], top = LV_PAD, bot = LV_PAD + LV_FH, cy = lvY(0);
+  // grass: a tile of tiny blades (fixed seed, so it never shimmers) drawn over the turf, the aprons and the end zones at low opacity
+  const grassTile = (() => { let sd = 7; const R = () => (sd = (sd * 16807) % 2147483647) / 2147483647; let b = '';
+    for (let i = 0; i < 46; i++) { const x = R() * 44, y = 6 + R() * 38, len = 3 + R() * 5, dx = (R() - 0.5) * 3, dark = R() < 0.55; b += `<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x + dx).toFixed(1)}" y2="${(y - len).toFixed(1)}" stroke="${dark ? '#06240f' : '#c9f59a'}" stroke-opacity="${dark ? (0.10 + R() * 0.08).toFixed(2) : (0.06 + R() * 0.07).toFixed(2)}" stroke-width="${(0.7 + R() * 0.6).toFixed(1)}" stroke-linecap="round"/>`; }
+    return `<pattern id="lvGrass" width="44" height="44" patternUnits="userSpaceOnUse">${b}</pattern>`; })();
   const stripes = Array.from({ length: 20 }, (_, i) => `<rect x="${lvX(i * 5)}" y="${top}" width="50" height="${LV_FH}" fill="${i % 2 ? '#2e8848' : '#2b8245'}"/>`).join('');
   // yard lines: a full-width line every 5 yards, the goal lines heavier
   const lines = Array.from({ length: 21 }, (_, i) => `<line x1="${lvX(i * 5)}" x2="${lvX(i * 5)}" y1="${top}" y2="${bot}" stroke="#fff" stroke-opacity=".95" stroke-width="${i === 0 || i === 20 ? 3.4 : 2}"/>`).join('');
@@ -239,25 +243,25 @@ function lvFieldSVG(away, home) {
   const ezOf = (x, team, rot, end) => lvEndZone(x, team, rot, end);
   const pylon = (x, y) => `<rect x="${x - 4.5}" y="${y - 4.5}" width="9" height="9" fill="#ff6a13" stroke="#fff" stroke-width="1"/>`;
   const pylons = [100, 1100, 0, 1200].map(x => pylon(Math.min(1198, Math.max(2, x)), top + 5) + pylon(Math.min(1198, Math.max(2, x)), bot - 5)).join('');
-  const post = (x, d) => `<g stroke="#ffd23d" stroke-width="5" stroke-linecap="round" fill="none"><line x1="${x}" x2="${x}" y1="${lvY(-3.1)}" y2="${lvY(3.1)}"/><line x1="${x}" x2="${x + d * 18}" y1="${lvY(-3.1)}" y2="${lvY(-3.1)}"/><line x1="${x}" x2="${x + d * 18}" y1="${lvY(3.1)}" y2="${lvY(3.1)}"/></g>`;
+  const post = (x, d) => `<g stroke="#ffd23d" stroke-width="5" stroke-linecap="round" fill="none"><line x1="${x}" x2="${x}" y1="${lvY(-3.1)}" y2="${lvY(3.1)}"/><line x1="${x}" x2="${x + d * 9}" y1="${lvY(-3.1)}" y2="${lvY(-3.1)}"/><line x1="${x}" x2="${x + d * 9}" y1="${lvY(3.1)}" y2="${lvY(3.1)}"/></g>`;
   // everything outside the playing field, like the real thing: a white border band, the dashed coaches' box and each team's bench area with its logo
   const VX = -70, VY = -66, VW = 1340, VH = 685, bandX = -20, bandY = top - 20, bandW = 1240, bandH = LV_FH + 40;
   const bench = (team, outer) => {
-    const x0 = lvX(35), x1 = lvX(85), y0 = outer ? bandY - 46 : bandY + bandH + 46, yn = outer ? bandY - 2 : bandY + bandH + 2, c = team.c1, mid = (x0 + x1) / 2, ly = (y0 + yn) / 2;
+    const x0 = lvX(25), x1 = lvX(75), y0 = outer ? bandY - 46 : bandY + bandH + 46, yn = outer ? bandY - 2 : bandY + bandH + 2, c = team.c1, mid = (x0 + x1) / 2, ly = (y0 + yn) / 2;
     const dark = lum(c) < 0.45;
     return `<polygon points="${x0 + 14},${y0} ${x1 - 14},${y0} ${x1},${yn} ${x0},${yn}" fill="${c}"/><image href="${logoUrl(team.id)}" x="${mid - 24}" y="${ly - 24}" width="48" height="48" opacity="${dark ? 1 : .95}" preserveAspectRatio="xMidYMid meet"/>`;
   };
   const dashes = `<rect x="-46" y="${bandY - 24}" width="1292" height="${bandH + 48}" fill="none" stroke="#f0dc9a" stroke-opacity=".75" stroke-width="2" stroke-dasharray="9 7"/><rect x="-42" y="${bandY - 20}" width="1284" height="${bandH + 40}" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.4" stroke-dasharray="9 7"/>`;
-  const bandTxt = (t, x, rot) => `<text transform="translate(${x} ${cy}) rotate(${rot})" text-anchor="middle" font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="12" letter-spacing="2.2" fill="#2f8a4a" opacity=".9">${t}</text>`;
+  const bandTxt = (t, x, rot, dy = 0) => `<text transform="translate(${x} ${cy + dy}) rotate(${rot})" text-anchor="middle" font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="12" letter-spacing="2.2" fill="#2f8a4a" opacity=".9">${t}</text>`;
   return `<svg class="lv-field" viewBox="${VX} ${VY} ${VW} ${VH}" role="img" aria-label="Football field">
-    <rect x="${VX}" y="${VY}" width="${VW}" height="${VH}" rx="16" fill="#2b7d47"/>
+    <defs>${grassTile}</defs><rect x="${VX}" y="${VY}" width="${VW}" height="${VH}" rx="16" fill="#2b7d47"/><rect x="${VX}" y="${VY}" width="${VW}" height="${VH}" rx="16" fill="url(#lvGrass)"/>
     ${dashes}${bench(A, true)}${bench(H, false)}
-    <rect x="${bandX}" y="${bandY}" width="${bandW}" height="${bandH}" fill="#f6f7f4"/>${bandTxt('IT TAKES ALL OF US', -10, -90)}${bandTxt('CHOOSE LOVE', 1210, 90)}
-    ${stripes}${ezOf(0, A, -90, 0)}${ezOf(1100, H, 90, 0)}
+    <rect x="${bandX}" y="${bandY}" width="${bandW}" height="${bandH}" fill="#f6f7f4"/>${bandTxt('IT TAKES ALL OF US', -10, -90, 135)}${bandTxt('CHOOSE LOVE', 1210, 90, -135)}
+    ${stripes}${ezOf(0, A, -90, 0)}${ezOf(1100, H, 90, 0)}<rect x="0" y="${top}" width="1200" height="${LV_FH}" fill="url(#lvGrass)" pointer-events="none"/>
     <g class="lv-lines">${lines}${hashes}</g>
     <g class="lv-nums" fill="#fff" fill-opacity=".92">${nums}</g>
     <image href="${logoUrl(home)}" x="${lvX(50) - 90}" y="${cy - 90}" width="180" height="180" opacity=".92" preserveAspectRatio="xMidYMid meet"/>
-    ${pylons}${post(4, 1)}${post(1196, -1)}
+    ${pylons}${post(-10, 1)}${post(1210, -1)}
     <rect id="lvLos" y="${LV_PAD}" width="4" height="${LV_FH}" fill="#4aa8ff" opacity="0"/><rect id="lvFd" y="${LV_PAD}" width="4" height="${LV_FH}" fill="#ffd23d" opacity="0"/>
     <g id="lvActors"></g><g id="lvFx"></g></svg>`;
 }

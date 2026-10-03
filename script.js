@@ -1672,7 +1672,7 @@ function jerseyOne(cfg, view, name, number, o = {}) {
   };
   const shLines = !cfg.shCount ? '' : (back ? `<g clip-path="url(#${id}yoke)">${shRects('L')}${shRects('R')}</g>` : `<g clip-path="url(#${id}yokeL)">${shRects('L')}</g><g clip-path="url(#${id}yokeR)">${shRects('R')}</g>`);
   const slBands = jcStripeBands(cfg), slAng = cfg.sleeveAngle || 0, slPiv = slAng && slBands.length ? (() => { const o2 = jcCuffOff((slBands[0][0] + slBands[slBands.length - 1][1]) / 2, 0); return o2[Math.floor(o2.length / 2)]; })() : null;   // tilting turns the lines around the middle of the sleeve
-  const bandsOf = side2 => (cfg.cuffs ? `<path d="${B[side2].cuff}" fill="${C.cuffs}"/>` : '') + slBands.map(([a, b, i]) => `<path d="${jcBandPath(side2, a, b, slAng * (side2 === 'L' ? -1 : 1), slPiv)}" fill="${cfg.sleeveStyle === 'tri' && i === 1 ? C.decorMid : C.decor}"/>`).join('');
+  const bandsOf = side2 => (cfg.cuffs ? `<path d="${B[side2].cuff}" fill="${C.cuffs}"/>` : '') + slBands.map(([a, b, i]) => `<path d="${jcBandPath(side2, a, b, slAng, slPiv)}" fill="${cfg.sleeveStyle === 'tri' && i === 1 ? C.decorMid : C.decor}"/>`).join('');
   const tid = o.teamId || (typeof S !== 'undefined' && S && S.teamId), lkey = lum(C.body) > 0.45 ? 'light' : 'dark';
   const backHref = !back ? '' : (o.backLogo !== undefined ? o.backLogo : (tid && TEAM[tid] ? (o.logoData ? o.logoData[lkey] : jcLogoUrl(tid, lkey)) : ''));
   const backLogo = backHref ? `<image href="${backHref}" x="${M.cx - 8.5}" y="35" width="17" height="17" preserveAspectRatio="xMidYMid meet"/>` : '';

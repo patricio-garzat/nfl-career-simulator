@@ -52,7 +52,13 @@ function calWhen(year, wk, g) {
 }
 // the real regular season of a team (week, opponent, home or away) when the year has a real schedule
 function calRealSchedule(teamId, year) {
-  const real = typeof NFL_REAL !== 'undefined' && NFL_REAL[year]; if (!real) return null;
+  let real = typeof NFL_REAL !== 'undefined' && NFL_REAL[year];
+  if (!real && year > 2026) {                                           // the formula schedule of a new season, or the one already stored in the current season
+    const cur = S.seasons.length ? S.seasons[S.seasons.length - 1] : null;
+    if (cur && cur.year === year && cur.league && cur.league.formula) real = cur.league.weeks.map(w => w.map(g => [g.a, g.h]));
+    else if (!cur || cur.year !== year) real = calFormulaSeason(year);
+  }
+  if (!real) return null;
   const out = []; real.forEach((games, i) => games.forEach(([a, h]) => { if (a === teamId) out.push({ week: i + 1, oppId: h, home: false }); else if (h === teamId) out.push({ week: i + 1, oppId: a, home: true }); }));
   out.real = true; return out;
 }
@@ -68,6 +74,98 @@ function calPlayoffWhen(season, short) {
   if (short === 'DIV') { const t = [[sun(20), 13 * 60, 'Sunday'], [sun(20), 16 * 60 + 30, 'Sunday'], [sun(20), 20 * 60, 'Sunday Night'], [mon(20), 20 * 60 + 15, 'Monday Night']][(seed + (afc ? 0 : 2)) % 4]; return { date: t[0], time: calTimeStr(t[1]), name: t[2] }; }
   if (short === 'CONF') return { date: sun(21), time: calTimeStr(afc ? 15 * 60 : 18 * 60 + 30), name: afc ? 'Sunday' : 'Sunday Night' };
   return { date: calAdd(sun(21), 14), time: calTimeStr(18 * 60 + 30), name: 'Super Bowl Sunday' };
+}
+
+
+/* ---------- the NFL scheduling formula (used from 2027 on; 2026 is the real schedule) ----------
+   17 games = 6 division games (home and away vs each rival) + 4 vs one division of the same conference (3-year rotation, home/away split 2-2)
+   + 4 vs one division of the other conference (4-year rotation) + 2 vs the same-place finishers (last year's standings) of the two remaining divisions of the conference
+   + 1 vs the same-place finisher of another division of the other conference (the "17th game", home team alternates by year).
+   Then the 272 games are dealt into 18 weeks: every team plays each week except one bye (weeks 5-14), and Week 18 is all division games. */
+const CAL_DIVS = ['East', 'North', 'South', 'West'];
+const CAL_INTRA_CYCLE = [[['East', 'West'], ['North', 'South']], [['East', 'North'], ['South', 'West']], [['East', 'South'], ['North', 'West']]];   // 2026 = first entry, then it keeps rotating
+const CAL_NFC_ORDER = ['North', 'South', 'East', 'West'];             // 2026: AFC East-NFC North, AFC North-NFC South, AFC South-NFC East, AFC West-NFC West; every year the NFC side shifts one place
+let CAL_FORMULA = {};
+function calPrevRank(year) {                                          // place (0 = first) of every team in its division last season
+  const prev = S.seasons.find(s => s.year === year - 1 && s.wins), rank = {}, mem = (c, d) => TEAM_LIST.filter(t => t.conf === c && t.div === d);
+  ['AFC', 'NFC'].forEach(c => CAL_DIVS.forEach(d => {
+    const m = mem(c, d).map(t => t.id).sort((a, b) => ((prev ? prev.wins[b] - prev.wins[a] : 0) || (S.teamRatings[b] - S.teamRatings[a]) + (rnd() - 0.5) * 0.01));
+    m.forEach((id, i) => { rank[id] = i; });
+  }));
+  return rank;
+}
+function calFormulaGames(year) {                                      // the 272 matchups [away, home] of the season
+  const k = year - 2026, rank = calPrevRank(year), games = [], mem = (c, d) => TEAM_LIST.filter(t => t.conf === c && t.div === d).map(t => t.id);
+  const at = (c, d, r) => mem(c, d).find(id => rank[id] === r);
+  const pairs = CAL_INTRA_CYCLE[((k % 3) + 3) % 3];
+  ['AFC', 'NFC'].forEach(c => {
+    CAL_DIVS.forEach(d => { const m = mem(c, d); for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) { games.push([m[i], m[j]]); games.push([m[j], m[i]]); } });   // division: home and away
+    pairs.forEach(([x, y]) => {                                       // the 4-game block with a division of the same conference (each team: 2 home, 2 away)
+      mem(c, x).forEach((a, i) => mem(c, y).forEach((b, j) => { if ((i + j + k) % 2 === 0) games.push([a, b]); else games.push([b, a]); }));
+      if (x !== pairs[0][0]) return;                                  // same-place games are listed once per conference (from the first pair of divisions)
+      const others = CAL_DIVS.filter(d => d !== x && d !== y), z = others[0], w = others[1];
+      for (let r = 0; r < 4; r++) {                                   // same-place games: x hosts z, w hosts x, z hosts y, y hosts w (swapped every other year)
+        const X = at(c, x, r), Y = at(c, y, r), Z = at(c, z, r), W = at(c, w, r), sw = k % 2 === 1;
+        const add = (host, vis) => games.push(sw ? [host, vis] : [vis, host]);
+        add(X, Z); add(W, X); add(Z, Y); add(Y, W);
+      }
+    });
+  });
+  ['East', 'North', 'South', 'West'].forEach((ad, i) => {             // AFC division i vs NFC division (i + k) of the rotation: 4 games per team
+    const nd = CAL_NFC_ORDER[(i + k) % 4], nd17 = CAL_NFC_ORDER[(i + k + 3) % 4];
+    mem('AFC', ad).forEach((a, ai) => mem('NFC', nd).forEach((b, bj) => { if ((ai + bj + k) % 2 === 0) games.push([b, a]); else games.push([a, b]); }));
+    for (let r = 0; r < 4; r++) { const a = at('AFC', ad, r), b = at('NFC', nd17, r); games.push(k % 2 === 0 ? [b, a] : [a, b]); }   // 17th game
+  });
+  return games;
+}
+// one week: a perfect matching among the teams that play, using only games that are still unplayed (depth-first with a node budget)
+function calPickWeek(playing, adj, lastWeekPairs) {
+  const free = new Set(playing), chosen = []; let nodes = 0;
+  const other = (g, t) => (g.a === t ? g.h : g.a);
+  const opts = t => adj[t].filter(g => !g.wk && free.has(other(g, t)));
+  const rec = () => {
+    if (!free.size) return true;
+    if (++nodes > 4000) return false;
+    let best = null, bc = 1e9; free.forEach(t => { const n = opts(t).length; if (n < bc) { bc = n; best = t; } });
+    if (bc === 0) return false;
+    const cand = shuffle(opts(best)).sort((x, y) => (lastWeekPairs.has(x.a + x.h) || lastWeekPairs.has(x.h + x.a) ? 1 : 0) - (lastWeekPairs.has(y.a + y.h) || lastWeekPairs.has(y.h + y.a) ? 1 : 0));
+    for (const g of cand) {
+      const o = other(g, best); free.delete(best); free.delete(o); chosen.push(g);
+      if (rec()) return true;
+      chosen.pop(); free.add(best); free.add(o);
+      if (nodes > 4000) return false;
+    }
+    return false;
+  };
+  return rec() ? chosen.slice() : null;
+}
+// deals the matchups into weeks; returns 18 arrays of [away, home] or null if this attempt dead-ends
+function calDealWeeks(matchups) {
+  const ids = TEAM_LIST.map(t => t.id), games = matchups.map(([a, h]) => ({ a, h, wk: 0 })), adj = {}; ids.forEach(i => { adj[i] = []; });
+  games.forEach(g => { adj[g.a].push(g); adj[g.h].push(g); });
+  // byes: 32 teams over weeks 5..14
+  const quota = [2, 2, 4, 4, 4, 4, 4, 4, 2, 2], bye = {}, order = shuffle(ids); let p = 0; quota.forEach((q, i) => { for (let n = 0; n < q; n++) bye[order[p++]] = i + 5; });
+  // week 18: division games only (a perfect matching inside every division)
+  const dv = id => TEAM[id].conf + TEAM[id].div;
+  ['AFC', 'NFC'].forEach(c => CAL_DIVS.forEach(d => {
+    const m = TEAM_LIST.filter(t => t.conf === c && t.div === d).map(t => t.id), pairing = shuffle([[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]]])[0];
+    pairing.forEach(([i, j]) => { const g = shuffle(adj[m[i]].filter(x => !x.wk && ((x.a === m[i] && x.h === m[j]) || (x.a === m[j] && x.h === m[i]))))[0]; g.wk = 18; });
+  }));
+  let last = new Set();
+  for (let wk = 1; wk <= 17; wk++) {
+    const playing = ids.filter(i => bye[i] !== wk), pick = calPickWeek(playing, adj, last);
+    if (!pick) return null;
+    pick.forEach(g => { g.wk = wk; });
+    last = new Set(pick.map(g => g.a + g.h));
+  }
+  const weeks = Array.from({ length: 18 }, () => []); games.forEach(g => weeks[g.wk - 1].push([g.a, g.h]));
+  return weeks;
+}
+function calFormulaSeason(year) {
+  if (CAL_FORMULA[year]) return CAL_FORMULA[year];
+  const matchups = calFormulaGames(year);
+  for (let tries = 0; tries < 400; tries++) { const w = calDealWeeks(matchups); if (w) { CAL_FORMULA[year] = w; return w; } }
+  return null;                                                         // (never seen) -> the random generator below takes over
 }
 
 /* ---------- building the league's season ---------- */
@@ -93,12 +191,33 @@ function calGenLeague(season, fromWeek, prev) {
       games.forEach(simRes); weeks.push(games);
     }
   }
+  const formNew = !real && !prev && typeof CAL_FORMULA !== 'undefined' && CAL_FORMULA[season.year], formPrev = !real && prev && prev.formula;
+  const tagUser = (g, wk) => { const ui = season.schedule.findIndex(x => x.week === wk && ((g.a === U && g.h === x.oppId && !x.home) || (g.h === U && g.a === x.oppId && x.home))); if (ui >= 0) g.u = ui; };
+  if (formNew) {                                                         // the NFL formula (2027 on): matchups from last year's standings and the rotations; slots handed out like any other season
+    const prime = {}; ids.forEach(i => { prime[i] = 0; }); let pMon = new Set(), pThu = new Set(), pPrime = new Set();
+    for (let wk = 1; wk <= 18; wk++) {
+      const games = formNew[wk - 1].map(([a, h]) => ({ a, h, s: 'SUN1', w: null, pa: 0, ph: 0 }));
+      games.forEach(g => tagUser(g, wk)); games.forEach(simRes);
+      calAssign(games, wk, season.year, { prevMon: pMon, prevThu: pThu, prime, prevPrime: pPrime }, rt, U);
+      pPrime = new Set(games.filter(g => ['TNF', 'SNF', 'MNF', 'MNE'].includes(g.s)).flatMap(g => [g.a, g.h]));
+      pMon = new Set(games.filter(g => g.s === 'MNF' || g.s === 'MNE').flatMap(g => [g.a, g.h])); pThu = new Set(games.filter(g => g.s === 'TNF').flatMap(g => [g.a, g.h]));
+      games.forEach(g => { if (['TNF', 'SNF', 'MNF', 'MNE'].includes(g.s)) { prime[g.a]++; prime[g.h]++; } });
+      weeks.push(games);
+    }
+  } else if (formPrev) {                                                 // after a trade: same matchups and windows, only the user's games change and the unplayed results are redrawn
+    for (let wk = fromWeek; wk <= 18; wk++) {
+      const games = prev.weeks[wk - 1].map(g => { const n = { ...g, w: null, pa: 0, ph: 0 }; delete n.u; delete n.pw; return n; });
+      games.forEach(g => tagUser(g, wk)); games.forEach(simRes); weeks.push(games);
+    }
+  }
+  const skipGen = real || formNew || formPrev;
   const BYE_T = [2, 2, 4, 4, 4, 4, 4, 4, 2, 2];                           // byes in weeks 5..14
+  let genPrev = new Set();
   const prime = {}; ids.forEach(i => { prime[i] = 0; });
   weeks.forEach(wk => wk.forEach(g => { if (['TNF', 'SNF', 'MNF', 'MNE'].includes(g.s)) { prime[g.a]++; prime[g.h]++; } }));
   let prevThu = new Set(prev && weeks.length ? weeks[weeks.length - 1].filter(g => g.s === 'TNF').flatMap(g => [g.a, g.h]) : []);
   let prevMon = new Set(prev && weeks.length ? weeks[weeks.length - 1].filter(g => g.s === 'MNF' || g.s === 'MNE').flatMap(g => [g.a, g.h]) : []);
-  for (let wk = real ? 19 : fromWeek; wk <= 18; wk++) {
+  for (let wk = skipGen ? 19 : fromWeek; wk <= 18; wk++) {
     const left = 18 - wk + 1, ug = userGame(wk), pool = ids.filter(i => played[i] < 17 || i === U || (ug && i === ug.opp));
     const rem = i => 17 - played[i];
     const userBye = !ug && rem(U) > 0 ? [U] : [];
@@ -129,7 +248,8 @@ function calGenLeague(season, fromWeek, prev) {
     }
     games.forEach(g => { played[g.a]++; played[g.h]++; homes[g.h]++; });
     games.forEach(simRes);
-    calAssign(games, wk, season.year, { prevMon, prevThu, prime }, rt, U);
+    calAssign(games, wk, season.year, { prevMon, prevThu, prime, prevPrime: genPrev }, rt, U);
+    genPrev = new Set(games.filter(g => ['TNF', 'SNF', 'MNF', 'MNE'].includes(g.s)).flatMap(g => [g.a, g.h]));
     prevMon = new Set(games.filter(g => g.s === 'MNF' || g.s === 'MNE').flatMap(g => [g.a, g.h]));
     prevThu = new Set(games.filter(g => g.s === 'TNF').flatMap(g => [g.a, g.h]));
     games.forEach(g => { if (['TNF', 'SNF', 'MNF', 'MNE'].includes(g.s)) { prime[g.a]++; prime[g.h]++; } });
@@ -142,13 +262,13 @@ function calGenLeague(season, fromWeek, prev) {
     const res = g.w || g.pw;
     aiRes[g.a] += res === g.a ? '1' : '0'; aiRes[g.h] += res === g.h ? '1' : '0';
   }));
-  return { league: { weeks, tw }, aiRes };
+  return { league: { weeks, tw, ...((formNew || formPrev) ? { formula: true } : {}) }, aiRes };
 }
 // give every game of a week its window: primetime slots go to the juiciest games, Sunday is split into early and late, Thursday teams cannot have played on Monday night
 function calAssign(gs, wk, year, ctx, rt, U) {
-  const { prevMon, prevThu, prime } = ctx;
+  const { prevMon, prevThu, prime } = ctx, prevPrime = ctx.prevPrime || new Set();
   const div = id => TEAM[id].conf + TEAM[id].div, sc = new Map();
-  gs.forEach(g => sc.set(g, rt(g.a) + rt(g.h) + (div(g.a) === div(g.h) ? 6 : 0) + (g.a === U || g.h === U ? (rt(U) - 70) * 0.6 + rr(0, 8) : 0) + rr(0, 10) - (prime[g.a] >= 4 ? 25 : 0) - (prime[g.h] >= 4 ? 25 : 0)));
+  gs.forEach(g => sc.set(g, rt(g.a) + rt(g.h) + (div(g.a) === div(g.h) ? 6 : 0) + (g.a === U || g.h === U ? (rt(U) - 70) * 0.6 + rr(0, 8) : 0) + rr(0, 10) - (prime[g.a] >= 4 ? 25 : 0) - (prime[g.h] >= 4 ? 25 : 0) - (prevPrime.has(g.a) ? 22 : 0) - (prevPrime.has(g.h) ? 22 : 0)));
   const sorted = gs.slice().sort((x, y) => sc.get(y) - sc.get(x)), rest = new Set(gs);
   const take = (slot, pred) => { const g = sorted.find(x => rest.has(x) && (!pred || pred(x))); if (g) { g.s = slot; rest.delete(g); } return g; };
   const thu = calThursday(year, wk), thanks = thu.getUTCMonth() === 10 && thu.getUTCDate() >= 22 && thu.getUTCDate() <= 28;

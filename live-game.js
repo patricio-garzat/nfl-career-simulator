@@ -165,7 +165,7 @@ const LV_EZ = {
   ARI: { bg: null, ends: [[{ l: { k: 'img', src: 'assets/nfl/cardinals-wordmark.png', x: 0, y: 0, w: 430, h: 92 } }]] },   // ARIZONA CARDINALS wordmark with a white outline on bare turf
   LAR: { bg: '#0B2A8A', ends: [[{ l: { k: 'img', src: 'assets/nfl/rams-wordmark.png', x: 0, y: 0, w: 340, h: 75 } }]] },   // the LA Rams wordmark on blue
   SF: { bg: null, ends: [[{ t: { s: '49ERS', f: '#AA0000', o: '#B3995D', w: 4, ff: 'Rye', h: 56, n: 300, cap: 0.7 } }, { l: { k: 'nfl', x: -235, y: 10, w: 48 } }, { l: { k: 'nfc', x: 235, y: 10, w: 52 } }]] },
-  SEA: { bg: '#002244', ends: [[{ t: { s: 'SEAHAWKS', f: '#A5ACAF', o: '#FFFFFF', w: 1.5, ff: 'Graduate', h: 52, n: 330, x: -4 } }, { l: { k: 'nfl', x: -232, y: 0, w: 46 } }, { l: { k: 'team', x: 232, y: 0, w: 70 } }]] },
+  SEA: { bg: '#002244', ey: 43, ends: [[{ l: { k: 'img', src: 'assets/nfl/seahawks-logo.svg', x: -172, y: 0, w: 130, h: 57.7 } }, { l: { k: 'img', src: 'assets/nfl/seahawks-wordmark.png', x: 72, y: 0, w: 330, h: 35.2 } }]] },   // white SEAHAWKS (no SEATTLE) with the logo before it, big and centered on Seahawks navy
 };
 const lvSpark = (x, y, r) => `<path d="M${x} ${y - r}Q${x + r * 0.15} ${y - r * 0.15} ${x + r} ${y}Q${x + r * 0.15} ${y + r * 0.15} ${x} ${y + r}Q${x - r * 0.15} ${y + r * 0.15} ${x - r} ${y}Q${x - r * 0.15} ${y - r * 0.15} ${x} ${y - r}z" fill="#E8ECEF"/>`;
 const lvBolt = (x, y, r) => `<path transform="translate(${x} ${y}) scale(${r / 22})" d="M-14 -30L10 -30L0 -8L16 -8L-10 30L-2 4L-16 4Z" fill="#FFC20E"/>`;

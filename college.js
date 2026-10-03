@@ -23,9 +23,10 @@ function csStart() {
     opps.push({ name: r[1], r: csTeamR(r[1]) + gauss(0, 3), home: rnd() < 0.5 });
   }
   CS = { P, info, G, idx: 0, games: [], playoffGames: [], schedule: opps, teamR: csTeamR(P.college) + gauss(0, 2.5), form: Math.exp(gauss(0, 0.11)), status: 'regular', done: false, ovr0: P.ovr, attr0: { ...P.attrs }, proj0: draftProjectionLabel(P), pick0: projectedPick(P), num: Number.isInteger(P.number) ? P.number : (NUM_DEFAULT[P.pos] || 1) };
-  mgInitSeason(CS); CS.mgIn = randInt(3, 4);
+  mgInitSeason(CS, CS.P.pos);
   { let t = 0; for (let k = 0; k < 60; k++) t += csStats(0, 1).fp; CS.baseFp = Math.max(1, t / 60); }   // what a player with these exact ratings normally produces
   renderCollege();
+  if (CS.mg) setTimeout(() => { if (CS && CS.mg) mgOpen(csEnv()); }, 450);   // college camp mini game
 }
 
 // one game's stat line for this prospect (same engine as the NFL season)
@@ -54,11 +55,7 @@ function csPlayGame() {
   const game = { k: 'REG', wk: CS.idx + 1, opp: sc.name, home: sc.home, my, op, w: my > op, st: 'ACTIVE', dnp: false, slot: 1, inj: null, hurt: null, s, fp, rate, td };
   CS.games.push(game); CS.idx++;
   if (CS.idx >= CS.G) CS.done = true;
-  // bonuses age; every 3-4 games a mini game is offered
-  CS.buffs.forEach(b => { b.left--; }); CS.buffs = CS.buffs.filter(b => b.left > 0);
-  if (CS.mg) { CS.mg.age = (CS.mg.age || 0) + 1; if (CS.mg.age >= 3) { CS.mg = null; CS.mgSince = 0; CS.mgIn = randInt(3, 4); } }
-  const kind = MG_KIND[P.pos];
-  if (kind && !CS.mg && !CS.done) { CS.mgSince++; if (CS.mgSince >= CS.mgIn && CS.G - CS.idx >= 2) CS.mg = { kind, wk: game.wk, age: 0 }; }
+  CS.buffs.forEach(b => { b.left--; }); CS.buffs = CS.buffs.filter(b => b.left > 0);   // the camp bonus lasts the whole season
   return game;
 }
 
@@ -82,7 +79,7 @@ function renderCollege() {
   const next = done ? `<div class="next-card done"><div class="eyebrow">SEASON COMPLETE</div><div class="nc-big">${rec.w}–${rec.l} · time for the draft board</div></div>`
     : `<div class="next-card"><div class="eyebrow">GAME ${CS.idx + 1} OF ${CS.G}</div><div class="nc-row">${csBadge(oi, 'lg')}<div><div class="nc-big">${nxt.home ? 'vs' : '@'} ${esc(nxt.name)}</div><div class="muted">${oi.conf ? esc(oi.conf) + ' · ' : ''}Team strength ${Math.round(nxt.r)}</div></div></div></div>`;
   const lastCard = last ? `<div class="last-game"><span class="muted">Last game:</span> <b class="r${last.rate}-t">${RATING[last.rate].icon} ${RATING[last.rate].k}</b> · ${fmt1(last.fp)} FP · ${last.w ? 'W' : 'L'} ${last.my}-${last.op} vs ${esc(last.opp)}</div>` : '';
-  const mgBanner = CS.mg && MG_META[CS.mg.kind] ? `<div class="banner dec-banner"><span>🎮 <b>MINI GAME</b> — ${MG_META[CS.mg.kind](P).title}</span><button class="btn btn-primary btn-sm" data-act="csMini">PLAY</button></div>` : '';
+  const mgBanner = CS.mg && MG_META[CS.mg.kind] ? `<div class="banner dec-banner"><span>🎮 <b>COLLEGE CAMP</b> — ${MG_META[CS.mg.kind](P).title}</span><button class="btn btn-primary btn-sm" data-act="csMini">PLAY</button></div>` : '';
   const buffs = CS.buffs.length ? `<div class="dec-buffs">${CS.buffs.map(x => `<span class="chip ${x.perf < 0 ? 'bad' : 'gold'}">${esc(x.label)} · ${x.left}g</span>`).join('')}</div>` : '';
   setScreen(`<div class="wrap" style="${csTheme(info)}">
     <div class="brandbar"><span>🎓 COLLEGE SEASON</span><i></i><span class="muted">${esc(P.college).toUpperCase()}</span></div>
@@ -132,7 +129,8 @@ function csFinishSeason() {
   const P = CS.P, cfg = POS[P.pos], T = csTotals(), gp = T.gp, G = CS.games.length, w = CS.games.filter(g => g.w).length;
   const idx = gp >= 4 ? (T.fp / gp) / CS.baseFp : 1;      // compared with what YOUR ratings predict, so luck, form and mini games decide it
   const greatShare = gp ? CS.games.filter(g => g.rate >= 4).length / gp : 0;
-  const perf = clamp(idx - 1, -0.6, 1.0) + (greatShare - 0.15) * 0.8;
+  const camp = CS.mgLog && CS.mgLog.length ? (CS.mgLog[0].score - 2.5) * 0.2 : 0;     // the camp mini game at the start of the season
+  const perf = clamp(idx - 1, -0.6, 1.0) + (greatShare - 0.15) * 0.8 + camp;
   const target = clamp(Math.round(perf * 5.5 + (w / G - 0.5) * 2.4 + 0.8 + (CS.train.ment || 0) + gauss(0, 0.9)), -5, 7);
   const o0 = P.ovr; let guard = 0;
   while (calcOvr(P.pos, P.attrs) !== o0 + target && guard++ < 120) {
@@ -142,7 +140,7 @@ function csFinishSeason() {
   }
   P.ovr = calcOvr(P.pos, P.attrs);
   const grade = perf >= 0.55 ? ['ALL-AMERICAN SEASON', '🏆'] : perf >= 0.25 ? ['BREAKOUT YEAR', '🚀'] : perf >= -0.1 ? ['SOLID SEASON', '👍'] : perf >= -0.35 ? ['QUIET YEAR', '😐'] : ['ROUGH YEAR', '📉'];
-  CS.result = { ovrFrom: CS.ovr0, ovrTo: P.ovr, perf, grade, w, l: G - w, T, proj1: draftProjectionLabel(P), pick1: projectedPick(P), changes: cfg.attrs.map(([n]) => ({ attr: n, from: CS.attr0[n], to: P.attrs[n], d: P.attrs[n] - CS.attr0[n] })) };
+  CS.result = { camp: CS.mgLog && CS.mgLog.length ? CS.mgLog[0] : null, ovrFrom: CS.ovr0, ovrTo: P.ovr, perf, grade, w, l: G - w, T, proj1: draftProjectionLabel(P), pick1: projectedPick(P), changes: cfg.attrs.map(([n]) => ({ attr: n, from: CS.attr0[n], to: P.attrs[n], d: P.attrs[n] - CS.attr0[n] })) };
   CS.finished = true;
   renderCollegeReport();
 }
@@ -156,6 +154,7 @@ function renderCollegeReport() {
       <div class="ovr-change"><div class="oc-from">OVR <b>${R.ovrFrom}</b></div><div class="oc-arrow ${up ? 'up' : down ? 'down' : ''}">→</div>
         <div class="oc-to ${up ? 'up' : down ? 'down' : ''}"><b id="ovrNum">${R.ovrFrom}</b><span>${up ? '▲' : down ? '▼' : '●'}</span></div></div>
       <div class="dev-list">${R.changes.map((c, i) => `<div class="dev-row" style="animation-delay:${0.1 + i * 0.12}s"><span>${c.attr}</span><b class="${c.d > 0 ? 'good' : c.d < 0 ? 'bad' : 'muted'}">${c.d > 0 ? '+' : ''}${c.d}</b><div class="bar ${barClass(c.to)}"><i style="--w:${c.to}%"></i></div><em>${c.to}</em></div>`).join('')}</div>
+      ${R.camp ? `<div class="banner ${R.camp.score >= 3 ? 'good' : 'warn'} cs-stock">🎮 Camp: <b>${MG_GRADES[R.camp.score].n}</b> (${R.camp.score}/5) ${R.camp.score >= 3 ? 'helped' : 'hurt'} your rating</div>` : ''}
       <div class="banner ${rise ? 'good' : fall ? 'warn' : ''} cs-stock">📋 <b>DRAFT STOCK:</b> ${esc(CS.proj0)} → <b>${esc(R.proj1)}</b> ${rise ? '▲ rising' : fall ? '▼ falling' : '● steady'}</div>
     </section>
     <div class="row end"><button class="btn btn-primary btn-xl" data-act="csDraft">ENTER THE DRAFT</button></div></div>`);
@@ -165,7 +164,7 @@ function renderCollegeReport() {
 
 Object.assign(actions, {
   startCollege: () => csStart(),
-  csPlay: () => { if (!CS || CS.done) return; const g = csPlayGame(); renderCollege(); csGameModal(g); },
+  csPlay: () => { if (!CS || CS.done) return; if (CS.mg) { mgOpen(csEnv()); return; } const g = csPlayGame(); renderCollege(); csGameModal(g); },
   csPlayModal: () => { closeModal(); actions.csPlay(); },
   csClose: () => { closeModal(); },
   csMini: () => { closeModal(); mgOpen(csEnv()); },

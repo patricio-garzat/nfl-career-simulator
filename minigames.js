@@ -1,5 +1,5 @@
 /* =====================================================================
-   MINI GAMES — every 3-5 games a short mini game pops up, depending on your position:
+   PRESEASON CAMP — at the start of each season you play ONE mini game for your position; the grade sets how the whole season goes and how your rating moves:
      QB    → READ THE DEFENSE (5 coverages, 5 targets, disguised looks)
      RB    → FIND THE HOLE    (3 gaps, a defense that shifts, a juke at the end)
      WR/TE → CATCH IT         (different throws: deep, slant, lob, knuckle, contested)
@@ -15,25 +15,17 @@ const MG_GRADES = [
 ];
 
 function mgEnsure(se) { se.buffs = se.buffs || []; se.mgLog = se.mgLog || []; se.train = se.train || { phys: 0, ment: 0 }; se.injExtra = se.injExtra || 0; if (se.mgIn == null) se.mgIn = randInt(3, 5); if (se.mgSince == null) se.mgSince = 0; return se; }
-function mgInitSeason(season) { season.buffs = []; season.mg = null; season.mgLog = []; season.mgIn = randInt(3, 5); season.mgSince = 0; season.train = { phys: 0, ment: 0 }; season.injExtra = 0; }
+function mgInitSeason(season, pos) { pos = pos || (S && S.player && S.player.pos); season.buffs = []; season.mg = MG_KIND[pos] ? { kind: MG_KIND[pos], wk: 0, age: 0 } : null; season.mgLog = []; season.mgIn = randInt(3, 5); season.mgSince = 0; season.train = { phys: 0, ment: 0 }; season.injExtra = 0; }
 function mgMods(se) { let perf = 1; (se.buffs || []).forEach(b => { if (b.left > 0) perf *= 1 + (b.perf || 0); }); return { perf, inj: 1, team: 0 }; }
-function mgAfterGame(se, game, notes) {
-  mgEnsure(se);
-  se.buffs.forEach(b => { b.left--; }); se.buffs = se.buffs.filter(b => b.left > 0);
-  if (se.mg) { se.mg.age = (se.mg.age || 0) + 1; if (se.mg.age >= 3) { se.mg = null; se.mgSince = 0; se.mgIn = randInt(3, 5); } }
-  const kind = MG_KIND[S.player.pos];
-  if (!kind || game.k !== 'REG' || se.status !== 'regular' || se.mg) return;
-  se.mgSince++;
-  const left = se.schedule.length - se.games.length;
-  if (se.mgSince >= se.mgIn && left >= 2 && !se.injury) { se.mg = { kind, wk: game.wk, age: 0 }; notes.push('🎮 MINI GAME — a training challenge is ready.'); }
-}
+// after every game the bonuses age (the camp bonus lasts the whole season); there are no more mini games during the season
+function mgAfterGame(se, game, notes) { mgEnsure(se); se.buffs.forEach(b => { b.left--; }); se.buffs = se.buffs.filter(b => b.left > 0); }
 const MG_META = {
   qb: P => ({ icon: '🏈', title: 'READ THE DEFENSE', how: 'Read the coverage, find the open man.', legend: [['🔴', 'Blitz', 'RB'], ['🛡️', 'Two deep', 'TE'], ['🟨', 'Soft corners', 'WR'], ['🔱', 'Three deep', 'SLOT'], ['🔗', 'Man', 'RUN']] }),
   rb: P => ({ icon: '🏃', title: 'BREAK AWAY', how: 'Dodge the defenders and outrun the tackler.', legend: [['⌨️', '← → keys', 'dodge'], ['🏃', 'Tackler behind you', 'don\'t stumble']] }),
   catch: P => ({ icon: '🙌', title: P.pos === 'TE' ? 'CATCH IT · SEAM' : 'CATCH IT · GO ROUTE', how: 'Run to where the ball will land.', legend: [['⌨️', 'Arrow keys / drag', 'move'], ['⭕', 'Ring', 'be there first']] }),
   kick: P => ({ icon: '🥅', title: 'KICK IT', how: 'Aim into the wind, stop the bar in the green.', legend: [['💨', 'Wind pushes', 'AIM AGAINST'], ['⏹', 'Power', 'GREEN']] }),
 };
-const mgBannerHTML = se => (se.mg && MG_META[se.mg.kind]) ? `<div class="banner dec-banner"><span>🎮 <b>MINI GAME</b> — ${MG_META[se.mg.kind](S.player).title}</span><button class="btn btn-primary btn-sm" data-act="playMini">PLAY</button></div>` : '';
+const mgBannerHTML = se => (se.mg && MG_META[se.mg.kind]) ? `<div class="banner dec-banner"><span>🎮 <b>PRESEASON CAMP</b> — ${MG_META[se.mg.kind](S.player).title}</span><button class="btn btn-primary btn-sm" data-act="playMini">PLAY</button></div>` : '';
 
 /* ---------- shared drawing kit ---------- */
 const mgStroke = c => (lum(c) > 0.7 ? '#10151d' : '#ffffff');
@@ -84,7 +76,7 @@ function mgOpen(env) {
   const P = env.P, kind = se.mg.kind, t = env.t, opp = env.o, meta = MG_META[kind](P);
   const ov = document.createElement('div'); ov.className = 'mg-overlay'; ov.style.cssText = env.theme;
   ov.innerHTML = `<div class="mg-wrap">
-    <div class="mg-top"><span class="mg-tag">🎮 MINI GAME</span><button class="mini mg-skip" data-mg="skip">SKIP</button></div>
+    <div class="mg-top"><span class="mg-tag">🎮 PRESEASON CAMP</span><button class="mini mg-skip" data-mg="skip">SKIP</button></div>
     <div class="mg-board"><img src="${t.logo}" alt=""><div class="mg-bt"><b>${esc(meta.title)}</b><span>${esc(P.name)} · ${P.pos} · #${env.number}</span></div><img src="${opp.logo}" alt=""></div>
     <div class="mg-pips">${[0, 1, 2, 3, 4].map(i => `<span data-p="${i}">${mgFootball()}</span>`).join('')}<em id="mgScore">0/5</em><b class="mg-combo" id="mgCombo" hidden></b></div>
     <div class="mg-stage" id="mgStage"></div><div class="mg-msg" id="mgMsg"></div><div class="mg-ctrl" id="mgCtrl"></div></div>`;
@@ -94,7 +86,7 @@ function mgOpen(env) {
   MGX = ctx;
   stage.innerHTML = `<div class="mg-intro" style="background-image:radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, ${t.c1} 40%, transparent), transparent)">
     <div class="mg-jersey-big">${env.jersey ? env.jersey('front') : ''}</div><div class="mg-bigicon">${meta.icon}</div><h2>${esc(meta.title)}</h2><p>${esc(meta.how)}</p>
-    <div class="mg-legend">${meta.legend.map(([i, a, b]) => `<span>${i} ${a}${b ? ` <b>→ ${b}</b>` : ''}</span>`).join('')}</div><p class="mg-sub">5 tries · 3 or more for a bonus</p></div>`;
+    <div class="mg-legend">${meta.legend.map(([i, a, b]) => `<span>${i} ${a}${b ? ` <b>→ ${b}</b>` : ''}</span>`).join('')}</div><p class="mg-sub">5 tries · your grade sets the whole season</p></div>`;
   ctrl.innerHTML = `<button class="btn btn-primary btn-xl" data-mg="start">START</button>`;
   Snd.play('mgCrowd', 0.05);
 }
@@ -119,7 +111,7 @@ function mgFlash(ctx, good) { const s = ctx.stage; s.classList.remove('mg-good',
 function mgFinish(ctx) {
   const se = ctx.env.se, sc = ctx.results.filter(Boolean).length, g = MG_GRADES[sc], good = sc >= 3;
   const extra = good ? Math.min(0.04, ctx.perfects * 0.01) : 0, perf = Math.min(0.12, g.perf + extra);
-  const fx = `${perf > 0 ? '+' : '−'}${Math.abs(Math.round(perf * 100))}% performance · next ${g.left} games`;
+  const fx = `${perf > 0 ? '+' : '−'}${Math.abs(Math.round(perf * 100))}% performance all season · moves your rating`;
   ctx.stage.innerHTML = `<div class="mg-res ${good ? 'good' : 'bad'}" style="background-image:radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, ${ctx.t.c1} 38%, transparent), transparent)">
     <div class="mg-jersey-big small">${ctx.env.jersey ? ctx.env.jersey('back') : ''}</div>
     <div class="mg-grade">${g.n}</div><div class="mg-big">${sc}<small>/5</small></div>
@@ -127,7 +119,7 @@ function mgFinish(ctx) {
     ${ctx.perfects ? `<div class="mg-perf">✨ ${ctx.perfects} perfect play${ctx.perfects > 1 ? 's' : ''}</div>` : ''}
     <div class="mg-bonus ${good ? 'good' : 'bad'}">${good ? '⚡' : '⚠️'} ${fx}</div></div>`;
   ctx.say(''); ctx.ctrl.innerHTML = `<button class="btn btn-primary btn-xl" data-mg="done">CONTINUE</button>`;
-  se.buffs.push({ left: g.left, perf, label: 'Mini game ' + g.n.toLowerCase() });
+  se.buffs.push({ left: 99, perf, label: 'Camp ' + g.n.toLowerCase() });
   if (sc >= 4) se.train.ment = Math.min(1.5, (se.train.ment || 0) + 0.25);
   se.mgLog.push({ kind: ctx.kind, score: sc, wk: se.mg ? se.mg.wk : 0 }); se.mg = null; se.mgSince = 0; se.mgIn = randInt(3, 5);
   if (ctx.env.save) saveGame();
@@ -288,8 +280,7 @@ function mgRB(ctx, i, st) {
     <g id="mgRW" style="transform:translate(0px,${RY}px)">
       <clipPath id="mgRbClip"><rect x="0" y="${-GOAL - 120}" width="340" height="120"/></clipPath>
       <rect x="0" y="${-GOAL - 120}" width="340" height="120" fill="${O1}"/><rect x="0" y="${-GOAL - 120}" width="340" height="120" fill="url(#mgStripe)" opacity=".2"/>
-      <g clip-path="url(#mgRbClip)" opacity=".9"><text x="170" y="${-GOAL - 96}" text-anchor="middle" font-size="24" font-weight="800" fill="${textOn(O1)}" font-family="Barlow Condensed, sans-serif" letter-spacing=".25em" textLength="${Math.min(250, ctx.o.nick.length * 19)}" lengthAdjust="spacingAndGlyphs">${esc(ctx.o.nick.toUpperCase())}</text>
-        <image href="${ctx.o.logo}" x="140" y="${-GOAL - 88}" width="60" height="60" preserveAspectRatio="xMidYMid meet"/><text x="170" y="${-GOAL - 8}" text-anchor="middle" font-size="24" font-weight="800" fill="${textOn(O1)}" font-family="Barlow Condensed, sans-serif" letter-spacing=".25em" textLength="${Math.min(250, ctx.o.nick.length * 19)}" lengthAdjust="spacingAndGlyphs">${esc(ctx.o.nick.toUpperCase())}</text></g>
+      <g clip-path="url(#mgRbClip)" opacity=".92"><image href="${ctx.o.logo}" x="125" y="${-GOAL - 100}" width="90" height="80" preserveAspectRatio="xMidYMid meet"/></g>
       ${stripes}${lineSVG}<line x1="0" x2="340" y1="0" y2="0" stroke="#4aa8ff" stroke-width="3" stroke-opacity=".85"/><line x1="0" x2="340" y1="${-GOAL}" y2="${-GOAL}" stroke="#fff" stroke-width="5"/>
       <line x1="2" x2="2" y1="${-GOAL - 120}" y2="0" stroke="#fff" stroke-opacity=".7" stroke-width="3"/><line x1="338" x2="338" y1="${-GOAL - 120}" y2="0" stroke="#fff" stroke-opacity=".7" stroke-width="3"/>${dsvg}</g>
     <defs><pattern id="mgStripe" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="14" fill="#fff"/></pattern></defs>
@@ -470,7 +461,7 @@ function mgKick(ctx, i, st) {
     <g clip-path="url(#mgEzClip)" opacity=".92">
       <g transform="translate(${170 - 46} 163) scale(1 .5)"><image href="${ctx.o.logo}" x="-17" y="-17" width="34" height="34" preserveAspectRatio="xMidYMid meet"/></g>
       <g transform="translate(${170 + 46} 163) scale(1 .5)"><image href="${ctx.o.logo}" x="-17" y="-17" width="34" height="34" preserveAspectRatio="xMidYMid meet"/></g>
-      <text transform="translate(170 167) scale(1 .5)" text-anchor="middle" font-size="23" font-weight="800" fill="${textOn(O1)}" font-family="Barlow Condensed, sans-serif" letter-spacing=".18em" stroke="${O2}" stroke-width=".8" textLength="${Math.min(70, ctx.o.nick.length * 11)}" lengthAdjust="spacingAndGlyphs">${esc(ctx.o.nick.toUpperCase())}</text>
+      <g transform="translate(170 163) scale(1 .5)"><image href="${ctx.o.logo}" x="-22" y="-22" width="44" height="44" preserveAspectRatio="xMidYMid meet"/></g>
     </g>
     <line x1="${170 - half(176)}" x2="${170 + half(176)}" y1="176" y2="176" stroke="#fff" stroke-width="3"/><line x1="${170 - half(150)}" x2="${170 + half(150)}" y1="150" y2="150" stroke="#fff" stroke-width="2" stroke-opacity=".85"/>
      <polyline points="${170 - half(150)},150 ${170 - half(300)},300" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="2.5"/><polyline points="${170 + half(150)},150 ${170 + half(300)},300" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="2.5"/>

@@ -961,15 +961,17 @@ function develop(season, T) {
   season.injuries.filter(i => i.weeks >= 9).forEach(() => shuffle(physNames).slice(0, 2).forEach(n => { injPen[n] = (injPen[n] || 0) + randInt(1, 3); }));
   if (season.injExtra) shuffle(physNames).slice(0, 2).forEach(n => { injPen[n] = (injPen[n] || 0) + Math.ceil(season.injExtra / 2); });   // rushed back and re-injured
   const tr = season.train || { phys: 0, ment: 0 };
-  const ovrFrom = P.ovr, why = { age: 0, season: 0, training: 0, injury: 0 };
+  const camp = season.mgLog && season.mgLog.length ? (season.mgLog[0].score - 2.5) * 0.6 : 0;   // preseason camp mini game
+  const ovrFrom = P.ovr, why = { age: 0, camp: 0, season: 0, training: 0, injury: 0 };
   const rawD = {};
   cfg.attrs.forEach(([name, , phys]) => {
     let base = ageDelta(age, !!phys, P.pos);
     if (base > 0) base *= P.devMult;
     const sp = perf * (phys ? 0.55 : 1.0) * (age <= 30 ? 1 : 0.7);         // technique responds more to how you played
     const trn = phys ? tr.phys : tr.ment, inj = injPen[name] || 0;
-    rawD[name] = stochRound(base + sp + trn + gauss(0, 0.55) - inj);
-    why.age += base; why.season += sp; why.training += trn; why.injury -= inj;
+    const cp = camp * (phys ? 0.55 : 1.0) * (age <= 30 ? 1 : 0.7);
+    rawD[name] = stochRound(base + sp + cp + trn + gauss(0, 0.55) - inj);
+    why.age += base; why.season += sp; why.camp += cp; why.training += trn; why.injury -= inj;
   });
   Object.keys(why).forEach(k => { why[k] = Math.round(why[k] / cfg.attrs.length * 10) / 10; });
   const apply = () => cfg.attrs.forEach(([name]) => { const d = rawD[name]; P.attrs[name] = clamp(P.attrs[name] + d, 35, 99); });
@@ -977,7 +979,7 @@ function develop(season, T) {
   cfg.attrs.forEach(([name]) => { let d = rawD[name]; if (d > 0 && before[name] >= 88) d = Math.round(d * 0.4); rawD[name] = d; });
   apply();
   // guard rails on the overall
-  const serious = Object.keys(injPen).length > 0, good = perf > 0.35 && gp >= 8, poor = perf < -0.2;
+  const serious = Object.keys(injPen).length > 0, perfC = perf + camp * 0.3, good = perfC > 0.35 && gp >= 8, poor = perfC < -0.2;
   const floor = serious ? -6 : good ? (age <= 28 ? 0 : age <= 31 ? -1 : -2) : (age <= 27 ? -2 : -5);
   const ceil = poor ? (age <= 24 ? 3 : age <= 27 ? 2 : 1) : age >= 30 ? 2 : 7;
   let ovr = calcOvr(P.pos, P.attrs), guard = 0, smoothed = 0;
@@ -2386,7 +2388,7 @@ function renderDevelopment() {
         <div class="oc-to ${up ? 'up' : down ? 'down' : ''}"><b id="ovrNum">${dv.ovrFrom}</b><span>${up ? '▲' : down ? '▼' : '●'}</span></div></div>
       <div class="dev-list">${dv.changes.map((c, i) => `<div class="dev-row" style="animation-delay:${0.1 + i * 0.12}s"><span>${c.attr}</span><b class="${c.d > 0 ? 'good' : c.d < 0 ? 'bad' : 'muted'}">${c.d > 0 ? '+' : ''}${c.d}</b>
         <div class="bar ${barClass(c.to)}"><i style="--w:${c.to}%"></i></div><em>${c.to}</em></div>`).join('')}</div>
-      ${dv.why ? `<div class="dev-why"><span>WHY</span>${[['AGE', dv.why.age], ['YOUR SEASON', dv.why.season], ['TRAINING', dv.why.training], ['INJURY', dv.why.injury]].filter(([, v]) => v !== 0).map(([l, v]) => `<em class="${v > 0 ? 'good' : 'bad'}">${l} ${v > 0 ? '+' : ''}${v.toFixed(1)}</em>`).join('')}</div>` : ''}
+      ${dv.why ? `<div class="dev-why"><span>WHY</span>${[['AGE', dv.why.age], ['PRESEASON CAMP', dv.why.camp || 0], ['YOUR SEASON', dv.why.season], ['TRAINING', dv.why.training], ['INJURY', dv.why.injury]].filter(([, v]) => v !== 0).map(([l, v]) => `<em class="${v > 0 ? 'good' : 'bad'}">${l} ${v > 0 ? '+' : ''}${v.toFixed(1)}</em>`).join('')}</div>` : ''}
       <div class="muted small center">Age ${se.age} · ${P.dev} development${dv.injured ? ' · a serious injury cost you some athleticism' : ''}${dv.smoothed ? ' · your overall changes are kept within a believable range' : ''}</div>
       ${pj !== curSl ? `<div class="banner ${pj < curSl ? 'good' : 'warn'}">Depth chart outlook: ${slotLabel(P.pos, curSl)} → <b>${slotLabel(P.pos, pj)}</b> (projected)</div>` : ''}
     </section>
@@ -2470,6 +2472,7 @@ async function startNextSeason() {
   saveGame(); Snd.play('whistle', 0.5);
   await splash(`${S.year} SEASON`, `${TEAM[S.teamId].name} · Age ${S.player.age}`, 1600);
   renderDashboard();
+  if (curSeason().mg) setTimeout(() => mgOpen(), 450);   // preseason camp mini game
 }
 async function doRetire() {
   const se = curSeason();
@@ -2568,6 +2571,7 @@ const actions = {
       S.year = START_YEAR; startSeason(); S.phase = 'season'; saveGame(); Snd.play('whistle', 0.5);
       await splash(`${S.year} SEASON`, `${TEAM[S.teamId].name} · Rookie Season`, 1700);
       renderDashboard();
+      if (curSeason().mg) setTimeout(() => mgOpen(), 450);   // preseason camp mini game
     } finally { busy = false; }
   },
 
@@ -2575,10 +2579,12 @@ const actions = {
   playMini: () => { closeModal(); mgOpen(); },
   simNext: async () => {
     const se = curSeason(); if (se.status === 'done') return actions.seasonSummary();
+    if (se.mg) return mgOpen();
     const r = playGame(se); saveGame(); renderDashboard(); await maybeCelebrate(se, r.game); showGameModal(r.game, r.notes, se);
   },
   watchLive: () => {
     if (busy) return; const se = curSeason(); if (se.status === 'done') return actions.seasonSummary();
+    if (se.mg) return mgOpen();
     const r = playGame(se); saveGame();
     LV.done = async () => { renderDashboard(); await maybeCelebrate(se, r.game); showGameModal(r.game, r.notes, se); };
     openLiveGame(r.game, r.notes, se);

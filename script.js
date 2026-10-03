@@ -1280,6 +1280,38 @@ const JC_FONTS = [
   { k: 'varsity', label: 'Varsity', css: "'Graduate'", w: 400, cap: 0.70, wf: 0.66 },
   { k: 'slab', label: 'Slab', css: "'Alfa Slab One'", w: 400, cap: 0.70, wf: 0.62 },
   { k: 'tech', label: 'Tech', css: "'Teko'", w: 700, cap: 0.64, wf: 0.40 },
+  // approximations of the lettering each team wears (the real ones are custom, unlicensed typefaces): the closest free Google fonts
+  { k: 't_ari', label: 'Cardinals style', css: "'Russo One'", w: 400, cap: 0.70, wf: 0.68, team: true },
+  { k: 't_atl', label: 'Falcons style', css: "'Racing Sans One'", w: 400, cap: 0.64, wf: 0.61, team: true },
+  { k: 't_bal', label: 'Ravens style', css: "'Black Ops One'", w: 400, cap: 0.65, wf: 0.71, team: true },
+  { k: 't_buf', label: 'Bills style', css: "'Archivo Black'", w: 400, cap: 0.69, wf: 0.77, team: true },
+  { k: 't_car', label: 'Panthers style', css: "'Teko'", w: 700, cap: 0.64, wf: 0.51, team: true },
+  { k: 't_chi', label: 'Bears style', css: "'Bevan'", w: 400, cap: 0.78, wf: 0.84, team: true },
+  { k: 't_cin', label: 'Bengals style', css: "'Passion One'", w: 900, cap: 0.62, wf: 0.59, team: true },
+  { k: 't_cle', label: 'Browns style', css: "'Anton'", w: 400, cap: 0.86, wf: 0.47, team: true },
+  { k: 't_dal', label: 'Cowboys style', css: "'Oswald'", w: 700, cap: 0.81, wf: 0.53, team: true },
+  { k: 't_den', label: 'Broncos style', css: "'Staatliches'", w: 400, cap: 0.70, wf: 0.44, team: true },
+  { k: 't_det', label: 'Lions style', css: "'Titan One'", w: 400, cap: 0.71, wf: 0.68, team: true },
+  { k: 't_gb', label: 'Packers style', css: "'Rammetto One'", w: 400, cap: 0.78, wf: 0.86, team: true },
+  { k: 't_hou', label: 'Texans style', css: "'Chakra Petch'", w: 700, cap: 0.70, wf: 0.65, team: true },
+  { k: 't_ind', label: 'Colts style', css: "'Ultra'", w: 400, cap: 0.72, wf: 0.83, team: true },
+  { k: 't_jax', label: 'Jaguars style', css: "'Exo 2'", w: 900, cap: 0.69, wf: 0.66, team: true },
+  { k: 't_kc', label: 'Chiefs style', css: "'Alfa Slab One'", w: 400, cap: 0.78, wf: 0.78, team: true },
+  { k: 't_lv', label: 'Raiders style', css: "'Black Han Sans'", w: 400, cap: 0.75, wf: 0.70, team: true },
+  { k: 't_lac', label: 'Chargers style', css: "'Bungee'", w: 400, cap: 0.72, wf: 0.71, team: true },
+  { k: 't_lar', label: 'Rams style', css: "'Montserrat'", w: 900, cap: 0.70, wf: 0.75, team: true },
+  { k: 't_mia', label: 'Dolphins style', css: "'Lilita One'", w: 400, cap: 0.70, wf: 0.61, team: true },
+  { k: 't_min', label: 'Vikings style', css: "'Cinzel'", w: 900, cap: 0.70, wf: 0.75, team: true },
+  { k: 't_ne', label: 'Patriots style', css: "'Big Shoulders Display'", w: 900, cap: 0.80, wf: 0.48, team: true },
+  { k: 't_no', label: 'Saints style', css: "'Abril Fatface'", w: 400, cap: 0.70, wf: 0.67, team: true },
+  { k: 't_nyg', label: 'Giants style', css: "'Bebas Neue'", w: 400, cap: 0.70, wf: 0.39, team: true },
+  { k: 't_phi', label: 'Eagles style', css: "'Squada One'", w: 400, cap: 0.65, wf: 0.46, team: true },
+  { k: 't_pit', label: 'Steelers style', css: "'Graduate'", w: 400, cap: 0.75, wf: 0.67, team: true },
+  { k: 't_sf', label: '49ers style', css: "'Rye'", w: 400, cap: 0.76, wf: 0.73, team: true },
+  { k: 't_sea', label: 'Seahawks style', css: "'Rajdhani'", w: 700, cap: 0.64, wf: 0.54, team: true },
+  { k: 't_tb', label: 'Buccaneers style', css: "'Sigmar One'", w: 400, cap: 0.67, wf: 0.81, team: true },
+  { k: 't_ten', label: 'Titans style', css: "'Orbitron'", w: 900, cap: 0.72, wf: 0.82, team: true },
+  { k: 't_was', label: 'Commanders style', css: "'Fjalla One'", w: 400, cap: 0.83, wf: 0.48, team: true },
 ];
 const jcFont = k => JC_FONTS.find(f => f.k === k) || JC_FONTS[0];
 function jcCalibrate() { // measure the real cap height of each font so numbers always have the same visual height
@@ -2380,6 +2412,7 @@ const JC_TABS = [['colors', '🎨', 'Colors'], ['style', '👕', 'Style'], ['pat
 function renderLocker(keepScroll) {
   const ed0 = document.querySelector('.jc2-editor'), ey = ed0 ? ed0.scrollTop : 0, ay = app.scrollTop;
   const y = window.scrollY, P = S.player, id = S.teamId, t0 = TEAM[id], alt = jcAlt(), key = jcKey(), t = alt ? { name: alt.name } : TEAM[id], cfg = jerseyFor(key), C = jcColors(cfg), bg = S.jerseyBg || 'team';
+  const fontOpts = cur => { const o = f => `<option value="${f.k}" ${f.k === cur ? 'selected' : ''}>${f.label}</option>`; return `<optgroup label="Classic">${JC_FONTS.filter(f => !f.team).map(o).join('')}</optgroup><optgroup label="NFL team styles">${JC_FONTS.filter(f => f.team).map(o).join('')}</optgroup>`; };
   const opt = (list, cur) => list.map(f => `<option value="${f.k}" ${f.k === cur ? 'selected' : ''}>${f.label}</option>`).join('');
   const chip = (act, k, l, on) => `<button class="mini ${on ? 'on' : ''}" data-act="${act}" data-k="${k}">${l}</button>`;
   const SW = jcSwatches(key);
@@ -2471,7 +2504,7 @@ function renderLocker(keepScroll) {
 <section class="jc-card"><h4 class="jc-h">🔤 Name on the jersey</h4>
         <div class="seg"><button class="tog ${cfg.showWord ? 'on' : ''}" data-act="jcWord"><i></i>Team name on the front</button></div>
         <div class="lk-num"><input class="input" maxlength="12" value="${esc(jName(P))}" data-change="jerseyName" aria-label="Player name on the jersey" placeholder="NAME ON JERSEY"></div>
-        <div class="jc-grid2"><label class="jc-sel"><span>Font</span><select class="input" data-jc="nameFont">${opt(JC_FONTS, cfg.nameFont)}</select></label>${range('Size', 'nameSize', 50, 150, 5, cfg.nameSize, '%')}</div>
+        <div class="jc-grid2"><label class="jc-sel"><span>Font</span><select class="input" data-jc="nameFont">${fontOpts(cfg.nameFont)}</select></label>${range('Size', 'nameSize', 50, 150, 5, cfg.nameSize, '%')}</div>
         <div class="jc-colors stack">${colorRow('Name color', 'nameColor', cfg.nameColor)}${colorRow('Name outline', 'nameOutline', cfg.nameOutline)}</div>
         ${range('Outline width', 'nameOutlineW', 0, 5, 0.5, cfg.nameOutlineW)}
         ${range('Move up ↕ down', 'nameY', -30, 40, 1, Math.round(cfg.nameY || 0))}
@@ -2480,7 +2513,7 @@ function renderLocker(keepScroll) {
 </section>
 <section class="jc-card"><h4 class="jc-h">🔢 Number</h4>
         <div class="lk-num"><input class="input" type="number" min="0" max="99" value="${playerNumber()}" data-change="jerseyNumber" aria-label="Jersey number" style="max-width:110px"><button class="btn btn-ghost btn-sm" data-act="randNumber2">RANDOM #</button><span class="hint" id="numHint2">${P.pos} numbers: ${numberRule(P.pos)}</span></div>
-        <div class="jc-grid2"><label class="jc-sel"><span>Font</span><select class="input" data-jc="numFont">${opt(JC_FONTS, cfg.numFont)}</select></label>${range('Size', 'numSize', 50, 150, 5, cfg.numSize, '%')}</div>
+        <div class="jc-grid2"><label class="jc-sel"><span>Font</span><select class="input" data-jc="numFont">${fontOpts(cfg.numFont)}</select></label>${range('Size', 'numSize', 50, 150, 5, cfg.numSize, '%')}</div>
         ${range(jcView === 'back' ? 'Position · BACK' : 'Position · FRONT', jcView === 'back' ? 'numY' : 'numYFront', -60, 70, 2, jcView === 'back' ? cfg.numY : cfg.numYFront)}<div class="muted small">Front and back have their own height — switch FRONT / BACK above to set each one.</div>
         <div class="jc-colors stack">${colorRow('Number color', 'numColor', cfg.numColor)}${colorRow('Number outline', 'numOutline', cfg.numOutline)}</div>
         ${range('Outline width', 'numOutlineW', 0, 8, 0.5, cfg.numOutlineW)}

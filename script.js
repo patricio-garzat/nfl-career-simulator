@@ -1405,6 +1405,7 @@ function normJersey(c) {
   o.showWord = o.showWord !== false; o.swoosh = !!o.swoosh; o.sleeveLogo = !!o.sleeveLogo; o.sleeveLogoFlipL = !!o.sleeveLogoFlipL; o.sleeveLogoFlipR = !!o.sleeveLogoFlipR; o.sleeveLogoSize = clamp(Number(o.sleeveLogoSize) || 100, 40, 160); o.noSideNums = !!o.noSideNums; o.sleeveNums = !!o.sleeveNums && !o.noSideNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
   const hx = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d; o.primary = hx(o.primary, '#FFFFFF'); o.secondary = hx(o.secondary, '#111418'); o.accent = hx(o.accent, '#FFFFFF');
   o.numSize = clamp(Number(o.numSize) || 100, 50, 150); o.nameSize = clamp(Number(o.nameSize) || 100, 50, 150); o.numY = clamp(Number(o.numY) || 0, -60, 70); o.numYFront = clamp(o.numYFront !== undefined && o.numYFront !== null && Number.isFinite(Number(o.numYFront)) ? Number(o.numYFront) : o.numY, -60, 70);   // number height: the front and the back are independent
+  o.sideNumColor = /^#[0-9a-f]{6}$/i.test(o.sideNumColor) ? o.sideNumColor : ''; o.sideNumOutline = /^#[0-9a-f]{6}$/i.test(o.sideNumOutline) ? o.sideNumOutline : '';
   o.numOutlineW = clamp(Number(o.numOutlineW) || 0, 0, 8); o.nameOutlineW = clamp(Number(o.nameOutlineW) || 0, 0, 5);
   if (!JC_FONTS.some(f => f.k === o.numFont)) o.numFont = 'cond'; if (!JC_FONTS.some(f => f.k === o.nameFont)) o.nameFont = 'cond';
   if (!o.numColor || !o.nameColor || !o.numOutline || !o.nameOutline) { const keep = o.textCustom; o.textCustom = false; autoText(o); o.textCustom = keep; }
@@ -1478,7 +1479,7 @@ function jcSleeveTexts(c, view, number) {
   const run = f.glyph ? jcJetsRun(number) : null, half00 = f.glyph ? (JETS.glyphs['0'].w * 2 + JETS.gap) / 100 * base0 / 2 : f.wf * 2 * (128.6 * 0.3 * 0.73 / f.cap) / 2;
   const mk = side => {
     const d = JC_SLEEVE[view][side], rad = d.r * Math.PI / 180;
-    const base = { k: 'sh', t: String(number), x: 0, y: 0, tx: d.x + Math.cos(rad) * half00, ty: d.y + (c.sleeveNumY || 0) + Math.sin(rad) * half00, rot: d.r, sx: 1, fill: c.numColor, stroke: c.numOutlineW > 0 ? c.numOutline : null, sw: Math.min(1.2, c.numOutlineW * 0.4), maxW: 1e9, clip: 'bo' };
+    const base = { k: 'sh', t: String(number), x: 0, y: 0, tx: d.x + Math.cos(rad) * half00, ty: d.y + (c.sleeveNumY || 0) + Math.sin(rad) * half00, rot: d.r, sx: 1, fill: c.sideNumColor || c.numColor, stroke: c.numOutlineW > 0 ? (c.sideNumOutline || c.numOutline) : null, sw: Math.min(1.2, c.numOutlineW * 0.4), maxW: 1e9, clip: 'bo' };
     return f.glyph ? { ...base, jets: true, run, cap } : { ...base, size: cap / f.cap, css: f.css, w: f.w, wf: f.wf, ls: 0 };
   };
   return [mk('L'), mk('R')];
@@ -1494,7 +1495,7 @@ function jcShoulderTexts(c, view, number) {
   const run = f.glyph ? jcJetsRun(number) : null, two = f.glyph ? (JETS.glyphs['0'].w * 2 + JETS.gap) / 100 * cap / 2 : adv;
   const mk = side => {
     const d = JC_SHOULDER[view][side], rad = d.r * Math.PI / 180, half = two * d.sx;       // the drawing's "00" is two digits wide: centre the real number on it
-    const base = { k: 'sh', t: String(number), x: 0, y: 0, tx: d.x + Math.cos(rad) * half, ty: d.y + Math.sin(rad) * half, rot: d.r, sx: d.sx, fill: c.numColor, stroke: c.numOutlineW > 0 ? c.numOutline : null, sw: Math.min(1.1, c.numOutlineW * 0.35), maxW: 1e9, clip: 'bo' };
+    const base = { k: 'sh', t: String(number), x: 0, y: 0, tx: d.x + Math.cos(rad) * half, ty: d.y + Math.sin(rad) * half, rot: d.r, sx: d.sx, fill: c.sideNumColor || c.numColor, stroke: c.numOutlineW > 0 ? (c.sideNumOutline || c.numOutline) : null, sw: Math.min(1.1, c.numOutlineW * 0.35), maxW: 1e9, clip: 'bo' };
     return f.glyph ? { ...base, jets: true, run, cap } : { ...base, size, css: f.css, w: f.w, wf: f.wf, ls: 0 };
   };
   return [mk('L'), mk('R')];
@@ -2380,7 +2381,7 @@ function renderLocker(keepScroll) {
         ${range('Outline width', 'numOutlineW', 0, 8, 0.5, cfg.numOutlineW)}
 </section>
 <section class="jc-card"><h4 class="jc-h">↕ Shoulder / sleeve numbers<small>show, move down to the sleeves, or remove</small></h4>
-        <div class="minis big">${chip('jcNumPos', 'shoulder', 'SHOULDERS', !cfg.sleeveNums && !cfg.noSideNums)}${chip('jcNumPos', 'sleeve', 'SLEEVES', cfg.sleeveNums)}${chip('jcNumPos', 'none', 'NONE', cfg.noSideNums)}</div>${cfg.sleeveNums ? `<div class="muted small">Drag a sleeve number up or down on the jersey.${(cfg.sleeveNumY || 0) ? ' <button class="mini" data-act="jcNumReset">Reset height</button>' : ''}</div>` : ''}
+        <div class="minis big">${chip('jcNumPos', 'shoulder', 'SHOULDERS', !cfg.sleeveNums && !cfg.noSideNums)}${chip('jcNumPos', 'sleeve', 'SLEEVES', cfg.sleeveNums)}${chip('jcNumPos', 'none', 'NONE', cfg.noSideNums)}</div>${cfg.noSideNums ? '' : `<div class="jc-colors stack">${colorRow('Side number color', 'sideNumColor', cfg.sideNumColor || cfg.numColor, `${cfg.sideNumColor ? '<button class="mini" data-act="jcSideAuto" data-k="sideNumColor">Same as main</button>' : '<span class="hint">same as main</span>'}`)}${colorRow('Side number outline', 'sideNumOutline', cfg.sideNumOutline || cfg.numOutline, `${cfg.sideNumOutline ? '<button class="mini" data-act="jcSideAuto" data-k="sideNumOutline">Same as main</button>' : '<span class="hint">same as main</span>'}`)}</div>`}${cfg.sleeveNums ? `<div class="muted small">Drag a sleeve number up or down on the jersey.${(cfg.sleeveNumY || 0) ? ' <button class="mini" data-act="jcNumReset">Reset height</button>' : ''}</div>` : ''}
 </section>
         <div class="muted small lk-note">The jersey name is separate from your player name (<b>${esc(P.name)}</b>). Each team keeps its own design; when you change teams you get a fresh home jersey.</div>
         ` : ''}
@@ -2780,7 +2781,7 @@ const actions = {
   jcZoneRot: (d) => editJersey(c => { c.zp = jcNormZones(c.zp); c.zp[d.z].r = (c.zp[d.z].r + 90) % 360; }),
   jcZoneAuto: (d) => editJersey(c => { c.zp = jcNormZones(c.zp); c.zp[d.z].c = ''; }),
   jcToggle: (d) => editJersey(c => { c[d.k] = !c[d.k]; c.pattern = 'custom'; }),
-  jcPalette: (d) => editJersey(c => { const p = jcPalettes(S.teamId)[Number(d.i)]; c.primary = p.p; c.secondary = p.s; c.accent = p.a; c.parts = {}; c.textCustom = false; autoText(c); }),
+  jcPalette: (d) => editJersey(c => { const p = jcPalettes(S.teamId)[Number(d.i)]; c.primary = p.p; c.secondary = p.s; c.accent = p.a; c.parts = {}; c.sideNumColor = ''; c.sideNumOutline = ''; c.textCustom = false; autoText(c); }),
   jcColor: (d) => editJersey(c => {
     const path = d.path, v = d.c;
     jcSetPath(c, path, v);
@@ -2797,6 +2798,7 @@ const actions = {
   jcWord: () => { jcView = 'front'; editJersey(c => { c.showWord = !c.showWord; }); },
   jcSleeveStyle: (d) => editJersey(c => { c.sleeveStyle = d.k; }),
   jcSleeve: (d) => editJersey(c => { const n = Number(d.k); c.sleeveCount = n; c.sleeveStripes = n > 0; c.retro = n === 3; }),
+  jcSideAuto: (d) => editJersey(c => { c[d.k] = ''; }),
   jcPartAuto: (d) => editJersey(c => { delete c.parts[d.k]; }),
   jcRandom: () => editJersey(c => Object.assign(c, randomJersey(S.teamId, c))),
   jcReset: () => { if (S.jerseys) delete S.jerseys[S.teamId]; saveGame(); renderLocker(true); toast('Design reset'); },

@@ -712,3 +712,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
   .wrap.create .cp-leagues { flex: 1; min-height: 100px; } .wrap.create .cp-league { flex-direction: row; justify-content: flex-start; text-align: left; gap: 8px; padding: 4px 8px; min-height: 0; overflow: hidden; }
   .wrap.create .cp-league img { height: 34px; width: 38px; flex: none; } .wrap.create .cp-league > div { align-items: flex-start; gap: 1px; } .wrap.create .cp-league b { font-size: 17px; } .wrap.create .cp-league span { font-size: 9.5px; line-height: 1.15; } .wrap.create .cp-league em { font-size: 9.5px; }
 }
+
+/* college season */
+.cs-sum { display: flex; align-items: center; gap: 12px; text-align: left; margin-bottom: 6px; } .cs-sum b { display: block; font-family: var(--head); font-size: 24px; letter-spacing: .05em; text-transform: uppercase; } .cs-sum span { color: var(--mut); font-size: 12px; letter-spacing: .08em; }
+.cs-stock { margin-top: 12px; text-align: center; }

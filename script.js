@@ -1860,7 +1860,7 @@ function renderCreate() {
 function renderPreview() {
   const P = preview;
   setScreen(`<div class="wrap narrow">
-    <div class="eyebrow">STEP 2 OF 2</div><h2 class="h-xl">YOUR PLAYER</h2>
+    <div class="eyebrow">STEP 2 OF 2 · PRE-SEASON</div><h2 class="h-xl">YOUR PLAYER</h2>
     <div class="card player-card pop">
       <div class="pc-top">
         ${ovrRing(P.ovr, 'big')}
@@ -1877,7 +1877,8 @@ function renderPreview() {
       <button class="btn btn-ghost" data-act="backCreate">EDIT DETAILS</button>
       <div class="row">
         <button class="btn btn-ghost" data-act="reroll" ${rerolls ? '' : 'disabled'}>REROLL (${rerolls} left)</button>
-        <button class="btn btn-primary" data-act="enterDraft">ENTER THE DRAFT</button>
+        <button class="btn btn-ghost" data-act="enterDraft">SKIP TO DRAFT</button>
+        <button class="btn btn-primary" data-act="startCollege">🎓 PLAY COLLEGE SEASON</button>
       </div>
     </div></div>`);
 }

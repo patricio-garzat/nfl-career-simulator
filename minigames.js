@@ -52,19 +52,25 @@ const mgYardsStr = y => `${y >= 0 ? '+' : '−'}${Math.abs(y)} YDS`;
 
 /* ---------- overlay + runner ---------- */
 let MGX = null;
-function mgOpen() {
-  const se = curSeason(); if (!se || !se.mg || !MG_META[se.mg.kind]) return;
-  const P = S.player, kind = se.mg.kind, t = TEAM[S.teamId], meta = MG_META[kind](P);
+// the NFL season's environment; the college season (college.js) passes its own: { se, P, t, o, number, theme, save, onDone }
+function mgEnvNFL() {
+  const se = curSeason(); if (!se || !se.mg || !MG_META[se.mg.kind]) return null;
   let opp; try { opp = nextGameInfo(se).opp; } catch (e) { opp = null; } opp = opp || TEAM_LIST.find(x => x.id !== S.teamId);
-  const ov = document.createElement('div'); ov.className = 'mg-overlay'; ov.style.cssText = themeVars(S.teamId);
+  return { se, P: S.player, t: { ...TEAM[S.teamId], logo: logoUrl(S.teamId) }, o: { ...opp, logo: logoUrl(opp.id) }, number: playerNumber(), theme: themeVars(S.teamId), save: true, onDone: () => renderDashboard() };
+}
+function mgOpen(env) {
+  env = env || mgEnvNFL(); if (!env) return;
+  const se = env.se; if (!se.mg || !MG_META[se.mg.kind]) return;
+  const P = env.P, kind = se.mg.kind, t = env.t, opp = env.o, meta = MG_META[kind](P);
+  const ov = document.createElement('div'); ov.className = 'mg-overlay'; ov.style.cssText = env.theme;
   ov.innerHTML = `<div class="mg-wrap">
     <div class="mg-top"><span class="mg-tag">🎮 MINI GAME</span><button class="mini mg-skip" data-mg="skip">SKIP</button></div>
-    <div class="mg-board"><img src="${logoUrl(t.id)}" alt=""><div class="mg-bt"><b>${esc(meta.title)}</b><span>${esc(P.name)} · ${P.pos} · #${playerNumber()}</span></div><img src="${logoUrl(opp.id)}" alt=""></div>
+    <div class="mg-board"><img src="${t.logo}" alt=""><div class="mg-bt"><b>${esc(meta.title)}</b><span>${esc(P.name)} · ${P.pos} · #${env.number}</span></div><img src="${opp.logo}" alt=""></div>
     <div class="mg-pips">${[0, 1, 2, 3, 4].map(i => `<i data-p="${i}"></i>`).join('')}<em id="mgScore">0/5</em></div>
     <div class="mg-stage" id="mgStage"></div><div class="mg-msg" id="mgMsg"></div><div class="mg-ctrl" id="mgCtrl"></div></div>`;
   document.body.appendChild(ov);
   const stage = ov.querySelector('#mgStage'), msg = ov.querySelector('#mgMsg'), ctrl = ov.querySelector('#mgCtrl');
-  const ctx = { ov, stage, msg, ctrl, t, o: opp, P, kind, alive: () => ov.isConnected, say: (h, cls = '') => { msg.className = 'mg-msg ' + cls; msg.innerHTML = h; }, results: [] };
+  const ctx = { env, number: env.number, ov, stage, msg, ctrl, t, o: opp, P, kind, alive: () => ov.isConnected, say: (h, cls = '') => { msg.className = 'mg-msg ' + cls; msg.innerHTML = h; }, results: [] };
   MGX = ctx;
   stage.innerHTML = `<div class="mg-intro"><div class="mg-bigicon">${meta.icon}</div><h2>${esc(meta.title)}</h2><p>${esc(meta.how)}</p>
     <div class="mg-legend">${meta.legend.map(([i, a, b]) => `<span>${i} ${a} <b>→ ${b}</b></span>`).join('')}</div><p class="mg-sub">5 tries · get 3 or more for a bonus</p></div>`;
@@ -87,7 +93,7 @@ async function mgRun(ctx) {
   mgFinish(ctx);
 }
 function mgFinish(ctx) {
-  const se = curSeason(), sc = ctx.results.filter(Boolean).length, g = MG_GRADES[sc], good = sc >= 3;
+  const se = ctx.env.se, sc = ctx.results.filter(Boolean).length, g = MG_GRADES[sc], good = sc >= 3;
   const fx = `${g.perf > 0 ? '+' : '−'}${Math.abs(Math.round(g.perf * 100))}% performance · next ${g.left} games`;
   ctx.stage.innerHTML = `<div class="mg-res ${good ? 'good' : 'bad'}"><div class="mg-grade">${g.n}</div><div class="mg-big">${sc}<small>/5</small></div>
     <div class="mg-stars">${[0, 1, 2, 3, 4].map(i => `<span class="${i < sc ? 'on' : ''}">★</span>`).join('')}</div>
@@ -96,12 +102,12 @@ function mgFinish(ctx) {
   se.buffs.push({ left: g.left, perf: g.perf, label: 'Mini game ' + g.n.toLowerCase() });
   if (sc >= 4) se.train.ment = Math.min(1.5, (se.train.ment || 0) + 0.25);
   se.mgLog.push({ kind: ctx.kind, score: sc, wk: se.mg ? se.mg.wk : 0 }); se.mg = null; se.mgSince = 0; se.mgIn = randInt(3, 5);
-  saveGame();
+  if (ctx.env.save) saveGame();
   Snd.play(sc >= 4 ? 'bigFanfare' : good ? 'win' : 'lose', 0.1);
   if (sc >= 4) burst(ctx.stage, sc === 5 ? 70 : 40);
 }
-function mgSkip() { const se = curSeason(); if (se) { se.mg = null; se.mgSince = 0; se.mgIn = randInt(3, 5); saveGame(); } const o = document.querySelector('.mg-overlay'); if (o) o.remove(); MGX = null; renderDashboard(); }
-function mgDone() { const o = document.querySelector('.mg-overlay'); if (o) o.remove(); MGX = null; renderDashboard(); }
+function mgSkip() { const env = MGX && MGX.env, se = env && env.se; if (se) { se.mg = null; se.mgSince = 0; se.mgIn = randInt(3, 5); if (env.save) saveGame(); } const o = document.querySelector('.mg-overlay'); if (o) o.remove(); MGX = null; if (env) env.onDone(); }
+function mgDone() { const env = MGX && MGX.env; const o = document.querySelector('.mg-overlay'); if (o) o.remove(); MGX = null; if (env) env.onDone(); }
 // one delegated listener for the overlay buttons
 document.addEventListener('click', e => {
   const b = e.target.closest && e.target.closest('[data-mg]'); if (!b || !MGX) return;
@@ -202,7 +208,7 @@ function mgRB(ctx, i, st) {
     <line x1="0" x2="340" y1="130" y2="130" stroke="#4aa8ff" stroke-width="2.5" stroke-opacity=".8"/>
     <text x="170" y="60" text-anchor="middle" font-size="46" font-weight="800" fill="#fff" fill-opacity=".05" font-family="Barlow Condensed, sans-serif">${esc(ctx.o.nick.toUpperCase())}</text>
     <g id="mgHole" opacity="0"><path d="${weak === 'L' ? 'M96 150 L96 40' : 'M244 150 L244 40'}" stroke="#c5ff3a" stroke-width="22" stroke-opacity=".18" stroke-linecap="round"/></g>
-    ${defs}${ol}${mgDot(170, 158, T1, 8, '')}<g id="mgRunner" style="transform:translate(170px,198px);transition:transform .45s ease-in"><circle r="10" fill="${T1}" stroke="#fff" stroke-width="2"/><text y="3.8" text-anchor="middle" font-size="11" font-weight="800" fill="${textOn(T1)}" font-family="Barlow Condensed, sans-serif">${playerNumber()}</text></g>
+    ${defs}${ol}${mgDot(170, 158, T1, 8, '')}<g id="mgRunner" style="transform:translate(170px,198px);transition:transform .45s ease-in"><circle r="10" fill="${T1}" stroke="#fff" stroke-width="2"/><text y="3.8" text-anchor="middle" font-size="11" font-weight="800" fill="${textOn(T1)}" font-family="Barlow Condensed, sans-serif">${ctx.number}</text></g>
     <g id="mgFx"></g></svg><div class="mg-call">RUN PLAY · ${i + 1} of 5</div>`;
   ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns two"><button class="mg-b" data-pick="L" style="--c:#ffd23d">◀ RUN LEFT</button><button class="mg-b" data-pick="R" style="--c:#35e0ff">RUN RIGHT ▶</button></div>`;
   ctx.say('Defense is lining up…');
@@ -246,7 +252,7 @@ function mgCatch(ctx, i, st) {
     ${mgDot(170, 62, T1, 7, '', '#fff')}
     <g id="mgDef" style="transform:translate(${x1 < 170 ? 380 : -40}px,${y1 + 24}px)"><circle r="17" fill="${O1}" stroke="${mgStroke(O1)}" stroke-width="2"/><text y="4" text-anchor="middle" font-size="11" font-weight="800" fill="${textOn(O1)}" font-family="Barlow Condensed, sans-serif">${contested ? (te ? 'LB' : 'CB') : ''}</text></g>
     <g id="mgRing"><circle cx="${x1}" cy="${y1}" r="${R}" fill="${T2}" fill-opacity=".12" stroke="#fff" stroke-width="3"/><circle cx="${x1}" cy="${y1}" r="${R * 0.96}" fill="none" stroke="#c5ff3a" stroke-width="2" stroke-dasharray="4 5" opacity=".9"/></g>
-    <path d="M30 300 Q40 262 98 252 L242 252 Q300 262 310 300 Z" fill="${T1}" stroke="${T2}" stroke-width="3"/><text x="170" y="292" text-anchor="middle" font-size="40" font-weight="800" fill="${textOn(T1)}" font-family="Barlow Condensed, sans-serif" stroke="${T2}" stroke-width="1.5" paint-order="stroke">${playerNumber()}</text>
+    <path d="M30 300 Q40 262 98 252 L242 252 Q300 262 310 300 Z" fill="${T1}" stroke="${T2}" stroke-width="3"/><text x="170" y="292" text-anchor="middle" font-size="40" font-weight="800" fill="${textOn(T1)}" font-family="Barlow Condensed, sans-serif" stroke="${T2}" stroke-width="1.5" paint-order="stroke">${ctx.number}</text>
     <g id="mgBallG">${mgBall(170, 70, 0.2, 0, 'mgBallEl')}</g><g id="mgFx"></g></svg><div class="mg-call">${te ? 'SEAM ROUTE — LB closing in' : 'GO ROUTE — corner on your hip'} · ${i + 1} of 5</div>`;
   ctx.ctrl.innerHTML = `<div class="mg-btns one"><button class="mg-b big" id="mgCatchBtn" style="--c:#c5ff3a">🙌 CATCH!</button></div>`;
   ctx.say('Get ready…');

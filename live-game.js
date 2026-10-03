@@ -806,7 +806,7 @@ async function openLiveGame(game, notes, season) {
   const label = game.k === 'PO' ? (game.round || 'PLAYOFFS') : `WEEK ${game.wk}`;
   const whenTxt = game.date && typeof calShort === 'function' ? ` · ${calShort(new Date(game.date + 'T00:00:00Z'))} · ${game.time} ET` : '';
   ov.innerHTML = `<div class="lv-wrap">
-    <div class="lv-top"><span class="lv-live"><i></i>LIVE</span><b>${label}</b><span class="muted">${TEAM[away].name} @ ${TEAM[home].name}${whenTxt}</span><div class="lv-ctrl"><button class="mini on" data-lv-speed="1">1×</button><button class="mini" data-lv-speed="2">2×</button><button class="mini" data-lv-speed="4">4×</button><button class="btn btn-ghost btn-sm" id="lvSkip">SKIP ▸</button></div></div>
+    <div class="lv-top"><span class="lv-live"><i></i>LIVE</span><b>${label}</b><span class="muted">${TEAM[away].name} @ ${TEAM[home].name}${whenTxt}</span><div class="lv-ctrl"><label class="lv-vol" title="Music volume">🎵<input type="range" id="lvMusic" min="0" max="100" step="1" value="40" aria-label="Music volume"></label><button class="mini on" data-lv-speed="1">1×</button><button class="mini" data-lv-speed="2">2×</button><button class="mini" data-lv-speed="4">4×</button><button class="btn btn-ghost btn-sm" id="lvSkip">SKIP ▸</button></div></div>
     ${lvScoreboardHTML(L)}
     <div class="lv-stage">${lvFieldSVG(away, home, /super bowl|^SB$/i.test(String(game.round || '')))}<div class="lv-banner" id="lvBanner"></div></div>
     <div class="lv-bottom">
@@ -815,7 +815,9 @@ async function openLiveGame(game, notes, season) {
       <div class="lv-log card" id="lvLog"></div>
     </div></div>`;
   document.body.appendChild(ov);
-  Snd.music(lvTrack(game), 0.32);
+  const musicVol = () => { let v = 40; try { const x = parseInt(localStorage.getItem('nfl_music_vol'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
+  Snd.music(lvTrack(game), musicVol() / 100 * 0.8);
+  const mv = ov.querySelector('#lvMusic'); if (mv) { mv.value = musicVol(); mv.addEventListener('input', () => { Snd.setMusicVol(mv.value / 100 * 0.8); try { localStorage.setItem('nfl_music_vol', mv.value); } catch (e) { /* ignore */ } }); }
   const $ = id => document.getElementById(id), setScore = () => { $('lvScore_away').textContent = L.score.away; $('lvScore_home').textContent = L.score.home; };
   const setClock = (q, clock) => { $('lvQ').textContent = ['1st', '2nd', '3rd', '4th'][q - 1] + ' Q'; $('lvClock').textContent = clock; };
   const setBugDD = txt => { const el = $('lvBugDD'); if (el) el.textContent = txt; };

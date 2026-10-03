@@ -1235,15 +1235,16 @@ const Snd = (() => {
     try {
       const au = new Audio(url); au.loop = true; au.volume = 0; au.muted = muted; au.preload = 'auto'; bg = au; bg._vol = vol;
       const p = au.play(); if (p && p.catch) p.catch(() => {});
-      clearInterval(bgFade); let t = 0; bgFade = setInterval(() => { t += 50; if (bg !== au) return clearInterval(bgFade); au.volume = Math.min(vol, vol * t / 1800); if (t >= 1800) clearInterval(bgFade); }, 50);
+      clearInterval(bgFade); let t = 0; bgFade = setInterval(() => { t += 50; if (bg !== au) return clearInterval(bgFade); au.volume = Math.min(1, Math.max(0, au._vol * Math.min(1, t / 1800))); if (t >= 1800) clearInterval(bgFade); }, 50);
     } catch (e) { bg = null; }
   }
+  function setMusicVol(v) { if (bg) { bg._vol = v; bg.volume = clamp(v, 0, 1); } }
   function stopMusic(ms = 700) {
     const au = bg; if (!au) return; bg = null; clearInterval(bgFade);
     if (!ms) { try { au.pause(); } catch (e) { /* ignore */ } return; }
     const v0 = au.volume; let t = 0; const iv = setInterval(() => { t += 50; au.volume = Math.max(0, v0 * (1 - t / ms)); if (t >= ms) { clearInterval(iv); try { au.pause(); } catch (e) { /* ignore */ } } }, 50);
   }
-  return { play, file, music, stopMusic, unlock, setMuted, isMuted: () => muted };
+  return { play, file, music, setMusicVol, stopMusic, unlock, setMuted, isMuted: () => muted };
 })();
 
 /* ---------------------------------------------------------------------

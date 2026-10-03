@@ -999,3 +999,6 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .cal-md span { display: block; font: 800 15px var(--head); letter-spacing: .05em; } .cal-md small { color: var(--mut); font-size: 12px; } .cal-mo { display: flex; align-items: center; gap: 10px; min-width: 0; } .cal-mo b { font: 800 17px var(--head); letter-spacing: .04em; text-transform: uppercase; } .cal-mo small { display: block; color: var(--mut); font-size: 11px; }
 .cal-mr { font: 800 17px var(--head); letter-spacing: .06em; } .cal-m.w .cal-mr { color: #6dffbb; } .cal-m.l .cal-mr { color: #ff7b7b; } .cal-m.bye { opacity: .6; background: transparent; border-style: dashed; } .cal-mo i { font-style: normal; font: 800 14px var(--head); letter-spacing: .2em; color: var(--mut); }
 @media (max-width: 700px) { .cal-list { grid-template-columns: 1fr; } .cal-m { grid-template-columns: 26px 92px 1fr auto; gap: 8px; padding: 7px 8px; } .cal-t b { font-size: 14px; } .cal-t em { font-size: 20px; } .cal-md span { font-size: 13px; } }
+
+.lv-vol { display: inline-flex; align-items: center; gap: 6px; margin-right: 8px; font-size: 14px; color: var(--mut); } .lv-vol input { width: 88px; height: 4px; accent-color: var(--lime); cursor: pointer; }
+@media (max-width: 720px) { .lv-vol input { width: 70px; } }

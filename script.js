@@ -1404,7 +1404,7 @@ function normJersey(c) {
   o.zp = jcNormZones(o.zp);
   o.showWord = o.showWord !== false; o.swoosh = !!o.swoosh; o.sleeveLogo = !!o.sleeveLogo; o.sleeveLogoFlipL = !!o.sleeveLogoFlipL; o.sleeveLogoFlipR = !!o.sleeveLogoFlipR; o.sleeveLogoSize = clamp(Number(o.sleeveLogoSize) || 100, 40, 160); o.sleeveNums = !!o.sleeveNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
   const hx = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d; o.primary = hx(o.primary, '#FFFFFF'); o.secondary = hx(o.secondary, '#111418'); o.accent = hx(o.accent, '#FFFFFF');
-  o.numSize = clamp(Number(o.numSize) || 100, 50, 150); o.nameSize = clamp(Number(o.nameSize) || 100, 50, 150); o.numY = clamp(Number(o.numY) || 0, -60, 70);
+  o.numSize = clamp(Number(o.numSize) || 100, 50, 150); o.nameSize = clamp(Number(o.nameSize) || 100, 50, 150); o.numY = clamp(Number(o.numY) || 0, -60, 70); o.numYFront = clamp(o.numYFront !== undefined && o.numYFront !== null && Number.isFinite(Number(o.numYFront)) ? Number(o.numYFront) : o.numY, -60, 70);   // number height: the front and the back are independent
   o.numOutlineW = clamp(Number(o.numOutlineW) || 0, 0, 8); o.nameOutlineW = clamp(Number(o.nameOutlineW) || 0, 0, 5);
   if (!JC_FONTS.some(f => f.k === o.numFont)) o.numFont = 'cond'; if (!JC_FONTS.some(f => f.k === o.nameFont)) o.nameFont = 'cond';
   if (!o.numColor || !o.nameColor || !o.numOutline || !o.nameOutline) { const keep = o.textCustom; o.textCustom = false; autoText(o); o.textCustom = keep; }
@@ -1427,7 +1427,7 @@ function randomJersey(teamId, current) {
   if (rnd() < 0.15) c.collarContrast = false;
   c.numFont = pick(['cond', 'cond', 'block', 'athletic']); c.nameFont = c.numFont; c.numOutlineW = pick([0, 3.2, 3.2, 4.5]);
   c.sleeveStyle = pick(JC_SLEEVE_STYLES)[0]; c.sleeveThick = pick([90, 100, 120, 150]);
-  if (current) { c.numSize = current.numSize; c.numY = current.numY; c.nameSize = current.nameSize; c.zp = current.zp; c.swoosh = current.swoosh; c.sleeveLogo = current.sleeveLogo; c.sleeveLogoFlipL = current.sleeveLogoFlipL; c.sleeveLogoFlipR = current.sleeveLogoFlipR; c.sleeveLogoSize = current.sleeveLogoSize; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
+  if (current) { c.numSize = current.numSize; c.numY = current.numY; c.numYFront = current.numYFront; c.nameSize = current.nameSize; c.zp = current.zp; c.swoosh = current.swoosh; c.sleeveLogo = current.sleeveLogo; c.sleeveLogoFlipL = current.sleeveLogoFlipL; c.sleeveLogoFlipR = current.sleeveLogoFlipR; c.sleeveLogoSize = current.sleeveLogoSize; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
   return autoText(c);
 }
 
@@ -1455,7 +1455,7 @@ function jcJetsRun(t) {
 }
 function jcTexts(c, view, name, number, word) {
   const f = jcFont(c.numFont), nf = jcFont(c.nameFont), digits = String(number).length;
-  const capH = 80 * c.numSize / 100 * (digits === 1 ? 1.04 : 1), size = capH / f.cap, y = 171 + c.numY + capH / 2;
+  const capH = 80 * c.numSize / 100 * (digits === 1 ? 1.04 : 1), size = capH / f.cap, y = 171 + (view === 'back' ? c.numY : c.numYFront) + capH / 2;
   const out = [f.glyph ? { k: 'num', jets: true, run: jcJetsRun(number), cap: capH, t: String(number), x: UNI.meta.cx, y, fill: c.numColor, stroke: c.numOutlineW > 0 ? c.numOutline : null, sw: c.numOutlineW, maxW: 130 }
     : { k: 'num', t: String(number), x: UNI.meta.cx, y, size, css: f.css, w: f.w, wf: f.wf, fill: c.numColor, stroke: c.numOutlineW > 0 ? c.numOutline : null, sw: c.numOutlineW, ls: 0, maxW: 130 }];
   if (view === 'back') {
@@ -2350,7 +2350,7 @@ function renderLocker(keepScroll) {
         <div class="minis big">${chip('jcNumPos', 'shoulder', 'SHOULDERS', !cfg.sleeveNums)}${chip('jcNumPos', 'sleeve', 'SLEEVES', cfg.sleeveNums)}</div>${cfg.sleeveNums ? `<div class="muted small">Drag a sleeve number up or down on the jersey.${(cfg.sleeveNumY || 0) ? ' <button class="mini" data-act="jcNumReset">Reset height</button>' : ''}</div>` : ''}
         <div class="lk-num"><input class="input" type="number" min="0" max="99" value="${playerNumber()}" data-change="jerseyNumber" aria-label="Jersey number" style="max-width:110px"><button class="btn btn-ghost btn-sm" data-act="randNumber2">RANDOM #</button><span class="hint" id="numHint2">${P.pos} numbers: ${numberRule(P.pos)}</span></div>
         <div class="jc-grid2"><label class="jc-sel"><span>Font</span><select class="input" data-jc="numFont">${opt(JC_FONTS, cfg.numFont)}</select></label>${range('Size', 'numSize', 50, 150, 5, cfg.numSize, '%')}</div>
-        ${range('Position', 'numY', -60, 70, 2, cfg.numY)}
+        ${range(jcView === 'back' ? 'Position · BACK' : 'Position · FRONT', jcView === 'back' ? 'numY' : 'numYFront', -60, 70, 2, jcView === 'back' ? cfg.numY : cfg.numYFront)}<div class="muted small">Front and back have their own height — switch FRONT / BACK above to set each one.</div>
         <div class="jc-colors stack">${colorRow('Number color', 'numColor', cfg.numColor)}${colorRow('Number outline', 'numOutline', cfg.numOutline)}</div>
         ${range('Outline width', 'numOutlineW', 0, 8, 0.5, cfg.numOutlineW)}
         <div class="muted small lk-note">The jersey name is separate from your player name (<b>${esc(P.name)}</b>). Each team keeps its own design; when you change teams you get a fresh home jersey.</div>

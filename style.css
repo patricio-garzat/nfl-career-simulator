@@ -754,7 +754,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .zp-ctl { margin-top: 8px; display: grid; gap: 8px; } .zp-line { display: flex; align-items: center; gap: 8px; } .zp-line small { opacity: .6; margin-left: 4px; }
 
 /* ===== JERSEY CREATOR — cleaner layout: sticky actions + tabs, cards per topic, bigger buttons ===== */
-.jc2-editor { padding: 0 !important; overflow-y: auto; max-height: calc(100dvh - 150px); overscroll-behavior: contain; scroll-behavior: smooth; }
+.jc2-editor { padding: 0 !important; overflow-y: auto; max-height: calc(100dvh - 150px); overscroll-behavior: contain; }
 .jc2-editor .jc-actions { position: sticky; top: 0; z-index: 6; display: grid; grid-template-columns: 1.1fr 1fr 1.1fr; gap: 8px; margin: 0; padding: 12px 14px 8px; background: var(--card); }
 .jc2-editor .jc-actions .btn { min-height: 46px; padding: 8px 6px; font-size: 14px; letter-spacing: .06em; justify-content: center; white-space: nowrap; }
 .jc-tabs { position: sticky; top: 66px; z-index: 5; display: flex; gap: 6px; overflow-x: auto; padding: 4px 14px 12px; background: var(--card); border-bottom: 1px solid var(--line); scrollbar-width: none; }

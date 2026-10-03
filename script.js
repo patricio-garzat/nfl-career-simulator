@@ -2387,7 +2387,10 @@ function renderLocker(keepScroll) {
         </div>
       </section>
     </div></div>`);
-  if (keepScroll) { window.scrollTo(0, y); app.scrollTop = ay; const ed = document.querySelector('.jc2-editor'); if (ed) ed.scrollTop = ey; }
+  if (keepScroll) {
+    const restore = () => { const ed = document.querySelector('.jc2-editor'); [document.documentElement, app, ed].forEach(e => { if (e) e.style.scrollBehavior = 'auto'; }); window.scrollTo(0, y); app.scrollTop = ay; if (ed) ed.scrollTop = ey; };
+    restore(); requestAnimationFrame(restore);   // again after layout settles (images/fonts), never animated
+  }
 }
 /* --- Career + timeline --------------------------------------------------------------- */
 function achievementLines() {
@@ -2895,8 +2898,12 @@ document.addEventListener('click', e => {
   if (!el || el.disabled) return;
   if (el.dataset.act !== 'toggleSound') Snd.play('click');
   const f = actions[el.dataset.act];
-  if (f) f(el.dataset, el, e);
+  if (!f) return;
+  const keep = KEEP_SCROLL.has(el.dataset.act), ys = keep ? [window.scrollY, app.scrollTop] : null;
+  f(el.dataset, el, e);
+  if (keep) { const back = () => { app.style.scrollBehavior = 'auto'; window.scrollTo(0, ys[0]); app.scrollTop = ys[1]; }; back(); requestAnimationFrame(back); }   // in-place re-renders stay where you were
 });
+const KEEP_SCROLL = new Set(['standConf', 'standView', 'tradeDecline', 'reroll', 'jcView', 'jerseyBg', 'jcReset']);
 let jcDrag = null, jcNumDrag = null;
 document.addEventListener('pointerdown', e => {                       // sleeve numbers: drag up or down (vertical only)
   const el = e.target.closest && e.target.closest('[data-snum]'); if (!el || !el.closest('.jc2-preview')) return;

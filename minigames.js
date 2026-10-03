@@ -29,8 +29,8 @@ function mgAfterGame(se, game, notes) {
 }
 const MG_META = {
   qb: P => ({ icon: '🏈', title: 'READ THE DEFENSE', how: 'Read the coverage, find the open man.', legend: [['🔴', 'Blitz', 'RB'], ['🛡️', 'Two deep', 'TE'], ['🟨', 'Soft corners', 'WR'], ['🔱', 'Three deep', 'SLOT'], ['🔗', 'Man', 'RUN']] }),
-  rb: P => ({ icon: '🏃', title: 'FIND THE HOLE', how: 'Run where the defense is not.', legend: [['👀', 'Empty gap', 'GO'], ['⚡', 'Then', 'JUKE']] }),
-  catch: P => ({ icon: '🙌', title: P.pos === 'TE' ? 'CATCH IT · SEAM' : 'CATCH IT · GO ROUTE', how: 'Tap when the ball fills the ring.', legend: [['⭕', 'Ball = ring', 'TAP'], ['🌀', 'Every throw is different', '']] }),
+  rb: P => ({ icon: '🏃', title: 'BREAK AWAY', how: 'Dodge the defenders and outrun the tackler.', legend: [['⌨️', '← → keys', 'dodge'], ['🏃', 'Tackler behind you', 'don\'t stumble']] }),
+  catch: P => ({ icon: '🙌', title: P.pos === 'TE' ? 'CATCH IT · SEAM' : 'CATCH IT · GO ROUTE', how: 'Run to where the ball will land.', legend: [['⌨️', 'Arrow keys / drag', 'move'], ['⭕', 'Ring', 'be there first']] }),
   kick: P => ({ icon: '🥅', title: 'KICK IT', how: 'Aim into the wind, stop the bar in the green.', legend: [['💨', 'Wind pushes', 'AIM AGAINST'], ['⏹', 'Power', 'GREEN']] }),
 };
 const mgBannerHTML = se => (se.mg && MG_META[se.mg.kind]) ? `<div class="banner dec-banner"><span>🎮 <b>MINI GAME</b> — ${MG_META[se.mg.kind](S.player).title}</span><button class="btn btn-primary btn-sm" data-act="playMini">PLAY</button></div>` : '';
@@ -241,136 +241,173 @@ function mgQB(ctx, i, st) {
 }
 
 /* =====================================================================
-   RB — FIND THE HOLE
-   Three gaps, the defense stacks two of them (and shifts late on attempts 4-5); then a juke timing at the end.
+   Controls shared by the two "arcade" games (RB run, WR/TE catch): arrow keys / WASD, dragging a finger on the field, or the on-screen hold buttons.
    ===================================================================== */
-const RB_GAPS = { L: 112, M: 170, R: 228 };
+function mgInput(ctx) {
+  const k = { l: 0, r: 0, u: 0, d: 0 }, o = { k, tx: null, ty: null };
+  const map = { ArrowLeft: 'l', ArrowRight: 'r', ArrowUp: 'u', ArrowDown: 'd', a: 'l', A: 'l', d: 'r', D: 'r', w: 'u', W: 'u', s: 'd', S: 'd' };
+  const kd = e => { const m = map[e.key]; if (m) { k[m] = 1; e.preventDefault(); } }, ku = e => { const m = map[e.key]; if (m) k[m] = 0; };
+  document.addEventListener('keydown', kd); document.addEventListener('keyup', ku);
+  const toXY = ev => { const s = ctx.stage.querySelector('svg'); if (!s || !s.createSVGPoint) return null; const pt = s.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY; const m = s.getScreenCTM(); return m ? pt.matrixTransform(m.inverse()) : null; };
+  const pd = ev => { if (ev.target.closest && ev.target.closest('.mg-hold')) return; const p = toXY(ev); if (p) { o.tx = p.x; o.ty = p.y; } };
+  const pm = ev => { if (o.tx === null) return; const p = toXY(ev); if (p) { o.tx = p.x; o.ty = p.y; } };
+  const pu = () => { o.tx = null; o.ty = null; };
+  ctx.stage.addEventListener('pointerdown', pd); ctx.stage.addEventListener('pointermove', pm); window.addEventListener('pointerup', pu); window.addEventListener('pointercancel', pu);
+  ctx.stage.classList.add('live');
+  ctx.ov.querySelectorAll('.mg-hold').forEach(b => { const key = b.dataset.hold, on = e => { e.preventDefault(); k[key] = 1; b.classList.add('down'); }, off = () => { k[key] = 0; b.classList.remove('down'); }; b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off); });
+  o.dispose = () => { document.removeEventListener('keydown', kd); document.removeEventListener('keyup', ku); ctx.stage.removeEventListener('pointerdown', pd); ctx.stage.removeEventListener('pointermove', pm); window.removeEventListener('pointerup', pu); window.removeEventListener('pointercancel', pu); ctx.stage.classList.remove('live'); };
+  return o;
+}
+const mgHoldBtn = (key, label) => `<button class="mg-b mg-hold" data-hold="${key}" style="--c:#35e0ff">${label}</button>`;
+
+/* =====================================================================
+   RB — BREAK AWAY
+   Top-down. You carry the ball up the field; defenders are scattered ahead, a tackler chases you. Dodge left/right and reach the line before he catches you.
+   Hitting a defender makes you stumble (you slow down and the chaser gains). Later runs are longer, with defenders that slide and that track you.
+   ===================================================================== */
 function mgRB(ctx, i, st) {
-  if (!st.open) { st.open = []; for (let k = 0; k < 5; k++) { let g; do { g = pick(['L', 'M', 'R']); } while (k && g === st.open[k - 1]); st.open.push(g); } }
-  const open = st.open[i], disguise = i >= 3, T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2;
-  const shape = openGap => {   // two defenders at each closed gap on the line, linebackers behind them, safeties deep
-    const closed = ['L', 'M', 'R'].filter(g => g !== openGap), pos = [];
-    closed.forEach((g, k) => { const x = RB_GAPS[g]; pos.push([x - 11, 122], [x + 11, 122], [x + (k ? 8 : -8) * 0.6, 100]); });
-    pos.push([RB_GAPS[openGap] + (openGap === 'M' ? 0 : openGap === 'L' ? -34 : 34), 96]);
-    pos.push([RB_GAPS[closed[0]], 62], [RB_GAPS[closed[1]], 62]); return pos;
-  };
-  const fin = shape(open), init = disguise ? shape(pick(['L', 'M', 'R'].filter(g => g !== open))) : fin;
-  const defs = fin.map((p, k) => mgGuy(init[k][0], init[k][1], O1, O2, { s: 1.12, down: true, cls: 'mg-d', attrs: `data-f="${p[0]},${p[1]}"` })).join('');
-  const ol = [126, 148, 170, 192, 214].map(x => mgGuy(x, 144, T1, T2, { s: 1.05 })).join('');
-  const lanes = ['L', 'M', 'R'].map(g => `<g class="mg-tg" data-pick="${g}" style="cursor:pointer"><rect x="${RB_GAPS[g] - 28}" y="30" width="56" height="116" rx="10" fill="#fff" fill-opacity="0" stroke="#fff" stroke-opacity=".12" stroke-dasharray="3 5"/></g>`).join('');
-  ctx.stage.innerHTML = `<svg class="mg-svg" viewBox="0 0 340 250">${mgTopField(ctx, 340, 250, 'mgR')}<line x1="0" x2="340" y1="132" y2="132" stroke="#4aa8ff" stroke-width="2.5" stroke-opacity=".85"/>
-    ${lanes}<g id="mgHole" opacity="0"><rect x="${RB_GAPS[open] - 22}" y="26" width="44" height="118" rx="14" fill="#c5ff3a" fill-opacity=".16"/></g>${defs}${ol}${mgGuy(170, 162, T1, T2, { s: 1.15 })}
-    <g id="mgRunner" style="transform:translate(170px,200px);transition:transform .45s ease-in">${mgGuy(0, 0, T1, T2, { s: 1.5, you: true })}</g><g id="mgRing"></g><g id="mgFx"></g></svg><div class="mg-call">RUN PLAY · ${i + 1}/5</div>`;
-  ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns three"><button class="mg-b" data-pick="L" style="--c:#ffd23d">◀ LEFT</button><button class="mg-b" data-pick="M" style="--c:#ffffff">MIDDLE</button><button class="mg-b" data-pick="R" style="--c:#35e0ff">RIGHT ▶</button></div>`;
-  ctx.say('Defense is lining up…');
-  const secs = [3.8, 3.5, 3.2, 3.0, 2.8][i];
-  return (async () => {
-    await sleep(500); if (!ctx.alive()) return false;
-    ctx.say('<b>HIKE!</b> Find the open gap', 'go'); Snd.play('mgSnap', 0.02);
-    mgPickBtn(ctx, '.mg-btns .mg-b, .mg-tg');
-    if (disguise) setTimeout(() => { if (!ctx.alive() || !ctx.pick) return; ctx.stage.querySelectorAll('.mg-d').forEach(g => { const [fx, fy] = g.dataset.f.split(',').map(Number); g.style.transition = 'transform .7s ease-in-out'; g.style.transform = `translate(${fx}px,${fy}px)`; }); ctx.say('<b>⚠ THEY SHIFT!</b>', 'go'); Snd.play('mgSwish', 0); }, 1000);
-    const pickd = await mgChoice(ctx, secs); if (!ctx.alive()) return false;
-    ctx.ctrl.innerHTML = '';
-    const run = ctx.stage.querySelector('#mgRunner'); ctx.stage.querySelectorAll('.mg-d').forEach(g => { const [fx, fy] = g.dataset.f.split(',').map(Number); g.style.transition = 'none'; g.style.transform = `translate(${fx}px,${fy}px)`; });
-    const ok = pickd === open, lane = pickd ? RB_GAPS[pickd] : 170;
-    if (!pickd) { run.style.transform = 'translate(170px,150px)'; await sleep(450); mgPop(ctx, 170, 118, 'STUFFED!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx); ctx.say('❌ You hesitated and got stuffed', 'bad'); return false; }
-    run.style.transition = 'transform .35s ease-in'; run.style.transform = `translate(${lane}px,150px)`; Snd.play('mgSwish', 0); await sleep(380);
-    if (!ok) {
-      ctx.stage.querySelectorAll('.mg-d').forEach((g, k) => { if (k < 6) { g.style.transition = 'transform .35s ease-in'; g.style.transform = `translate(${lane + (k % 3) * 9 - 9}px,${132 - (k % 2) * 9}px)`; } });
-      await sleep(380); const y = randInt(-2, 1); mgPop(ctx, lane, 112, mgYardsStr(y), 'bad'); Snd.play('mgHit', 0); mgShake(ctx);
-      ctx.say(`❌ Stuffed! ${mgYardsStr(y)}<span class="mg-tip">That gap was crowded — find the empty one.</span>`, 'bad'); return false;
-    }
-    ctx.stage.querySelector('#mgHole').style.opacity = 1;
-    run.style.transition = 'transform .5s ease-out'; run.style.transform = `translate(${lane}px,96px)`; await sleep(520);
-    // juke: a safety closes in; tap as the ring closes
-    const ring = ctx.stage.querySelector('#mgRing'), tack = ctx.stage.querySelectorAll('.mg-d')[6];
-    if (tack) { tack.style.transition = 'transform .9s ease-in'; tack.style.transform = `translate(${lane + (lane < 170 ? -4 : 4)}px,86px)`; }
-    ring.innerHTML = `<circle cx="${lane}" cy="96" r="34" fill="none" stroke="#ffd23d" stroke-width="3" class="mg-jring"/><circle cx="${lane}" cy="96" r="12" fill="none" stroke="#fff" stroke-opacity=".6" stroke-dasharray="3 3"/>`;
-    ctx.ctrl.innerHTML = `<div class="mg-btns one"><button class="mg-b big" id="mgJuke" style="--c:#ffd23d">⚡ JUKE!</button></div>`; ctx.say('<b>Tackler coming!</b> Juke when the ring closes', 'go');
-    const t0 = performance.now(), D = 0.95; let res = null;
-    const jr = ring.querySelector('.mg-jring'); const loop = () => { if (!ctx.alive() || res) return; const k = Math.min(1, (performance.now() - t0) / 1000 / D); jr.setAttribute('r', (34 - 24 * k).toFixed(1)); if (k < 1.12) requestAnimationFrame(loop); }; requestAnimationFrame(loop);
-    await new Promise(r => { const tap = ev => { if (ev) ev.preventDefault(); if (res) return; const k = (performance.now() - t0) / 1000 / D; res = k > 0.7 && k < 1.08 ? 'perfect' : 'late'; r(); }; ctx.ov.querySelector('#mgJuke').addEventListener('pointerdown', tap, { once: true }); setTimeout(() => { if (!res) { res = 'late'; r(); } }, D * 1000 * 1.12); });
-    ctx.ctrl.innerHTML = ''; ring.innerHTML = '';
-    const y = res === 'perfect' ? randInt(16, 28) : randInt(7, 14);
-    if (res === 'perfect') { ctx.perfects++; Snd.play('mgSwish', 0); run.style.transition = 'transform .5s ease-out'; run.style.transform = `translate(${lane + (lane < 170 ? 22 : -22)}px,30px)`; if (tack) { tack.style.transition = 'transform .5s'; tack.style.transform = `translate(${lane + (lane < 170 ? -26 : 26)}px,100px)`; } await sleep(500); Snd.play('td', 0.05); }
-    else { run.style.transition = 'transform .4s ease-out'; run.style.transform = `translate(${lane}px,70px)`; await sleep(420); Snd.play('mgHit', 0); }
-    mgPop(ctx, lane, 52, mgYardsStr(y), 'good');
-    ctx.say(`✅ ${res === 'perfect' ? '✨ JUKED HIM! ' : 'Dragged down. '}${mgYardsStr(y)}`, 'good'); return true;
-  })();
+  const T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2, yds = [24, 28, 32, 36, 40][i], GOAL = yds * 10, RY = 205, XMIN = 26, XMAX = 314;
+  const vf = 62, vc = vf * (1 + 0.02 * i), LAT = 190;
+  // defenders ahead, in rows
+  const defs = []; let w = 92 + rr(0, 16);
+  while (w < GOAL - 24) {
+    w += 28 + rnd() * 14; const n = 1 + (rnd() < 0.42 + i * 0.1 ? 1 : 0) + (i >= 2 && rnd() < 0.22 ? 1 : 0), xs = [];
+    for (let k = 0; k < n; k++) { let x, tries = 0; do { x = rr(XMIN + 8, XMAX - 8); tries++; } while (xs.some(q => Math.abs(q - x) < 64) && tries < 20); xs.push(x); defs.push({ w, x, bx: x, type: i >= 1 && rnd() < 0.28 + 0.08 * i ? 'slide' : (i >= 2 && rnd() < 0.22 ? 'track' : 'stand'), ph: rnd() * 6.28, hit: false }); }
+  }
+  const lines = Array.from({ length: Math.floor(GOAL / 50) + 4 }, (_, k) => k * 50);
+  const lineSVG = lines.map(wv => `<line x1="0" x2="340" y1="${-wv}" y2="${-wv}" stroke="#fff" stroke-opacity="${wv === 0 ? 0 : 0.16}" stroke-width="2"/>${wv > 0 && wv < GOAL - 20 && wv % 100 === 0 ? `<text x="38" y="${-wv + 4}" fill="#fff" fill-opacity=".22" font-size="14" font-weight="800" font-family="Barlow Condensed, sans-serif">${Math.round((GOAL - wv) / 10)}</text><text x="302" y="${-wv + 4}" text-anchor="end" fill="#fff" fill-opacity=".22" font-size="14" font-weight="800" font-family="Barlow Condensed, sans-serif">${Math.round((GOAL - wv) / 10)}</text>` : ''}`).join('');
+  const stripes = Array.from({ length: Math.floor(GOAL / 50) + 4 }, (_, k) => k % 2 ? `<rect x="0" y="${-(k + 1) * 50}" width="340" height="50" fill="#fff" opacity=".04"/>` : '').join('');
+  const dsvg = defs.map((d, k) => mgGuy(0, 0, O1, O2, { s: 1.45, down: true, cls: 'mg-rbd', attrs: `data-k="${k}"` })).join('');
+  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><defs><linearGradient id="mgRG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d6c3d"/><stop offset="1" stop-color="#12502b"/></linearGradient>${mgLights('mgRL', T1)}</defs>
+    <rect width="340" height="300" rx="14" fill="url(#mgRG)"/>
+    <g id="mgRW" style="transform:translate(0px,${RY}px)">${stripes}${lineSVG}<line x1="0" x2="340" y1="0" y2="0" stroke="#4aa8ff" stroke-width="3" stroke-opacity=".85"/>
+      <rect x="0" y="${-GOAL - 120}" width="340" height="120" fill="${O1}"/><rect x="0" y="${-GOAL - 120}" width="340" height="120" fill="url(#mgStripe)" opacity=".25"/><line x1="0" x2="340" y1="${-GOAL}" y2="${-GOAL}" stroke="#fff" stroke-width="5"/>
+      <image href="${ctx.o.logo}" x="120" y="${-GOAL - 104}" width="100" height="100" opacity=".9" preserveAspectRatio="xMidYMid meet"/><text x="170" y="${-GOAL - 6}" text-anchor="middle" font-size="22" font-weight="800" fill="${textOn(O1)}" font-family="Barlow Condensed, sans-serif" letter-spacing=".25em">${esc(ctx.o.nick.toUpperCase())}</text>
+      <line x1="2" x2="2" y1="${-GOAL - 120}" y2="0" stroke="#fff" stroke-opacity=".7" stroke-width="3"/><line x1="338" x2="338" y1="${-GOAL - 120}" y2="0" stroke="#fff" stroke-opacity=".7" stroke-width="3"/>${dsvg}</g>
+    <defs><pattern id="mgStripe" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="14" fill="#fff"/></pattern></defs>
+    <g id="mgChaser" class="mg-chaser"><circle r="17" fill="rgba(255,60,60,.16)" class="mg-you" style="stroke:#ff5d5d;stroke-width:2"/>${mgGuy(0, 0, O1, O2, { s: 1.6 })}</g>
+    <g id="mgMe">${mgGuy(0, 0, T1, T2, { s: 1.6, you: true })}${mgBall(0, -2, 0.6, 90)}</g>
+    <g id="mgHud"><rect x="104" y="20" width="132" height="30" rx="15" fill="rgba(5,8,16,.7)" stroke="rgba(255,255,255,.2)"/><text id="mgYd" x="170" y="41" text-anchor="middle" font-size="20" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif">0 / ${yds} YDS</text>
+      <rect x="10" y="60" width="10" height="130" rx="5" fill="rgba(255,255,255,.12)"/><rect id="mgGap" x="10" y="190" width="10" height="130" rx="5" fill="#6dffbb" style="transform-origin:15px 190px;transform:scaleY(-1)"/><text x="15" y="204" text-anchor="middle" font-size="8" fill="#fff" fill-opacity=".7" font-family="Barlow Condensed, sans-serif" letter-spacing=".1em">GAP</text></g>
+    <g id="mgFx"></g></svg><div class="mg-call">BREAK AWAY · ${yds} yds · ${i + 1}/5</div>`;
+  ctx.ctrl.innerHTML = `<div class="mg-btns two">${mgHoldBtn('l', '◀ LEFT')}${mgHoldBtn('r', 'RIGHT ▶')}</div>`;
+  ctx.say('<b>← →</b> dodge the defenders · outrun the tackler');
+  return new Promise(async res => {
+    await sleep(500); if (!ctx.alive()) return res(false);
+    const inp = mgInput(ctx);
+    const R = { x: 170, w: 0, stun: 0 }, C = { x: 170, w: -(78 - 3 * i) }, els = [...ctx.stage.querySelectorAll('.mg-rbd')], world = ctx.stage.querySelector('#mgRW'), me = ctx.stage.querySelector('#mgMe'), ch = ctx.stage.querySelector('#mgChaser'), ydT = ctx.stage.querySelector('#mgYd'), gapB = ctx.stage.querySelector('#mgGap');
+    let last = performance.now(), t = 0, ended = false, stumbles = 0, raf = 0, lean = 0;
+    ctx.say('<b>GO!</b>', 'go'); Snd.play('mgSnap', 0);
+    const end = async (win) => {
+      if (ended) return; ended = true; cancelAnimationFrame(raf); inp.dispose(); ctx.ctrl.innerHTML = '';
+      const got = Math.max(0, Math.min(yds, Math.round(R.w / 10)));
+      if (win) {
+        const perfect = stumbles === 0; if (perfect) ctx.perfects++;
+        mgPop(ctx, 170, 100, perfect ? 'CLEAN RUN!' : 'FIRST DOWN!', 'good'); Snd.play('td', 0.05); mgShake(ctx);
+        ctx.say(`✅ ${perfect ? '✨ Untouched! ' : 'Made it! '}${mgYardsStr(yds)}${stumbles ? ` · ${stumbles} stumble${stumbles > 1 ? 's' : ''}` : ''}`, 'good'); res(true);
+      } else {
+        mgPop(ctx, 170, 120, 'TACKLED!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx);
+        ctx.say(`❌ Tackled after ${mgYardsStr(got)}<span class="mg-tip">Dodge the defenders — every hit lets the tackler catch up.</span>`, 'bad'); res(false);
+      }
+    };
+    const frame = now => {
+      if (!ctx.alive()) { inp.dispose(); return; }
+      const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
+      // steering
+      let dir = (inp.k.r - inp.k.l); if (inp.tx !== null) dir = clamp((inp.tx - R.x) / 14, -1, 1);
+      R.x = clamp(R.x + dir * LAT * dt, XMIN, XMAX); lean += (dir * 14 - lean) * Math.min(1, dt * 10);
+      R.stun = Math.max(0, R.stun - dt); R.w += vf * (R.stun > 0 ? 0.3 : 1) * dt; C.w += vc * dt; C.x += clamp(R.x - C.x, -62 * dt, 62 * dt);
+      defs.forEach(d => {
+        if (d.type === 'slide') d.x = clamp(d.bx + Math.sin(t * 1.7 + d.ph) * 38, XMIN, XMAX);
+        else if (d.type === 'track' && !d.hit) { const ah = d.w - R.w; if (ah > 0 && ah < 150) d.x = clamp(d.x + clamp(R.x - d.x, -1, 1) * (30 + 5 * i) * dt, XMIN, XMAX); }
+        if (!d.hit && Math.abs(d.w - R.w) < 15 && Math.abs(d.x - R.x) < 17) { d.hit = true; R.stun = 0.7; stumbles++; Snd.play('mgHit', 0); mgShake(ctx); }
+      });
+      // draw
+      world.style.transform = `translate(0px,${RY + R.w}px)`;
+      els.forEach((e, k) => { const d = defs[k]; e.style.transform = `translate(${d.x}px,${-d.w}px) rotate(${d.hit ? 90 : 0}deg)`; e.style.opacity = d.hit ? 0.55 : 1; });
+      me.style.transform = `translate(${R.x}px,${RY}px) rotate(${lean * 0.9}deg)`; ch.style.transform = `translate(${C.x}px,${RY + (R.w - C.w)}px)`;
+      const gap = R.w - C.w; gapB.style.transform = `scaleY(${-clamp(gap / 90, 0.03, 1)})`; gapB.setAttribute('fill', gap < 28 ? '#ff5d5d' : gap < 55 ? '#ffd23d' : '#6dffbb');
+      ydT.textContent = `${Math.min(yds, Math.max(0, Math.floor(R.w / 10)))} / ${yds} YDS`;
+      if (R.w >= GOAL) return end(true);
+      if (C.w >= R.w - 14 && Math.abs(C.x - R.x) < 20) return end(false);
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+  });
 }
 
 /* =====================================================================
    WR / TE — CATCH IT
-   First person, behind you: your own jersey at the bottom. Every throw is different.
+   Top-down. The ball leaves the QB and you can SEE where it will land (the ring). Run there (arrows / drag) before it arrives.
+   Later throws are quicker, the wind nudges the ball mid-air, and a defender races you to the same spot.
    ===================================================================== */
-const CATCH_THROWS = {
-  deep: { name: 'DEEP BALL', D: [2.1, 1.9], R: 40, zone: [0.74, 1.12], curve: 0.5 },
-  slant: { name: 'QUICK SLANT', D: [1.15, 1.0], R: 46, zone: [0.72, 1.12], curve: 0 },
-  lob: { name: 'HIGH LOB', D: [1.9, 1.7], R: 40, zone: [0.74, 1.1], curve: 1 },
-  knuckle: { name: 'KNUCKLEBALL', D: [1.9, 1.7], R: 42, zone: [0.78, 1.06], wobble: true, curve: 0.3 },
-  contested: { name: 'CONTESTED', D: [1.7, 1.5], R: 42, zone: [0.76, 0.98], hit: true, curve: 0.2 },
-};
 function mgCatch(ctx, i, st) {
-  if (!st.plan) st.plan = mgShuffleNoRepeat(Object.keys(CATCH_THROWS), 5);
-  const P = ctx.P, T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2, te = P.pos === 'TE', th = CATCH_THROWS[st.plan[i]];
-  const D = th.D[0] - (th.D[0] - th.D[1]) * (i / 4), off = (rnd() < 0.5 ? -1 : 1) * rr(12, 46), x1 = 170 + off, y1 = 196, R = th.R, zone = th.zone;
-  const route = (te ? ['SEAM', 'DRAG', 'CORNER', 'OVER'] : ['GO', 'POST', 'FADE', 'OUT'])[i % 4];
-  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><defs><linearGradient id="mgSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#070d24"/><stop offset=".5" stop-color="#22407a"/><stop offset="1" stop-color="#12502b"/></linearGradient>${mgLights('mgCL', T1)}</defs>
-    <rect width="340" height="300" rx="14" fill="url(#mgSky)"/>${mgFlares('mgCL')}<g class="mg-crowd">${mgCrowd(0, 20, 340, 5, T1, O1)}</g>
-    <polygon points="118,64 222,64 372,300 -32,300" fill="#1c6a3c"/>
-    ${[84, 108, 138, 176, 224].map(y => `<line x1="${170 - (y - 64) * 0.5}" x2="${170 + (y - 64) * 0.5}" y1="${y}" y2="${y}" stroke="#fff" stroke-opacity=".28" stroke-width="${1 + (y - 64) / 90}"/>`).join('')}
-    <image href="${ctx.o.logo}" x="130" y="80" width="80" height="80" opacity=".1" preserveAspectRatio="xMidYMid meet"/>
-    ${mgGuy(170, 62, T1, T2, { s: 0.9 })}
-    <g id="mgDef" style="transform:translate(${x1 < 170 ? 380 : -40}px,${y1 + 28}px)"><ellipse rx="22" ry="14" fill="${O1}" stroke="${mgStroke(O1)}" stroke-width="2"/><circle cy="-6" r="9" fill="${O2}" stroke="${mgStroke(O2)}" stroke-width="1.5"/>${th.hit ? `<text y="22" text-anchor="middle" font-size="10" font-weight="800" fill="#ff8b8b" font-family="Barlow Condensed, sans-serif" letter-spacing=".1em">${te ? 'LB' : 'CB'}</text>` : ''}</g>
-    <g id="mgRing"><circle cx="${x1}" cy="${y1}" r="${R}" fill="${T2}" fill-opacity=".12" stroke="#fff" stroke-width="3"/><circle cx="${x1}" cy="${y1}" r="${(R * 0.96).toFixed(1)}" fill="none" stroke="#c5ff3a" stroke-width="2" stroke-dasharray="4 5"/></g>
-    <g id="mgTrail"></g><g id="mgBallG">${mgBall(170, 70, 0.2, 0, 'mgBallEl')}</g><g id="mgFx"></g></svg>
-    <div class="mg-me">${ctx.env.jersey ? ctx.env.jersey('back') : ''}</div><div class="mg-call">${th.name} · <b>${route}</b> · ${i + 1}/5</div>`;
-  ctx.ctrl.innerHTML = `<div class="mg-btns one"><button class="mg-b big" id="mgCatchBtn" style="--c:#c5ff3a">🙌 CATCH!</button></div>`;
-  ctx.say('Get ready…');
+  const P = ctx.P, T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2, te = P.pos === 'TE';
+  const T = [2.5, 2.3, 2.1, 1.95, 1.8][i], VR = 122, Q = { x: 170, y: 266 }, dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const R = { x: 170 + rr(-70, 70), y: rr(176, 208) };
+  let L; do { L = { x: rr(46, 294), y: rr(50, 160) }; } while (dist(R, L) > VR * T * 0.74 || dist(R, L) < 78);
+  const adj = i >= 2 ? { ta: 0.42, dx: rr(-40, 40), dy: rr(-28, 28) } : null;
+  const L2 = adj ? { x: clamp(L.x + adj.dx, 30, 310), y: clamp(L.y + adj.dy, 44, 190) } : L;
+  if (adj && dist(R, L2) > VR * T * 0.86) { L2.x = (L2.x + L.x) / 2; L2.y = (L2.y + L.y) / 2; }
+  const D = i >= 1 ? { x: pick([30, 310]), y: rr(48, 130) } : null, VD = 64 + 9 * i;
+  const route = (te ? ['SEAM', 'DRAG', 'CORNER', 'OVER', 'POST'] : ['GO', 'POST', 'FADE', 'OUT', 'DEEP'])[i];
+  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300">${mgTopField(ctx, 340, 300, 'mgCG')}
+    <line x1="0" x2="340" y1="230" y2="230" stroke="#4aa8ff" stroke-width="2.5" stroke-opacity=".6"/>
+    <path id="mgPath" d="M${Q.x} ${Q.y} L${L.x} ${L.y}" stroke="#fff" stroke-opacity=".35" stroke-width="2" stroke-dasharray="3 6" fill="none"/>
+    <g id="mgLand" style="transform:translate(${L.x}px,${L.y}px)"><circle r="20" fill="${T2}" fill-opacity=".15" stroke="#c5ff3a" stroke-width="3" class="mg-landring"/><circle r="7" fill="none" stroke="#fff" stroke-opacity=".8" stroke-dasharray="2 3"/></g>
+    ${D ? mgGuy(0, 0, O1, O2, { s: 1.5, down: true, cls: 'mg-defn', attrs: 'id="mgDefn"' }) : ''}
+    ${mgGuy(Q.x, Q.y, T1, T2, { s: 1.5 })}
+    <g id="mgMe" style="transform:translate(${R.x}px,${R.y}px)">${mgGuy(0, 0, T1, T2, { s: 1.6, you: true })}<text y="-18" text-anchor="middle" font-size="9" font-weight="800" fill="#ffd23d" font-family="Barlow Condensed, sans-serif" letter-spacing=".12em" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke">YOU</text></g>
+    <ellipse id="mgShadow" rx="7" ry="4" fill="#000" opacity=".35" cx="${Q.x}" cy="${Q.y}"/><g id="mgBallG">${mgBall(Q.x, Q.y, 1, 0, 'mgBallEl')}</g><g id="mgFx"></g></svg><div class="mg-call">${te ? 'TE' : 'WR'} · <b>${route}</b> · ${i + 1}/5</div>`;
+  ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns four">${mgHoldBtn('l', '◀')}${mgHoldBtn('u', '▲')}${mgHoldBtn('d', '▼')}${mgHoldBtn('r', '▶')}</div>`;
+  ctx.say('Get to the <b>ring</b> before the ball does');
   return new Promise(async res => {
-    await sleep(750); if (!ctx.alive()) return res(false);
-    ctx.say('<b>BALL IS UP!</b>', 'go'); Snd.play('mgThrow', 0.02);
-    const ball = ctx.stage.querySelector('#mgBallEl'), def = ctx.stage.querySelector('#mgDef'), trail = ctx.stage.querySelector('#mgTrail'), t0 = performance.now(); let tapped = false, raf = 0, pts = [];
-    const sAt = t => { let s = 0.1 + 1.1 * Math.pow(t, 2.2); if (th.wobble) s *= 1 + 0.07 * Math.sin(t * 18); return s; };
-    const place = t => {
-      const tt = Math.min(t, 1.3), s = sAt(tt), k = Math.min(tt, 1), arc = th.curve ? Math.sin(Math.PI * k) * (th.curve * 46) : 0;
-      const x = 170 + (x1 - 170) * k + (tt > 1 ? (x1 - 170) * (tt - 1) * 0.6 : 0) + (th.wobble ? Math.sin(tt * 14) * 6 * (1 - k) : 0);
-      const y = 70 + (y1 - 70) * Math.pow(k, 1.5) - arc + (tt > 1 ? (tt - 1) * 160 : 0);
-      ball.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(tt * 720).toFixed(0)}) scale(${(s * R / 11 * 0.95).toFixed(3)})`);
-      pts.push([x, y]); if (pts.length > 14) pts.shift(); trail.innerHTML = `<polyline points="${pts.map(p => p.map(v => v.toFixed(0)).join(',')).join(' ')}" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="${(2 + s * 5).toFixed(1)}" stroke-linecap="round"/>`;
-      return { x, y, s };
-    };
-    const finish = async (ok, why, t) => {
-      cancelAnimationFrame(raf); tapped = true; ctx.ctrl.innerHTML = ''; ctx.stage.removeEventListener('pointerdown', onTap); trail.innerHTML = '';
-      const ring = ctx.stage.querySelector('#mgRing');
+    await sleep(600); if (!ctx.alive()) return res(false);
+    const inp = mgInput(ctx);
+    const bar = ctx.ctrl.querySelector('.mg-timer i'); if (bar) { bar.style.transition = 'none'; bar.style.width = '100%'; void bar.offsetWidth; bar.style.transition = `width ${T}s linear`; bar.style.width = '0%'; }
+    ctx.say('<b>BALL IS UP!</b> Run to the ring', 'go'); Snd.play('mgThrow', 0.02);
+    const me = ctx.stage.querySelector('#mgMe'), landG = ctx.stage.querySelector('#mgLand'), pathEl = ctx.stage.querySelector('#mgPath'), ball = ctx.stage.querySelector('#mgBallEl'), shadow = ctx.stage.querySelector('#mgShadow'), dEl = ctx.stage.querySelector('#mgDefn');
+    let cur = { ...L }, Dp = D ? { ...D } : null, t0 = performance.now(), last = t0, raf = 0, ended = false, adjusted = false, P1 = null;
+    const finish = async () => {
+      ended = true; cancelAnimationFrame(raf); inp.dispose(); ctx.ctrl.innerHTML = '';
+      const dR = dist(R, cur), dD = Dp ? dist(Dp, cur) : 99;
+      const fx = ctx.stage.querySelector('#mgFx');
+      const ok = dR <= 20 && (!Dp || dR <= dD + 5 || dD > 22), perfect = ok && dR <= 8;
+      ball.setAttribute('transform', `translate(${ok ? R.x : cur.x} ${ok ? R.y - 2 : cur.y}) rotate(20) scale(1)`); shadow.setAttribute('opacity', 0);
       if (ok) {
-        ball.setAttribute('transform', `translate(${x1} ${y1}) rotate(20) scale(${(R / 11 * 0.95).toFixed(3)})`); ring.querySelector('circle').setAttribute('stroke', '#c5ff3a'); ring.querySelector('circle').setAttribute('stroke-width', 6);
-        const perfect = Math.abs(sAt(t) - 1) < 0.07, y = te ? randInt(10, 24) : randInt(18, 44); if (perfect) ctx.perfects++;
-        mgPop(ctx, x1, y1 - 56, perfect ? 'PERFECT!' : 'CAUGHT!', 'good'); Snd.play('mgPat', 0); mgShake(ctx); if (y >= 25) Snd.play('td', 0.2);
-        ctx.say(`✅ ${perfect ? '✨ PERFECT CATCH! ' : 'Caught it! '}${mgYardsStr(y)}`, 'good'); res(true);
+        if (perfect) ctx.perfects++; const y = te ? randInt(10, 24) : randInt(18, 44);
+        mgPop(ctx, R.x, R.y - 26, perfect ? 'PERFECT!' : 'CAUGHT!', 'good'); Snd.play('mgPat', 0); mgShake(ctx); if (y >= 25) Snd.play('td', 0.2);
+        ctx.say(`✅ ${perfect ? '✨ Dead center! ' : 'Caught it! '}${mgYardsStr(y)}`, 'good'); res(true);
       } else {
-        const p = place(t), dir = p.x < 170 ? -1 : 1;
-        ball.setAttribute('transform', `translate(${(p.x + dir * 60).toFixed(0)} ${(p.y + 70).toFixed(0)}) rotate(260) scale(${(p.s * R / 11 * 0.95).toFixed(3)})`);
-        const msg = why === 'early' ? 'TOO EARLY' : why === 'hit' ? 'KNOCKED AWAY' : 'TOO LATE'; mgPop(ctx, x1, y1 - 56, msg, 'bad'); Snd.play(why === 'hit' ? 'mgHit' : 'mgPat', 0); if (why === 'hit') mgShake(ctx);
-        ctx.say(`❌ ${why === 'early' ? 'Too early' : why === 'hit' ? 'The defender got there first' : 'Too late'}<span class="mg-tip">Tap when the ball is as big as the ring.</span>`, 'bad'); res(false);
+        const broke = Dp && dD < dR && dD <= 22; mgPop(ctx, cur.x, cur.y - 26, broke ? 'BROKEN UP' : 'TOO FAR', 'bad'); Snd.play(broke ? 'mgHit' : 'mgPat', 0); if (broke) mgShake(ctx);
+        ctx.say(`❌ ${broke ? 'The defender got there first' : `Missed it by ${Math.round(dR / 10)} yds`}<span class="mg-tip">Watch the ring — it can move in the air.</span>`, 'bad'); res(false);
       }
     };
-    const tick = () => {
-      if (!ctx.alive()) return; const t = (performance.now() - t0) / 1000 / D; place(t);
-      if (th.hit || i >= 3) { const k = Math.min(1, t), from = x1 < 170 ? 380 : -40; def.style.transform = `translate(${from + (x1 - from + (x1 < 170 ? 40 : -40)) * k}px,${y1 + 28 - 10 * k}px)`; }
-      if (th.hit && t > zone[1] + 0.04 && !tapped) return finish(false, 'hit', t);
-      if (t >= 1.3) return finish(false, 'late', 1.3);
-      raf = requestAnimationFrame(tick);
+    const frame = now => {
+      if (!ctx.alive()) { inp.dispose(); return; }
+      const dt = Math.min(0.05, (now - last) / 1000); last = now; const u = Math.min(1, (now - t0) / 1000 / T);
+      // you move
+      let vx = inp.k.r - inp.k.l, vy = inp.k.d - inp.k.u; if (inp.tx !== null) { vx = inp.tx - R.x; vy = inp.ty - R.y; const m = Math.hypot(vx, vy); if (m < 6) { vx = 0; vy = 0; } }
+      const m = Math.hypot(vx, vy); if (m > 0) { R.x = clamp(R.x + vx / m * VR * dt, 16, 324); R.y = clamp(R.y + vy / m * VR * dt, 34, 286); }
+      me.style.transform = `translate(${R.x}px,${R.y}px)`;
+      // the wind nudges the ball mid-air
+      if (adj && !adjusted && u >= adj.ta) { adjusted = true; P1 = { x: Q.x + (L.x - Q.x) * adj.ta, y: Q.y + (L.y - Q.y) * adj.ta }; cur = { ...L2 }; mgPop(ctx, cur.x, cur.y - 30, '💨 WIND!', 'bad'); Snd.play('mgSwish', 0); }
+      const bp = adjusted ? { x: P1.x + (cur.x - P1.x) * ((u - adj.ta) / (1 - adj.ta)), y: P1.y + (cur.y - P1.y) * ((u - adj.ta) / (1 - adj.ta)) } : { x: Q.x + (L.x - Q.x) * u, y: Q.y + (L.y - Q.y) * u };
+      const h = Math.sin(Math.PI * u) * 34; ball.setAttribute('transform', `translate(${bp.x.toFixed(1)} ${(bp.y - h).toFixed(1)}) rotate(${(u * 720).toFixed(0)}) scale(${(1 + h / 60).toFixed(2)})`); shadow.setAttribute('cx', bp.x.toFixed(1)); shadow.setAttribute('cy', bp.y.toFixed(1)); shadow.setAttribute('rx', (7 - h / 14).toFixed(1));
+      landG.style.transform = `translate(${cur.x}px,${cur.y}px)`; pathEl.setAttribute('d', adjusted ? `M${P1.x} ${P1.y} L${cur.x} ${cur.y}` : `M${Q.x} ${Q.y} L${L.x} ${L.y}`);
+      // the defender races to the same spot
+      if (Dp) { const dx = cur.x - Dp.x, dy = cur.y - Dp.y, dm = Math.hypot(dx, dy); if (dm > 12) { Dp.x += dx / dm * VD * dt; Dp.y += dy / dm * VD * dt; } dEl.style.transform = `translate(${Dp.x}px,${Dp.y}px)`; }
+      if (u >= 1) return finish();
+      raf = requestAnimationFrame(frame);
     };
-    const onTap = ev => { if (tapped || !ctx.alive()) return; ev.preventDefault(); const t = (performance.now() - t0) / 1000 / D, s = sAt(t); if (s < zone[0]) finish(false, 'early', t); else if (s <= zone[1]) finish(true, '', t); else finish(false, th.hit ? 'hit' : 'late', t); };
-    ctx.ov.querySelector('#mgCatchBtn').addEventListener('pointerdown', onTap, { once: true }); ctx.stage.addEventListener('pointerdown', onTap);
-    raf = requestAnimationFrame(tick);
+    if (dEl) dEl.style.transform = `translate(${D.x}px,${D.y}px)`;
+    raf = requestAnimationFrame(frame);
   });
 }
 
 /* =====================================================================
    K — KICK IT
-   Eight situations (5 are drawn each time, short to long): hash marks, rain, snow, big wind, a last-second kick with shaky aim…
+   Eight situations (5 are drawn each time, short to long). The ball has to pass BETWEEN the yellow uprights: touching a post is no good.
    ===================================================================== */
 const KICK_SCN = {
   xp: { name: 'EXTRA POINT', dist: 33, mph: [3, 8], wx: 'clear', zone: 0.2 },
@@ -382,27 +419,57 @@ const KICK_SCN = {
   dome: { name: 'DOME · LONG', dist: 53, mph: [0, 0], wx: 'dome', zone: 0.15 },
   gale: { name: 'BIG WIND', dist: 50, mph: [14, 20], wx: 'clear', zone: 0.15 },
 };
+// ball animation through a list of timed points
+function mgFly(ctx, ball, pts, dur, spin = 540) {
+  return new Promise(r => { const f0 = performance.now(); const step = () => {
+    if (!ctx.alive()) return r(); const k = Math.min(1, (performance.now() - f0) / dur); let a = pts[0], b = pts[pts.length - 1];
+    for (let j = 0; j < pts.length - 1; j++) if (k >= pts[j].t && k <= pts[j + 1].t) { a = pts[j]; b = pts[j + 1]; break; }
+    const u = b.t === a.t ? 1 : (k - a.t) / (b.t - a.t), x = a.x + (b.x - a.x) * u, y = a.y + (b.y - a.y) * u, s = a.s + (b.s - a.s) * u;
+    ball.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(k * spin).toFixed(0)}) scale(${s.toFixed(2)})`); ball.style.opacity = b.o !== undefined ? (a.o !== undefined ? a.o + (b.o - a.o) * u : b.o) : 1;
+    if (k < 1) requestAnimationFrame(step); else r(); }; step(); });
+}
 function mgKick(ctx, i, st) {
   if (!st.plan) st.plan = shuffle(Object.keys(KICK_SCN)).slice(0, 5).sort((a, b) => KICK_SCN[a].dist - KICK_SCN[b].dist);
-  const sc = KICK_SCN[st.plan[i]], dist = sc.dist, mph = randInt(sc.mph[0], sc.mph[1]), dir = rnd() < 0.5 ? -1 : 1, T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1;
+  const sc = KICK_SCN[st.plan[i]], dist = sc.dist, mph = randInt(sc.mph[0], sc.mph[1]), dir = rnd() < 0.5 ? -1 : 1, T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2;
   const drift = dir * mph * (dist / 40) * 0.07, size = clamp(1.25 - (dist - 28) * 0.018, 0.7, 1.2), hw = 38 * size, pT = clamp(0.5 + (dist - 28) / 24 * 0.35 + (sc.wx === 'rain' ? 0.03 : 0), 0.45, 0.9);
-  const barY = 118, postTop = barY - 74 * size, flagA = dir * Math.min(35, mph * 2.2), bx = 170 + (sc.hash || 0) * 34;
+  const barY = 122, postTop = barY - 74 * size, baseY = 158, flagA = dir * Math.min(35, mph * 2.2), bx = 170 + (sc.hash || 0) * 34;
   let aim = 0;
-  const weather = sc.wx === 'rain' ? Array.from({ length: 36 }, (_, k) => `<line x1="${(k * 19) % 340}" y1="${(k * 37) % 220 - 20}" x2="${(k * 19) % 340 - 6}" y2="${(k * 37) % 220 + 4}" stroke="#bcd7ff" stroke-opacity=".5" stroke-width="1.2" class="mg-rain" style="animation-delay:${((k * 0.07) % 0.6).toFixed(2)}s"/>`).join('')
-    : sc.wx === 'snow' ? Array.from({ length: 30 }, (_, k) => `<circle cx="${(k * 29) % 340}" cy="${(k * 41) % 260}" r="${1.2 + (k % 3) * 0.7}" fill="#fff" opacity=".8" class="mg-snow" style="animation-delay:${((k * 0.13) % 2).toFixed(2)}s"/>`).join('') : '';
-  const streaks = mph >= 6 && sc.wx !== 'dome' ? Array.from({ length: Math.min(8, Math.round(mph / 2)) }, (_, k) => `<line x1="${dir > 0 ? 0 : 340}" y1="${150 + k * 15}" x2="${dir > 0 ? 38 : 302}" y2="${150 + k * 15}" stroke="#fff" stroke-opacity=".22" stroke-width="1.4" stroke-linecap="round" class="mg-streak" style="--dx:${dir * 340}px;animation-duration:${(1.8 - Math.min(1, mph / 22)).toFixed(2)}s;animation-delay:${(k * 0.25).toFixed(2)}s"/>`).join('') : '';
-  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><defs><linearGradient id="mgSky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sc.wx === 'dome' ? '#1a1f33' : sc.wx === 'snow' ? '#2b3a55' : '#070d24'}"/><stop offset=".5" stop-color="${sc.wx === 'rain' ? '#2a3a5c' : sc.wx === 'snow' ? '#5b6f94' : '#22407a'}"/><stop offset="1" stop-color="${sc.wx === 'snow' ? '#3d6a52' : '#12502b'}"/></linearGradient>${mgLights('mgKL', T1)}</defs>
-    <rect width="340" height="300" rx="14" fill="url(#mgSky2)"/>${sc.wx === 'dome' ? '' : mgFlares('mgKL')}<g class="mg-crowd">${mgCrowd(0, 26, 340, 4, T1, O1)}</g>
-    <polygon points="96,150 244,150 372,300 -32,300" fill="${sc.wx === 'snow' ? '#dbe7e0' : '#1c6a3c'}" ${sc.wx === 'snow' ? 'fill-opacity=".55"' : ''}/>
-    <rect x="96" y="150" width="148" height="18" fill="${O1}" opacity=".9"/><image href="${ctx.o.logo}" x="106" y="150" width="18" height="18"/><image href="${ctx.o.logo}" x="216" y="150" width="18" height="18"/><text x="170" y="163" text-anchor="middle" font-size="12" font-weight="800" fill="${textOn(O1)}" font-family="Barlow Condensed, sans-serif" letter-spacing=".22em">${esc(ctx.o.nick.toUpperCase())}</text>
-    ${[190, 215, 245].map((y, k) => `<line x1="${170 - 74 - k * 22}" x2="${170 + 74 + k * 22}" y1="${y}" y2="${y}" stroke="#fff" stroke-opacity=".28" stroke-width="${1.4 + k * 0.5}"/>`).join('')}
-    <g stroke="#ffd23d" stroke-width="${4.5 * size}" stroke-linecap="round" fill="none"><line x1="170" x2="170" y1="${barY}" y2="156"/><line x1="${170 - hw}" x2="${170 + hw}" y1="${barY}" y2="${barY}"/><line x1="${170 - hw}" x2="${170 - hw}" y1="${barY}" y2="${postTop}"/><line x1="${170 + hw}" x2="${170 + hw}" y1="${barY}" y2="${postTop}"/></g>
-    <g opacity=".95"><line x1="170" y1="${barY - 26 * size}" x2="${170 + drift * hw}" y2="${barY - 26 * size}" stroke="#35e0ff" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 7"/>${mph ? `<path d="M${170 + drift * hw} ${barY - 26 * size} l${-dir * 9} -6 v12z" fill="#35e0ff"/>` : ''}<text x="170" y="${barY - 34 * size}" text-anchor="middle" font-size="10" fill="#35e0ff" font-family="Barlow Condensed, sans-serif" letter-spacing=".1em">${mph ? 'WIND PUSH' : 'NO WIND'}</text></g>
-    <g transform="translate(298 54)"><line x1="0" y1="0" x2="0" y2="52" stroke="#ddd" stroke-width="3"/><path class="mg-flag" d="M0 2 L${dir * 30} ${5 + Math.abs(flagA) * 0.05} L0 20 Z" fill="${T2}" stroke="#fff" stroke-width="1"/><text y="68" text-anchor="middle" font-size="12" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif">${mph ? `${dir < 0 ? '◀ ' : ''}${mph} MPH${dir > 0 ? ' ▶' : ''}` : 'DOME'}</text></g>
-    <text x="42" y="86" text-anchor="middle" font-size="30" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif">${dist}</text><text x="42" y="100" text-anchor="middle" font-size="10" fill="#fff" fill-opacity=".7" letter-spacing=".15em" font-family="Barlow Condensed, sans-serif">YD FG</text>
+  // ---- scene ----
+  const half = y => 70 + (y - 176), yAt = d => 176 + 92 * Math.pow(1 - d / dist, 1.5);
+  const line = d => { const y = yAt(d), h = half(y); return { y, x1: 170 - h, x2: 170 + h }; };
+  const yl = []; for (let v = 5; v < dist; v += 5) yl.push(dist - v);      // yard lines every 5 yards counted from the goal line
+  const bands = []; const marks = [0, ...yl.slice().reverse().reverse().sort((p, q) => p - q), dist]; for (let k = 0; k < marks.length - 1; k++) { const a = line(marks[k]), b = line(marks[k + 1]); if (k % 2) bands.push(`<polygon points="${a.x1},${a.y} ${a.x2},${a.y} ${b.x2},${b.y} ${b.x1},${b.y}" fill="#fff" opacity=".055"/>`); }
+  const yardSVG = yl.map(d => { const l = line(d), val = Math.round(dist - d); return `<line x1="${l.x1}" x2="${l.x2}" y1="${l.y}" y2="${l.y}" stroke="#fff" stroke-opacity=".34" stroke-width="${(1 + (l.y - 176) / 90).toFixed(2)}"/>${val % 10 === 0 ? `<text x="${l.x1 + 26}" y="${l.y - 2}" font-size="${(7 + (l.y - 176) / 11).toFixed(1)}" fill="#fff" fill-opacity=".5" font-weight="800" font-family="Barlow Condensed, sans-serif" text-anchor="middle">${val}</text><text x="${l.x2 - 26}" y="${l.y - 2}" font-size="${(7 + (l.y - 176) / 11).toFixed(1)}" fill="#fff" fill-opacity=".5" font-weight="800" font-family="Barlow Condensed, sans-serif" text-anchor="middle">${val}</text>` : ''}`; }).join('');
+  const hashes = yl.concat([0]).map(d => { const l = line(d || 2.5), y = l.y; return d % 5 === 0 && d ? '' : `<line x1="${170 - 20}" x2="${170 - 20}" y1="${y}" y2="${y + 3}" stroke="#fff" stroke-opacity=".3"/><line x1="${170 + 20}" x2="${170 + 20}" y1="${y}" y2="${y + 3}" stroke="#fff" stroke-opacity=".3"/>`; }).join('');
+  const sky = sc.wx === 'dome' ? ['#10142b', '#1a2040'] : sc.wx === 'snow' ? ['#2b3a55', '#5b6f94'] : sc.wx === 'rain' ? ['#0a1124', '#2a3a5c'] : ['#070d24', '#22407a'];
+  const ads = [[ctx.o.nick, O1], ['NFL CAREER', '#12182b'], [ctx.t.nick, T1], ['NFL CAREER', '#12182b']].map(([n, c], k) => `<rect x="${k * 85}" y="146" width="85" height="11" fill="${c}"/><text x="${k * 85 + 42.5}" y="154.5" text-anchor="middle" font-size="7.5" font-weight="800" fill="${textOn(c)}" font-family="Barlow Condensed, sans-serif" letter-spacing=".16em">${esc(String(n).toUpperCase())}</text>`).join('');
+  const weather = sc.wx === 'rain' ? Array.from({ length: 40 }, (_, k) => `<line x1="${(k * 19) % 340}" y1="${(k * 37) % 220 - 20}" x2="${(k * 19) % 340 - 6}" y2="${(k * 37) % 220 + 4}" stroke="#bcd7ff" stroke-opacity=".5" stroke-width="1.2" class="mg-rain" style="animation-delay:${((k * 0.07) % 0.6).toFixed(2)}s"/>`).join('')
+    : sc.wx === 'snow' ? Array.from({ length: 34 }, (_, k) => `<circle cx="${(k * 29) % 340}" cy="${(k * 41) % 260}" r="${1.2 + (k % 3) * 0.7}" fill="#fff" opacity=".8" class="mg-snow" style="animation-delay:${((k * 0.13) % 2).toFixed(2)}s"/>`).join('') : '';
+  const streaks = mph >= 6 && sc.wx !== 'dome' ? Array.from({ length: Math.min(8, Math.round(mph / 2)) }, (_, k) => `<line x1="${dir > 0 ? 0 : 340}" y1="${190 + k * 12}" x2="${dir > 0 ? 38 : 302}" y2="${190 + k * 12}" stroke="#fff" stroke-opacity=".22" stroke-width="1.4" stroke-linecap="round" class="mg-streak" style="--dx:${dir * 340}px;animation-duration:${(1.8 - Math.min(1, mph / 22)).toFixed(2)}s;animation-delay:${(k * 0.25).toFixed(2)}s"/>`).join('') : '';
+  const sideline = Array.from({ length: 9 }, (_, k) => `<circle cx="${-2 + k * 4}" cy="${250 + (k % 3) * 5}" r="2.4" fill="${k % 2 ? T1 : T2}" opacity=".8"/><circle cx="${342 - k * 4}" cy="${250 + (k % 3) * 5}" r="2.4" fill="${k % 2 ? O1 : O2}" opacity=".8"/>`).join('');
+  const lamp = (x) => `<g><line x1="${x}" y1="152" x2="${x}" y2="26" stroke="#2a3350" stroke-width="3"/><rect x="${x - 13}" y="14" width="26" height="14" rx="3" fill="#cfd8f5"/>${[0, 1, 2, 3, 4, 5].map(k => `<circle cx="${x - 9 + (k % 3) * 9}" cy="${18 + Math.floor(k / 3) * 7}" r="2.2" fill="#fff"/>`).join('')}<circle cx="${x}" cy="22" r="40" fill="url(#mgKL)" class="mg-flare"/></g>`;
+  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><defs><linearGradient id="mgSky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky[0]}"/><stop offset="1" stop-color="${sky[1]}"/></linearGradient><linearGradient id="mgGrass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sc.wx === 'snow' ? '#9fb9b0' : '#1f7440'}"/><stop offset="1" stop-color="${sc.wx === 'snow' ? '#c9ddd6' : '#12532c'}"/></linearGradient>${mgLights('mgKL', T1)}<linearGradient id="mgStands" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a0f20"/><stop offset="1" stop-color="#1a2342"/></linearGradient>
+      <pattern id="mgEzP" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(30)"><rect width="5" height="10" fill="#fff" opacity=".12"/></pattern></defs>
+    <rect width="340" height="300" rx="14" fill="url(#mgSky2)"/>
+    <rect x="0" y="40" width="340" height="108" fill="url(#mgStands)"/><g class="mg-crowd">${mgCrowd(0, 50, 340, 13, T1, O1)}</g><rect x="0" y="40" width="340" height="108" fill="url(#mgStands)" opacity=".28"/>
+    ${sc.wx === 'dome' ? '<rect x="0" y="0" width="340" height="40" fill="#0b0f22"/>' : lamp(24) + lamp(316)}
+    <g stroke="#fff" stroke-opacity=".1" stroke-width=".8">${Array.from({ length: 9 }, (_, k) => `<line x1="${120 + k * 12.5}" y1="92" x2="${120 + k * 12.5}" y2="148"/>`).join('')}${Array.from({ length: 6 }, (_, k) => `<line x1="120" y1="${92 + k * 11}" x2="220" y2="${92 + k * 11}"/>`).join('')}</g>
+    ${ads}
+    <polygon points="${170 - half(158)},158 ${170 + half(158)},158 ${170 + half(300)},300 ${170 - half(300)},300" fill="url(#mgGrass)"/>${bands.join('')}
+    <polygon points="${170 - half(158)},158 ${170 + half(158)},158 ${170 + half(176)},176 ${170 - half(176)},176" fill="${O1}"/><polygon points="${170 - half(158)},158 ${170 + half(158)},158 ${170 + half(176)},176 ${170 - half(176)},176" fill="url(#mgEzP)"/>
+    <image href="${ctx.o.logo}" x="${170 - half(176) + 7}" y="158" width="17" height="17" preserveAspectRatio="xMidYMid meet"/><image href="${ctx.o.logo}" x="${170 + half(176) - 24}" y="158" width="17" height="17" preserveAspectRatio="xMidYMid meet"/>
+    <text x="170" y="171.5" text-anchor="middle" font-size="13" font-weight="800" fill="${textOn(O1)}" font-family="Barlow Condensed, sans-serif" letter-spacing=".3em" stroke="${O2}" stroke-width=".6">${esc(ctx.o.nick.toUpperCase())}</text>
+    <line x1="${170 - half(176)}" x2="${170 + half(176)}" y1="176" y2="176" stroke="#fff" stroke-width="3"/><line x1="${170 - half(158)}" x2="${170 + half(158)}" y1="158" y2="158" stroke="#fff" stroke-width="2" stroke-opacity=".85"/>
+    <polyline points="${170 - half(158)},158 ${170 - half(300)},300" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="2.5"/><polyline points="${170 + half(158)},158 ${170 + half(300)},300" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="2.5"/>
+    ${yardSVG}${hashes}${sideline}
+    <rect x="${170 - 9}" y="${baseY - 3}" width="18" height="6" rx="2" fill="#e6a900" stroke="#7a5a00"/>
+    <g stroke="#ffd23d" stroke-linecap="round" fill="none"><line x1="170" x2="170" y1="${baseY}" y2="${barY}" stroke-width="${3.6 * size}"/><line x1="${170 - hw}" x2="${170 + hw}" y1="${barY}" y2="${barY}" stroke-width="${4.4 * size}"/><line id="mgUL" class="mg-upr" x1="${170 - hw}" x2="${170 - hw}" y1="${barY}" y2="${postTop}" stroke-width="${4.4 * size}"/><line id="mgUR" class="mg-upr" x1="${170 + hw}" x2="${170 + hw}" y1="${barY}" y2="${postTop}" stroke-width="${4.4 * size}"/></g>
+    <g opacity=".95"><line x1="170" y1="${barY - 22 * size}" x2="${170 + drift * hw}" y2="${barY - 22 * size}" stroke="#35e0ff" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 7"/>${mph ? `<path d="M${170 + drift * hw} ${barY - 22 * size} l${-dir * 9} -6 v12z" fill="#35e0ff"/>` : ''}<text x="170" y="${barY - 30 * size}" text-anchor="middle" font-size="10" fill="#35e0ff" font-family="Barlow Condensed, sans-serif" letter-spacing=".1em" stroke="rgba(0,0,0,.5)" stroke-width="2" paint-order="stroke">${mph ? 'WIND PUSH' : 'NO WIND'}</text></g>
+    <g transform="translate(302 60)"><line x1="0" y1="0" x2="0" y2="46" stroke="#ddd" stroke-width="3"/><path class="mg-flag" d="M0 2 L${dir * 28} ${5 + Math.abs(flagA) * 0.05} L0 18 Z" fill="${T2}" stroke="#fff" stroke-width="1"/><text y="62" text-anchor="middle" font-size="12" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" stroke="rgba(0,0,0,.55)" stroke-width="2.4" paint-order="stroke">${mph ? `${dir < 0 ? '◀ ' : ''}${mph} MPH${dir > 0 ? ' ▶' : ''}` : 'DOME'}</text></g>
+    <g><rect x="14" y="62" width="56" height="42" rx="8" fill="rgba(5,8,16,.7)" stroke="rgba(255,255,255,.18)"/><text x="42" y="88" text-anchor="middle" font-size="26" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif">${dist}</text><text x="42" y="99" text-anchor="middle" font-size="8.5" fill="#fff" fill-opacity=".7" letter-spacing=".15em" font-family="Barlow Condensed, sans-serif">YD FG</text></g>
     ${streaks}${weather}
     <g id="mgAim" ${sc.shaky ? 'class="mg-shaky"' : ''}><line id="mgAimL" x1="${bx}" y1="268" x2="170" y2="150" stroke="#ffd23d" stroke-width="2" stroke-dasharray="5 5"/><circle id="mgAimC" cx="170" cy="150" r="7" fill="none" stroke="#ffd23d" stroke-width="2.5"/></g>
-    <g id="mgBallG">${mgBall(bx, 268, 1.5, 0, 'mgBallEl')}</g><g id="mgFx"></g></svg><div class="mg-me kick">${ctx.env.jersey ? ctx.env.jersey('back') : ''}</div><div class="mg-call">${sc.name} · ${i + 1}/5</div>`;
+    ${mgGuy(bx + 26, 276, T1, T2, { s: 1.2 })}<g id="mgBallG">${mgBall(bx, 268, 1.5, 0, 'mgBallEl')}</g><g id="mgFx"></g></svg><div class="mg-me kick">${ctx.env.jersey ? ctx.env.jersey('back') : ''}</div><div class="mg-call">${sc.name} · ${i + 1}/5</div>`;
   const aimX = a => 170 + a * hw * 2;
   ctx.ctrl.innerHTML = `<div class="mg-aim"><span>AIM</span><input type="range" min="-100" max="100" value="0" id="mgAimIn"></div><div class="mg-btns one"><button class="mg-b big" id="mgKickGo" style="--c:#ffd23d">🦵 KICK</button></div>`;
   ctx.say(sc.shaky ? '<b>Everything on the line…</b> steady your aim' : 'Aim <b>into</b> the wind');
@@ -421,16 +488,29 @@ function mgKick(ctx, i, st) {
       const stop = async ev => {
         ev.preventDefault(); ctx.stage.removeEventListener('pointerdown', stop); cancelAnimationFrame(raf); const p = val(), perr = Math.abs(p - pT); ctx.ctrl.innerHTML = '';
         const shake = sc.shaky ? (rnd() - 0.5) * 0.5 : 0;
-        const lateral = aim * 2 + drift + shake + (rnd() - 0.5) * 0.22 * (1 + 3 * perr) + (p < pT ? -0.1 : 0.1) * perr * 2, wide = Math.abs(lateral) > 0.92, short = p < pT - 0.2, over = p > pT + 0.2, ok = !wide && !short && !over;
-        const perfect = ok && Math.abs(lateral) < 0.3 && perr < z / 2;
+        const lateral = aim * 2 + drift + shake + (rnd() - 0.5) * 0.22 * (1 + 3 * perr) + (p < pT ? -0.1 : 0.1) * perr * 2, al = Math.abs(lateral);
+        const short = p < pT - 0.2, over = p > pT + 0.2;
+        // the ball must pass BETWEEN the posts: inside 0.8 of the upright line is clean, 0.8 to 1.14 touches the post
+        const upright = !short && !over && al > 0.8 && al <= 1.14, wide = !short && !over && al > 1.14, ok = !short && !over && al <= 0.8;
+        const perfect = ok && al < 0.3 && perr < z / 2;
         Snd.play('mgKick', 0);
-        const ball = ctx.stage.querySelector('#mgBallEl'), tEnd = short ? 0.62 : 1, dur = 1100, f0 = performance.now(), landX = 170 + lateral * hw;
-        await new Promise(r2 => { const step = () => { if (!ctx.alive()) return r2(); const k = Math.min(1, (performance.now() - f0) / dur), t = k * tEnd; const x = bx + (landX - bx) * t, y = 268 - (268 - 118) * t - Math.sin(Math.PI * t) * 46, s = 1.5 - 1.15 * t; ball.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(k * 540).toFixed(0)}) scale(${s.toFixed(2)})`); if (k < 1) requestAnimationFrame(step); else r2(); }; step(); });
+        const ball = ctx.stage.querySelector('#mgBallEl'), landX = 170 + lateral * hw, sgn = lateral < 0 ? -1 : 1;
+        const main = (n, tEnd, yEnd, sEnd) => Array.from({ length: n + 1 }, (_, k) => { const t = k / n * tEnd; return { t, x: bx + (landX - bx) * t, y: 268 - (268 - yEnd) * t - Math.sin(Math.PI * t) * 46, s: 1.5 - (1.5 - sEnd) * t }; });
+        let frames, dur = 1150;
+        if (short) { frames = main(10, 0.62, barY, 0.35).map((f, k, a) => ({ ...f, t: f.t / 0.62 })); dur = 800; }
+        else if (over) { frames = main(10, 1, 30, 0.22); }
+        else if (ok) { const m = main(10, 0.62, barY, 0.35).map(f => ({ ...f, t: f.t * 0.7 })); frames = m.concat([{ t: 0.85, x: landX, y: barY - 24, s: 0.3, o: 1 }, { t: 1, x: landX, y: barY - 44, s: 0.22, o: 0 }]); }
+        else if (upright) { const m = main(10, 0.62, barY + 2, 0.35).map(f => ({ ...f, t: f.t * 0.6 })); const hx = landX; frames = m.concat([{ t: 0.72, x: hx - sgn * 10, y: barY + 14, s: 0.33 }, { t: 1, x: hx - sgn * 26, y: barY + 66, s: 0.5 }]); }
+        else { frames = main(10, 1, 70, 0.26); }
+        await mgFly(ctx, ball, frames, dur);
         if (!ctx.alive()) return res(false);
         let txt;
         if (ok) { txt = `${dist}-YARD FIELD GOAL IS GOOD!`; mgPop(ctx, 170, 96, perfect ? 'PERFECT!' : 'GOOD!', 'good'); if (perfect) { ctx.perfects++; txt = '✨ PERFECT KICK! ' + txt; } Snd.play('td', 0.15); mgShake(ctx); }
-        else { const why = short ? 'SHORT' : wide ? (lateral < 0 ? 'WIDE LEFT' : 'WIDE RIGHT') : 'OVER'; txt = `No good — ${why.toLowerCase()}`; mgPop(ctx, 170, 96, why, 'bad'); }
-        const tip = wide ? '<span class="mg-tip">The wind pushed it — aim against the arrow.</span>' : (short || over) ? '<span class="mg-tip">Stop the bar inside the green.</span>' : '';
+        else if (upright) {
+          const up = ctx.stage.querySelector(lateral < 0 ? '#mgUL' : '#mgUR'); if (up) { up.classList.add('hit'); } Snd.play('mgPost', 0); mgShake(ctx);
+          txt = 'It hit the upright — no good!'; mgPop(ctx, 170, 96, 'OFF THE POST!', 'bad');
+        } else { const why = short ? 'SHORT' : over ? 'TOO HIGH' : (lateral < 0 ? 'WIDE LEFT' : 'WIDE RIGHT'); txt = `No good — ${why.toLowerCase()}`; mgPop(ctx, 170, 96, why, 'bad'); }
+        const tip = (wide || upright) ? '<span class="mg-tip">The wind pushed it — aim against the arrow.</span>' : (short || over) ? '<span class="mg-tip">Stop the bar inside the green.</span>' : '';
         ctx.say(`${ok ? '✅' : '❌'} ${txt}${tip}`, ok ? 'good' : 'bad'); res(ok);
       };
       ctx.ov.querySelector('#mgStop').addEventListener('pointerdown', stop, { once: true }); ctx.stage.addEventListener('pointerdown', stop);

@@ -1162,6 +1162,7 @@ const Snd = (() => {
     mgCrowd: (t, lvl = 1) => { noise(t, 1.1 * lvl, { type: 'bandpass', f: 420, to: 650, q: 0.6, vol: 0.022, attack: 0.45 }); applause(t + 0.25, 0.7 * lvl, 0.012); },
     mgTension: t => tone(115, t, 1.5, { vol: 0.025, attack: 0.7, to: 150 }),
     mgTick: t => tap(t, 0.04, rr(800, 1000)),
+    mgPost: t => { tone(1318, t, 0.9, { vol: 0.03, attack: 0.002 }); tone(1980, t, 0.5, { vol: 0.012, attack: 0.002 }); noise(t, 0.05, { type: 'bandpass', f: 2200, q: 1.5, vol: 0.05, crisp: true, attack: 0.001 }); },
     trade: t => { air(t, 0.7, 0.04); pluck(P[2], t + 0.3, 0.05); pluck(P[4], t + 0.45, 0.05); applause(t + 0.5, 1.0, 0.022); },
   };
 

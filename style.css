@@ -741,3 +741,10 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .yp-jersey { width: 170px; flex: none; } .yp-jersey svg, .yp-jersey .jersey-pair { width: 100%; } .yp-name { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; } .yp-name img { width: 44px; height: 44px; object-fit: contain; } .yp-name b { font-family: var(--head); font-size: 20px; letter-spacing: .05em; text-transform: uppercase; } .yp-name small { color: var(--mut); letter-spacing: .14em; font-size: 10px; } .yp-empty { color: var(--mut); font-size: 13px; letter-spacing: .06em; padding: 30px 0; }
 .create-youth:not(:empty) { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); text-align: center; } .create-youth .stage-jersey { margin-top: 6px; }
 @media (max-width: 720px) { .modal-card.youth .youth-grid { max-height: 34vh; } .yp-jersey { width: 130px; } .youth-prev { min-height: 100px; gap: 8px; } .wrap.create .youth-jy { width: 26px; } }
+
+/* arcade mini games (RB run, WR/TE catch) + kick polish */
+.mg-stage.live { touch-action: none; cursor: crosshair; } .mg-btns.four { grid-template-columns: repeat(4, 1fr); gap: 6px; } .mg-hold { touch-action: none; -webkit-user-select: none; user-select: none; } .mg-hold.down { background: color-mix(in srgb, var(--c, #fff) 45%, transparent); transform: scale(.96); }
+.mg-landring { transform-box: fill-box; transform-origin: center; animation: mgLand 1s ease-in-out infinite; } @keyframes mgLand { 50% { transform: scale(1.18); opacity: .7; } }
+.mg-chaser .mg-you { stroke: #ff5d5d !important; }
+.mg-upr.hit { stroke: #fff !important; filter: drop-shadow(0 0 5px #fff); animation: mgPing .5s ease-out; } @keyframes mgPing { from { stroke-width: 9; } }
+.mg-rbd, .mg-defn, .mg-chaser { transition: none !important; }

@@ -91,6 +91,8 @@ function mgEndZone(ctx, x, y, w, h, k) {
     + (d.deco === 'sband' ? '<rect x="-270" y="-50" width="540" height="9" fill="#101010" opacity=".92"/><rect x="-270" y="-39" width="540" height="2" fill="#D3BC8D"/>' : '') + lvEzItems(items, team, d.ey);
   return `<defs><clipPath id="${cid}"><rect x="${x}" y="${y}" width="${w}" height="${h}"/></clipPath></defs><g clip-path="url(#${cid})"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#2d8647"/>${d.bg ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${d.bg}" opacity="${d.op || 0.94}"/>` : ''}<g transform="translate(${cx} ${cy}) scale(${k})">${local}</g></g>`;
 }
+// the grass texture over an end zone (the pattern twice, plus a mowing stripe), so the painted end zone reads as turf like the rest of the field
+const mgEzGrass = (pat, x, y, w, h) => `<g pointer-events="none"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${pat})"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${pat})" opacity=".85"/><rect x="${x}" y="${y + h / 2}" width="${w}" height="${h / 2}" fill="#fff" opacity=".05"/></g>`;
 const mgPylon = (x, y, s = 1) => `<rect x="${x - 4 * s}" y="${y - 4 * s}" width="${8 * s}" height="${8 * s}" fill="#ff6a13" stroke="#fff" stroke-width="1"/>`;
 // the stand-alone field used by the QB and WR/TE games: LOS at screen y = yRef on yard line Aref (10 px per yard), your logo at midfield if it is in view, crowd strips top and bottom
 function mgField(ctx, w, h, id, yRef, Aref, opt = {}) {
@@ -290,7 +292,7 @@ function mgRB(ctx, i, st) {
     <g id="mgRW" style="transform:translate(0px,${RY}px)">
       ${mgFieldInner({ id: 'mgRGp', w: 340, sl: 14, y0: -GOAL - 100, y1: 110, yRef: 0, Aref: start, ppy: 10, Amin: start - 12, Amax: 100, numL: 50, numR: 290 })}
       ${yOfA(50) < 100 && yOfA(50) > -GOAL - 100 ? `<image href="${(ctx.env.nfl && typeof NFL_MID_LOGO !== 'undefined' && NFL_MID_LOGO[ctx.t.id]) || ctx.t.logo}" x="126" y="${yOfA(50) - 44}" width="88" height="88" opacity=".88" preserveAspectRatio="xMidYMid meet"/>` : ''}
-      ${mgEndZone(ctx, 14, -GOAL - 100, 312, 100, 0.6)}<rect x="14" y="${-GOAL - 100}" width="312" height="100" fill="url(#mgRGp)" pointer-events="none"/>
+      ${mgEndZone(ctx, 14, -GOAL - 100, 312, 100, 0.6)}${mgEzGrass('mgRGp', 14, -GOAL - 100, 312, 100)}
       <line x1="14" x2="326" y1="${-GOAL}" y2="${-GOAL}" stroke="#fff" stroke-width="3.4"/><line x1="14" x2="326" y1="${-GOAL - 100}" y2="${-GOAL - 100}" stroke="#fff" stroke-width="3.4"/>
       <rect x="0" y="${-GOAL - 122}" width="340" height="22" fill="#f6f7f4"/><g stroke="#ffd23d" stroke-width="3.4" stroke-linecap="round" fill="none"><line x1="158" x2="182" y1="${-GOAL - 114}" y2="${-GOAL - 114}"/><line x1="170" x2="170" y1="${-GOAL - 100}" y2="${-GOAL - 114}"/><circle cx="158" cy="${-GOAL - 114}" r="2.2"/><circle cx="182" cy="${-GOAL - 114}" r="2.2"/></g>
       ${mgPylon(14, -GOAL)}${mgPylon(326, -GOAL)}${mgPylon(14, -GOAL - 100)}${mgPylon(326, -GOAL - 100)}
@@ -375,7 +377,7 @@ function mgCatch(ctx, i, st) {
   const board = `${ord(down)} & ${gl <= 10 ? 'GOAL' : toGo} · ${spot(A)}`, yOfA = a => yRef - (a - A) * ppy;
   const ezTop = yOfA(110), fdY = A + toGo < 100 ? yOfA(A + toGo) : null;
   ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><rect width="340" height="300" rx="14" fill="#2b7d47"/><g id="mgWorld" style="transform:translateY(0px)">${mgField(ctx, 340, 300, 'mgC', yRef, A, { crowd: false })}
-    ${yOfA(100) > 0 ? mgEndZone(ctx, 14, Math.max(-60, ezTop), 312, yOfA(100) - Math.max(-60, ezTop), 0.6) + `<line x1="14" x2="326" y1="${yOfA(100)}" y2="${yOfA(100)}" stroke="#fff" stroke-width="3.4"/>${ezTop > 0 ? `<rect x="0" y="0" width="340" height="${ezTop}" fill="#f6f7f4"/>` : ''}${mgPylon(14, yOfA(100))}${mgPylon(326, yOfA(100))}` : ''}
+    ${yOfA(100) > 0 ? mgEndZone(ctx, 14, Math.max(-60, ezTop), 312, yOfA(100) - Math.max(-60, ezTop), 0.6) + mgEzGrass('mgCg', 14, Math.max(-60, ezTop), 312, yOfA(100) - Math.max(-60, ezTop)) + `<line x1="14" x2="326" y1="${yOfA(100)}" y2="${yOfA(100)}" stroke="#fff" stroke-width="3.4"/>${ezTop > 0 ? `<rect x="0" y="0" width="340" height="${ezTop}" fill="#f6f7f4"/>` : ''}${mgPylon(14, yOfA(100))}${mgPylon(326, yOfA(100))}` : ''}
     <line x1="14" x2="326" y1="${yRef}" y2="${yRef}" stroke="#4aa8ff" stroke-width="2.8" stroke-opacity=".9"/>${fdY != null && fdY > 24 ? `<line x1="14" x2="326" y1="${fdY}" y2="${fdY}" stroke="#ffd23d" stroke-width="2.8" stroke-opacity=".95"/>` : ''}</g>
     <path id="mgPath" d="M${B0.x} ${B0.y} L${L.x} ${L.y}" stroke="#fff" stroke-opacity=".85" stroke-width="2.6" stroke-dasharray="4 6" stroke-linecap="round" fill="none"/>
     <g id="mgLand" style="transform:translate(${L.x}px,${L.y}px)"><circle r="20" fill="${td ? '#ffd23d' : T2}" fill-opacity=".2" stroke="${td ? '#ffd23d' : '#c5ff3a'}" stroke-width="3" class="mg-landring"/><circle r="7" fill="none" stroke="#fff" stroke-opacity=".8" stroke-dasharray="2 3"/>${td ? '<text y="4" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke">TD</text>' : ''}</g>
@@ -476,7 +478,7 @@ function mgKick(ctx, i, st) {
     <rect width="340" height="300" rx="14" fill="#1d6c3d"/>${field}
     <rect width="340" height="${yE - band}" fill="url(#mgStands)"/><g class="mg-crowd">${rows}</g>
     <rect x="${sl - band}" y="${yE - band}" width="${340 - 2 * (sl - band)}" height="${band}" fill="#f6f7f4"/>
-    ${mgEndZone(ctx, sl, yE, 340 - 2 * sl, 10 * s, s / 10)}<rect x="${sl}" y="${yE}" width="${340 - 2 * sl}" height="${10 * s}" fill="url(#mgKg)" pointer-events="none"/>
+    ${mgEndZone(ctx, sl, yE, 340 - 2 * sl, 10 * s, s / 10)}${mgEzGrass('mgKg', sl, yE, 340 - 2 * sl, 10 * s)}
     <line x1="${sl}" x2="${340 - sl}" y1="${yE}" y2="${yE}" stroke="#fff" stroke-width="3"/><line x1="${sl}" x2="${340 - sl}" y1="${yG}" y2="${yG}" stroke="#fff" stroke-width="3.4"/>
     ${mgPylon(sl, yG, 0.8)}${mgPylon(340 - sl, yG, 0.8)}${mgPylon(sl, yE, 0.8)}${mgPylon(340 - sl, yE, 0.8)}
     ${sc.wx === 'snow' ? `<rect x="0" y="${yE - band}" width="340" height="300" fill="#e6f2ee" opacity=".38" pointer-events="none"/>` : sc.wx === 'rain' ? `<rect x="0" y="0" width="340" height="300" fill="#0a1124" opacity=".22" pointer-events="none"/>` : sc.wx === 'dome' ? '<rect x="0" y="0" width="340" height="300" fill="#10142b" opacity=".18" pointer-events="none"/>' : ''}

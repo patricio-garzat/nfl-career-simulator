@@ -124,7 +124,7 @@ const LV_EZ = {
   CIN: { bg: '#FB4F14', deco: 'tiger', ends: [[{ t: { s: 'BENGALS', f: '#000000', o: '#FFFFFF', w: 4.5, ff: 'Alfa Slab One', h: 42, n: 420 } }]] },
   CLE: { bg: null, ends: [[{ t: { s: 'BROWNS', f: '#F8F9F7', o: '#FF3C00', w: 3, ff: 'Saira Extra Condensed', fw: 800, h: 62, n: 280 } }], [{ t: { s: 'CLEVELAND', f: '#F8F9F7', o: '#FF3C00', w: 3, ff: 'Saira Extra Condensed', fw: 800, h: 62, n: 360 } }]] },
   PIT: { bg: null, ends: [[{ t: { s: 'PITTSBURGH', f: '#FFB612', o: '#101820', w: 3, ff: 'Archivo Black', h: 46, n: 340, x: -34 } }, { l: { k: 'nfl', x: 228, y: 0, w: 50 } }], [{ t: { s: 'STEELERS', f: '#FFB612', o: '#101820', w: 3, ff: 'Archivo Black', h: 46, n: 300, x: -34 } }, { l: { k: 'nfl', x: 228, y: 0, w: 50 } }]] },
-  HOU: { bg: '#03202F', ends: [[{ t: { s: 'TEXANS', f: '#FFFFFF', o: '#A71930', w: 3.5, ff: 'Russo One', h: 60, n: 330 } }]] },
+  HOU: { bg: '#C9243F', ends: [[{ l: { k: 'img', src: 'assets/nfl/texans-wordmark.png', x: 0, y: 0, w: 440, h: 67 } }]] },   // HOUSTON (navy) over TEXANS (white) on Texans red, big with a margin
   IND: { bg: '#1A4FB0', ends: [[{ l: { k: 'img', src: 'assets/nfl/colts-wordmark.png', x: 0, y: 0, w: 250, h: 76, stretch: 1 } }]] },   // the COLTS wordmark in white on blue (stretched wide, as painted on a field)
   JAX: { bg: '#000000', op: 0.96, ends: [[{ l: { k: 'img', src: 'assets/nfl/jaguars-wordmark.png', x: 0, y: 0, w: 250, h: 76 } }]] },   // JACKSONVILLE JAGUARS on black
   TEN: { bg: null, ends: [[{ t: { s: 'TITANS', f: '#0C2340', o: '#FFFFFF', w: 5, ff: 'Russo One', h: 66, n: 480, sh: ['#4B92DB', 4, 4] } }]] },

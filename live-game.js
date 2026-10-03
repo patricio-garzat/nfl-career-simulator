@@ -143,7 +143,7 @@ const LV_EZ = {
   CAR: { bg: null, ends: [[{ t: { s: 'PANTHERS', f: '#000000', o: '#0085CA', w: 5, ff: 'Russo One', h: 48, n: 420, it: 1 } }]] },
   NO: { bg: null, deco: 'sband', ends: [[{ t: { s: 'SAINTS', f: '#000000', o: '#D3BC8D', w: 2.5, ff: 'Alfa Slab One', h: 58, n: 330 } }]] },
   TB: { bg: null, ends: [[{ t: { s: 'BUCCANEERS', f: '#D50A0A', o: '#FFFFFF', w: 1.5, ff: 'Alfa Slab One', h: 42, n: 400, sh: ['#111111', 4, 4] } }]] },
-  ARI: { bg: null, ends: [[{ t: { s: 'ARIZONA', f: '#97233F', o: '#FFFFFF', w: 4, ff: 'Archivo Black', h: 50, n: 330 } }], [{ t: { s: 'CARDINALS', f: '#97233F', o: '#FFFFFF', w: 4, ff: 'Archivo Black', h: 50, n: 400 } }]] },
+  ARI: { bg: null, ends: [[{ l: { k: 'img', src: 'assets/nfl/cardinals-wordmark.png', x: 0, y: 0, w: 430, h: 92 } }]] },   // ARIZONA CARDINALS wordmark with a white outline on bare turf
   LAR: { bg: '#0B2A8A', ends: [[{ t: { s: 'RAMS', f: '#FFD100', ff: 'Alfa Slab One', h: 66, n: 280 } }]] },
   SF: { bg: null, ends: [[{ t: { s: '49ERS', f: '#AA0000', o: '#B3995D', w: 4, ff: 'Rye', h: 56, n: 300, cap: 0.7 } }, { l: { k: 'nfl', x: -235, y: 10, w: 48 } }, { l: { k: 'nfc', x: 235, y: 10, w: 52 } }]] },
   SEA: { bg: '#002244', ends: [[{ t: { s: 'SEAHAWKS', f: '#A5ACAF', o: '#FFFFFF', w: 1.5, ff: 'Graduate', h: 52, n: 330, x: -4 } }, { l: { k: 'nfl', x: -232, y: 0, w: 46 } }, { l: { k: 'team', x: 232, y: 0, w: 70 } }]] },

@@ -225,16 +225,18 @@ function lvFieldSVG(away, home, sb) {
   }).join('');
   // yard numbers: 6 ft x 4 ft numerals (drawn 1.5x so they read on a small screen), base 12 yd from the sideline, clear of the line on both sides;
   // the 10-40 pairs carry a small arrow pointing at the nearest goal line. Far-side numbers are turned 180° so they read from the other sideline.
-  const NW = 17, NH = 22, GAP = 7, ARW = 10;   // NFL spec: numerals 6 ft x 4 ft (2 yd tall), base 12 yd from the sideline, in a Clarendon-style slab (many fields); Bevan is the closest free font
-  const digit = (ch, cx, y0, rot) => `<text x="${cx}" y="${y0 + NH}" text-anchor="middle" font-size="${NH / 0.72}" ${ch === '1' ? '' : `textLength="${NW}" lengthAdjust="spacingAndGlyphs"`} ${rot ? `transform="rotate(180 ${cx} ${y0 + NH / 2})"` : ''}>${ch}</text>`;
+  const NH = 22, GAP = 6, ARW = 10, FS = NH / 0.71, DW = 14;   // cap height 2 yd (drawn 1.5x), Special Gothic Condensed One; DW = width of one digit
+  const pair = (n, X, y0, far) => {                                 // "3|0": the yard line runs between the digits and neither one touches it
+    const yb = y0 + NH, g = `<text x="${X - GAP}" y="${yb}" text-anchor="end" font-size="${FS.toFixed(1)}">${n}</text><text x="${X + GAP}" y="${yb}" text-anchor="start" font-size="${FS.toFixed(1)}">0</text>`;
+    return far ? `<g transform="rotate(180 ${X} ${y0 + NH / 2})">${g}</g>` : g;     // far-side numbers are turned so they read from the other sideline
+  };
   const nums = [1, 2, 3, 4, 5, 4, 3, 2, 1].map((n, i) => {
     const X = lvX((i + 1) * 10), toLeft = i < 4, toRight = i > 4;
     const place = (y0, far) => {
-      const L = X - GAP - NW / 2, R = X + GAP + NW / 2, d = far ? ['0', String(n)] : [String(n), '0'];   // upside-down "30" is seen as 0 then 3 along the field
-      let g = digit(d[0], L, y0, far) + digit(d[1], R, y0, far);
+      let g = pair(n, X, y0, far);
       const ay = y0 + NH / 2;
-      if (toLeft) g += `<polygon points="${X - GAP - NW - 5 - ARW},${ay} ${X - GAP - NW - 5},${ay - 7} ${X - GAP - NW - 5},${ay + 7}"/>`;
-      if (toRight) g += `<polygon points="${X + GAP + NW + 5 + ARW},${ay} ${X + GAP + NW + 5},${ay - 7} ${X + GAP + NW + 5},${ay + 7}"/>`;
+      if (toLeft) g += `<polygon points="${X - GAP - DW - 5 - ARW},${ay} ${X - GAP - DW - 5},${ay - 7} ${X - GAP - DW - 5},${ay + 7}"/>`;
+      if (toRight) g += `<polygon points="${X + GAP + DW + 5 + ARW},${ay} ${X + GAP + DW + 5},${ay - 7} ${X + GAP + DW + 5},${ay + 7}"/>`;
       return g;
     };
     return place(bot - 120 - NH, false) + place(top + 120, true);

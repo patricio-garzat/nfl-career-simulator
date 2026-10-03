@@ -69,8 +69,8 @@ function mgFieldInner(o) {
   out += `<line x1="${sl}" x2="${sl}" y1="${y0}" y2="${y1}" stroke="#fff" stroke-width="3"/><line x1="${w - sl}" x2="${w - sl}" y1="${y0}" y2="${y1}" stroke="#fff" stroke-width="3"/>`;
   // slab-style yard numbers, tops pointing to the middle of the field, with an arrow towards the nearest goal line
   const nh = 2.2 * ppy, num = (x, y, rot, v) => {
-    const s = String(v), fs = nh / 0.72, tl = (s.length === 1 ? 0.9 : 2.1) * nh;
-    return `<text transform="translate(${x} ${y}) rotate(${rot})" y="${nh / 2}" text-anchor="middle" font-family="'Bevan','Alfa Slab One',serif" font-size="${fs.toFixed(1)}" textLength="${tl.toFixed(1)}" lengthAdjust="spacingAndGlyphs" fill="#fff" fill-opacity="${o.numOp || 0.5}">${s}</text>`;
+    const s = String(v), fs = nh / 0.71, gp = Math.max(1.4, ppy * 0.6);       // "3|0": a small gap each side of the yard line
+    return `<g transform="translate(${x} ${y}) rotate(${rot})" font-family="'Special Gothic Condensed One','Barlow Condensed',sans-serif" font-size="${fs.toFixed(1)}" fill="#fff" fill-opacity="${o.numOp || 0.5}"><text x="${-gp}" y="${nh / 2}" text-anchor="end">${s[0]}</text><text x="${gp}" y="${nh / 2}" text-anchor="start">${s[1]}</text></g>`;
   };
   const arrow = (x, y, up) => `<polygon points="${x - nh * 0.34},${y + (up ? 0.3 : -0.3) * nh} ${x + nh * 0.34},${y + (up ? 0.3 : -0.3) * nh} ${x},${y + (up ? -0.35 : 0.35) * nh}" fill="#fff" fill-opacity="${o.numOp || 0.5}"/>`;
   for (let A = Math.ceil(Math.max(10, Amin) / 10) * 10; A <= Math.min(90, Amax); A += 10) {

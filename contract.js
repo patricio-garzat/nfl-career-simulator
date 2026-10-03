@@ -20,7 +20,7 @@ let PAPER_TEX = null;
 function paperTexture() {
   if (PAPER_TEX) return PAPER_TEX;
   const c = document.createElement('canvas'); c.width = c.height = 300; const x = c.getContext('2d');
-  for (let i = 0; i < 16; i++) { const px = Math.random() * 300, py = Math.random() * 300, r = 50 + Math.random() * 90, g = x.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, 'rgba(150,115,60,.07)'); g.addColorStop(1, 'rgba(150,115,60,0)'); x.fillStyle = g; x.fillRect(0, 0, 300, 300); }
+  for (let i = 0; i < 16; i++) { const px = Math.random() * 300, py = Math.random() * 300, r = 50 + Math.random() * 90; for (const ox of [-300, 0, 300]) for (const oy of [-300, 0, 300]) { const g = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, r); g.addColorStop(0, 'rgba(150,115,60,.07)'); g.addColorStop(1, 'rgba(150,115,60,0)'); x.fillStyle = g; x.fillRect(0, 0, 300, 300); } }   // wrapped, so the tiles join without seams
   for (let i = 0; i < 7000; i++) { x.fillStyle = `rgba(${95 + Math.random() * 40 | 0},${75 + Math.random() * 30 | 0},${45 + Math.random() * 20 | 0},${0.03 + Math.random() * 0.09})`; x.fillRect(Math.random() * 300, Math.random() * 300, 1 + Math.random() * 1.2, 1 + Math.random() * 1.2); }
   x.lineWidth = 0.6;
   for (let i = 0; i < 170; i++) { const px = Math.random() * 300, py = Math.random() * 300, a = Math.random() * 6.28, l = 5 + Math.random() * 18; x.strokeStyle = i % 3 ? 'rgba(120,92,55,.09)' : 'rgba(255,255,255,.28)'; x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + Math.cos(a + 0.6) * l * 0.5, py + Math.sin(a + 0.6) * l * 0.5, px + Math.cos(a) * l, py + Math.sin(a) * l); x.stroke(); }
@@ -143,7 +143,7 @@ async function contractSign(o) {
       const from = [720, 900];
       await tl(430, k => { const e = ease(k); place(from[0] + (start[0] - from[0]) * e, from[1] + (start[1] - from[1]) * e - Math.sin(Math.PI * k) * 40, (1 - e) * 18, 0); });
       if (!alive) return;
-      const SPEED = 0.8;                                                 // image px per ms
+      const SPEED = 0.9;                                                 // image px per ms
       let tick = 0;
       for (let si = 0; si < strokes.length && alive; si++) {
         const S0 = strokes[si], seg = [0]; for (let i = 1; i < S0.length; i++) seg.push(seg[i - 1] + sgDist(S0[i - 1], S0[i]));
@@ -153,8 +153,8 @@ async function contractSign(o) {
           await tl(Math.min(120, 40 + sgDist(a, b) * 0.8), k => { const e = eio(k); place(a[0] + (b[0] - a[0]) * e, a[1] + (b[1] - a[1]) * e, Math.sin(Math.PI * k) * 20, 0); });
           if (!alive) return;
         }
-        await tl(dur, k => {
-          const d = eio(k) * total; let j = 1; while (j < seg.length - 1 && seg[j] < d) j++;
+        await tl(dur, k => {   // one continuous stroke: quick start, steady speed, soft landing
+          const d = (0.72 * k + 0.28 * eio(k)) * total; let j = 1; while (j < seg.length - 1 && seg[j] < d) j++;
           const f = (d - seg[j - 1]) / ((seg[j] - seg[j - 1]) || 1), pa = S0[j - 1], pb = S0[j] || pa;
           const px = pa[0] + (pb[0] - pa[0]) * f, py = pa[1] + (pb[1] - pa[1]) * f, [X, Y] = sgPt([px, py]);
           masks[si].style.strokeDashoffset = lens[si] * (1 - d / total);

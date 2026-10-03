@@ -1002,3 +1002,5 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 
 .lv-vol { display: inline-flex; align-items: center; gap: 6px; margin-right: 8px; font-size: 14px; color: var(--mut); } .lv-vol input { width: 88px; height: 4px; accent-color: var(--lime); cursor: pointer; }
 @media (max-width: 720px) { .lv-vol input { width: 70px; } }
+
+.cal-net { display: block; margin-top: 3px; font: 800 10px var(--head); font-style: normal; letter-spacing: .1em; color: var(--ta, var(--lime)); text-transform: uppercase; }

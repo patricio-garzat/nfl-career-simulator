@@ -793,7 +793,7 @@ function lvScoreboardHTML(L) {
 function lvTrack(game) {
   const n = String(game.slotName || ''), r = String(game.round || '');
   if (/monday/i.test(n)) return 'assets/sounds/live-monday-night.mp3';
-  if (/thursday|thanksgiving/i.test(n)) return 'assets/sounds/live-thursday-night.mp3';
+  if (/thursday|thanksgiving|wednesday|friday|christmas/i.test(n)) return 'assets/sounds/live-thursday-night.mp3';
   if (/night/i.test(n) || /super bowl/i.test(r + n)) return 'assets/sounds/live-sunday-night.mp3';
   return 'assets/sounds/live-sunday-gameday.mp3';
 }

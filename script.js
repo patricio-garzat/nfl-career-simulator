@@ -67,7 +67,7 @@ function interp(x, table) {
    1. STATIC DATA
    --------------------------------------------------------------------- */
 const SAVE_KEY = 'nfl_career_sim_v1';
-const START_YEAR = 2027;
+const START_YEAR = 2026;
 
 // id, city, nickname, primary, secondary, conference, division, base strength (0-100)
 const TEAM_DATA = [
@@ -534,6 +534,7 @@ function makeContract(o, type) {
    7. SEASON ENGINE
    --------------------------------------------------------------------- */
 function buildSchedule(teamId) {
+  const rs = typeof calRealSchedule === 'function' ? calRealSchedule(teamId, S.year) : null; if (rs) return rs;   // 2026: the real NFL schedule
   const me = TEAM[teamId];
   const same = t => t.conf === me.conf && t.div === me.div;
   const rivals = TEAM_LIST.filter(t => t.id !== teamId && same(t)).map(t => t.id);
@@ -580,7 +581,7 @@ function leagueWins(season, k) {
   if (!season.aiRes) season.aiRes = genAiResults(season.teamId); // old saves
   const w = {}, gp = leagueGP(season, k);
   TEAM_LIST.forEach(t => {
-    w[t.id] = season.aiRes[t.id] ? season.aiRes[t.id].slice(0, gp[t.id]).split('').filter(x => x === '1').length : season.games.slice(0, k).filter(g => g.w).length;
+    w[t.id] = season.aiRes[t.id] ? season.aiRes[t.id].slice(0, gp[t.id] + (t.id === season.teamId ? (season.aiOff || 0) : 0)).split('').filter(x => x === '1').length : season.games.slice(0, k).filter(g => g.w).length;
   });
   return w;
 }
@@ -714,7 +715,8 @@ function recordUserRes(season, idx, win) {
   if (!season.aiRes) season.aiRes = genAiResults(id);
   let r = season.aiRes[id];
   if (!r) r = season.games.slice(0, idx).map(g => (g.w ? '1' : '0')).join('').padEnd(17, '0'); // saves from before this feature
-  season.aiRes[id] = r.slice(0, idx) + (win ? '1' : '0') + r.slice(idx + 1);
+  const ix = idx + (season.aiOff || 0);   // after a trade the new team's own earlier games come first
+  season.aiRes[id] = r.slice(0, ix).padEnd(ix, '0') + (win ? '1' : '0') + r.slice(ix + 1);
 }
 // What the old team would receive (flavor text scaled to the player's trade value)
 function tradePackage() {
@@ -772,7 +774,8 @@ function executeTrade(o) {
   const se = curSeason(), p = se.games.length, from = se.teamId, to = o.teamId, before = recOf(se);
   se.stints = (se.stints || []).concat({ teamId: from, g: p, w: before.w, l: before.l });
   const ns = buildSchedule(to); // the new team's remaining opponents replace the old ones
-  for (let j = p; j < se.schedule.length; j++) { se.schedule[j].oppId = ns[j].oppId; se.schedule[j].home = ns[j].home; }
+  if (ns.real) { const lw = p ? se.schedule[p - 1].week : 0; se.schedule = se.schedule.slice(0, p).concat(ns.filter(x => x.week > lw)); }   // real schedule: the new team's own remaining games
+  else for (let j = p; j < se.schedule.length; j++) { se.schedule[j].oppId = ns[j].oppId; se.schedule[j].home = ns[j].home; }
   se.teamId = to; S.teamId = to; S.contract.teamId = to; S.contract.bias = o.bias;
   if (typeof calRebuildAfterTrade === 'function') calRebuildAfterTrade(se, p);   // the rest of the league's calendar is rebuilt around the new team's games
   se.trade = { from, to, after: p, pkg: o.pkg }; se.traded = true; se.tradeOffers = []; se.depth = buildDepth(to); se.role = curRoleKey(se);
@@ -892,7 +895,7 @@ function careerTotals() {
 // Team record after the games played so far (follows the user's current team, so it survives trades)
 const recOf = se => {
   const k = se.games.length, r = se.aiRes && se.aiRes[se.teamId];
-  const w = r ? r.slice(0, k).split('').filter(x => x === '1').length : se.games.filter(g => g.w).length;
+  const w = r ? r.slice(0, k + (se.aiOff || 0)).split('').filter(x => x === '1').length : se.games.filter(g => g.w).length;
   return { w, l: k - w };
 };
 
@@ -2219,7 +2222,7 @@ async function renderDraft() {
 function nextGameInfo(season) {
   if (season.status === 'regular') {
     const g = season.schedule[season.idx], t = TEAM[g.oppId], w = typeof calWhenOfUser === 'function' ? calWhenOfUser(season, season.idx) : null;
-    return { title: `WEEK ${g.week}`, opp: t, ha: g.home ? 'vs' : '@', when: w ? `${calShort(w.date)} · ${w.time} ET · ${w.name}` : '' };
+    return { title: `WEEK ${g.week}`, opp: t, ha: g.home ? 'vs' : '@', when: w ? `${calShort(w.date)} · ${w.time} ET · ${w.name}${w.n ? ' · ' + w.n : ''}` : '' };
   }
   const m = poMatchup(season), t = TEAM[m.oppId], w = typeof calPlayoffWhen === 'function' ? calPlayoffWhen(season, m.short) : null;
   return { title: m.name.toUpperCase(), opp: t, ha: m.short === 'SB' ? 'vs' : (season.po.mySeed < m.oppSeed ? 'vs' : '@'), when: w ? `${calShort(w.date)} · ${w.time} ET · ${w.name}` : '' };

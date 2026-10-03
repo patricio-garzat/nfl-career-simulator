@@ -28,10 +28,33 @@ const calAdd = (d, n) => { const x = new Date(d.getTime()); x.setUTCDate(x.getUT
 const calShort = d => `${CAL_DOW[d.getUTCDay()].slice(0, 3)}, ${CAL_MONTH[d.getUTCMonth()]} ${d.getUTCDate()}`;
 const calLong = d => `${CAL_DOW[d.getUTCDay()].toUpperCase()} · ${CAL_MONTH[d.getUTCMonth()].toUpperCase()} ${d.getUTCDate()}`;
 // kickoff of a league game: { date, time, name, tag }
+function calSlotInfo(date, m) {                                       // window name from the weekday and kickoff time
+  const dow = date.getUTCDay(), mo = date.getUTCMonth(), dd = date.getUTCDate();
+  if (mo === 11 && dd === 25) return { name: 'Christmas Day', tag: 'CHRISTMAS' };
+  if (dow === 4 && mo === 10 && dd >= 22 && dd <= 28) return { name: m >= 19 * 60 + 30 ? 'Thanksgiving Night' : 'Thanksgiving', tag: 'THANKSGIVING' };
+  if (dow === 5 && mo === 10 && dd >= 23 && dd <= 29) return { name: 'Black Friday', tag: 'BLACK FRIDAY' };
+  if (dow === 3) return { name: 'Wednesday Night', tag: 'WED NIGHT' };
+  if (dow === 4) return { name: 'Thursday Night', tag: 'THU NIGHT' };
+  if (dow === 5) return { name: m >= 17 * 60 ? 'Friday Night' : 'Friday', tag: 'FRIDAY NIGHT' };
+  if (dow === 6) return m >= 19 * 60 ? { name: 'Saturday Night', tag: 'SAT NIGHT' } : { name: 'Saturday', tag: 'SATURDAY' };
+  if (dow === 0) return m < 12 * 60 ? { name: 'Sunday Morning · International', tag: 'SUNDAY' } : m < 15 * 60 ? { name: 'Sunday', tag: 'SUNDAY' } : m < 19 * 60 ? { name: 'Sunday Late', tag: 'SUNDAY' } : { name: 'Sunday Night', tag: 'SUN NIGHT' };
+  if (dow === 1) return { name: 'Monday Night', tag: 'MON NIGHT' };
+  return { name: 'Tuesday', tag: 'TUESDAY' };
+}
 function calWhen(year, wk, g) {
+  if (g.d) {                                                          // a real kickoff (2026): exact date and Eastern time
+    const date = new Date(g.d + 'T00:00:00Z'), si = calSlotInfo(date, g.m);
+    return { date, time: calTimeStr(g.m), name: si.name, tag: si.tag, min: Math.floor(date.getTime() / 86400000) * 1440 + g.m, n: g.n || '' };
+  }
   const s = CAL_SLOTS[g.s] || CAL_SLOTS.SUN1, date = calAdd(calThursday(year, wk), s.off);
   let min = s.min; if (g.s === 'TNF' && wk === 1) min = 20 * 60 + 20;
-  return { date, time: calTimeStr(min), name: s.name, tag: s.tag, min: s.off * 1440 + min };
+  return { date, time: calTimeStr(min), name: s.name, tag: s.tag, min: s.off * 1440 + min, n: '' };
+}
+// the real regular season of a team (week, opponent, home or away) when the year has a real schedule
+function calRealSchedule(teamId, year) {
+  const real = typeof NFL_REAL !== 'undefined' && NFL_REAL[year]; if (!real) return null;
+  const out = []; real.forEach((games, i) => games.forEach(([a, h]) => { if (a === teamId) out.push({ week: i + 1, oppId: h, home: false }); else if (h === teamId) out.push({ week: i + 1, oppId: a, home: true }); }));
+  out.real = true; return out;
 }
 // playoff dates: Wild Card weekend (Sat-Mon), Divisional (Sat-Sun), Conference Championships (Sun), Super Bowl (two Sundays later)
 function calPlayoffWhen(season, short) {
@@ -57,12 +80,25 @@ function calGenLeague(season, fromWeek, prev) {
   const userGame = wk => { const i = season.schedule.findIndex(x => x.week === wk); return i < 0 ? null : { idx: i, opp: season.schedule[i].oppId, home: season.schedule[i].home }; };
   // future user games count as meetings between the user's team and its opponents
   season.schedule.forEach((x, i) => { if (x.week >= fromWeek) meets[mk(U, x.oppId)] = (meets[mk(U, x.oppId)] || 0) + 1; });
+  const simRes = g => {                                                   // result of a game that does not involve the user, or the pre-simulated winner of one that does
+    const pa = logistic(0.064 * (rt(g.a) - (rt(g.h) + 2.2))), awayWins = rnd() < pa, win = awayWins ? g.a : g.h, lose = awayWins ? g.h : g.a;
+    const W = clamp(Math.round(gauss(26 + (rt(win) - 72) * 0.2, 6)), 10, 48); let L = clamp(Math.round(gauss(17 + (rt(lose) - 72) * 0.2, 6)), 0, 44); if (L >= W) L = Math.max(0, W - randInt(1, 10));
+    if (g.u !== undefined) { g.pw = win; } else { g.w = win; g.pa = awayWins ? W : L; g.ph = awayWins ? L : W; }
+  };
+  const real = typeof NFL_REAL !== 'undefined' && NFL_REAL[season.year];
+  if (real) {                                                            // the real season: matchups, dates and times exactly as scheduled
+    for (let wk = fromWeek; wk <= 18; wk++) {
+      const games = (real[wk - 1] || []).map(([a, h, d, m, n, v]) => ({ a, h, d, m, n, ...(v ? { v } : {}), s: 'REAL', w: null, pa: 0, ph: 0 }));
+      games.forEach(g => { const ui = season.schedule.findIndex(x => x.week === wk && ((g.a === U && g.h === x.oppId && !x.home) || (g.h === U && g.a === x.oppId && x.home))); if (ui >= 0) g.u = ui; });
+      games.forEach(simRes); weeks.push(games);
+    }
+  }
   const BYE_T = [2, 2, 4, 4, 4, 4, 4, 4, 2, 2];                           // byes in weeks 5..14
   const prime = {}; ids.forEach(i => { prime[i] = 0; });
   weeks.forEach(wk => wk.forEach(g => { if (['TNF', 'SNF', 'MNF', 'MNE'].includes(g.s)) { prime[g.a]++; prime[g.h]++; } }));
   let prevThu = new Set(prev && weeks.length ? weeks[weeks.length - 1].filter(g => g.s === 'TNF').flatMap(g => [g.a, g.h]) : []);
   let prevMon = new Set(prev && weeks.length ? weeks[weeks.length - 1].filter(g => g.s === 'MNF' || g.s === 'MNE').flatMap(g => [g.a, g.h]) : []);
-  for (let wk = fromWeek; wk <= 18; wk++) {
+  for (let wk = real ? 19 : fromWeek; wk <= 18; wk++) {
     const left = 18 - wk + 1, ug = userGame(wk), pool = ids.filter(i => played[i] < 17 || i === U || (ug && i === ug.opp));
     const rem = i => 17 - played[i];
     const userBye = !ug && rem(U) > 0 ? [U] : [];
@@ -92,12 +128,7 @@ function calGenLeague(season, fromWeek, prev) {
       meets[mk(a, best)] = (meets[mk(a, best)] || 0) + 1;
     }
     games.forEach(g => { played[g.a]++; played[g.h]++; homes[g.h]++; });
-    // results of the games that do not involve the user, and a pre-simulated winner for the ones that do (so every team has a string of results)
-    games.forEach(g => {
-      const pa = logistic(0.064 * (rt(g.a) - (rt(g.h) + 2.2))), awayWins = rnd() < pa, win = awayWins ? g.a : g.h, lose = awayWins ? g.h : g.a;
-      const W = clamp(Math.round(gauss(26 + (rt(win) - 72) * 0.2, 6)), 10, 48); let L = clamp(Math.round(gauss(17 + (rt(lose) - 72) * 0.2, 6)), 0, 44); if (L >= W) L = Math.max(0, W - randInt(1, 10));
-      if (g.u !== undefined) { g.pw = win; } else { g.w = win; g.pa = awayWins ? W : L; g.ph = awayWins ? L : W; }
-    });
+    games.forEach(simRes);
     calAssign(games, wk, season.year, { prevMon, prevThu, prime }, rt, U);
     prevMon = new Set(games.filter(g => g.s === 'MNF' || g.s === 'MNE').flatMap(g => [g.a, g.h]));
     prevThu = new Set(games.filter(g => g.s === 'TNF').flatMap(g => [g.a, g.h]));
@@ -156,7 +187,7 @@ function calRebuildAfterTrade(se, p) {
   const n = {}; TEAM_LIST.forEach(t => { n[t.id] = r.league.tw[t.id].filter(w => w < from).length; });
   Object.keys(r.aiRes).forEach(id => { const prevR = old[id] || ''; r.aiRes[id] = prevR.slice(0, n[id]) + r.aiRes[id].slice(n[id]); });
   // the user's own results so far stay exactly as they were
-  se.league = r.league; se.aiRes = r.aiRes;
+  se.league = r.league; se.aiRes = r.aiRes; se.aiOff = n[se.teamId] - p;   // the new team's own earlier games come before the user's in its string of results
 }
 // standings follow the weeks: how many games each team has played once the user has played k games
 function calPlayedBy(season, id, k) {
@@ -184,7 +215,7 @@ function calGameRow(se, g, wk, shown) {
     return `<div class="cal-t ${win ? 'win' : done ? 'lose' : ''}">${badge(id)}<div><b>${TEAM[id].nick}</b><small>${TEAM[id].city}${rec ? ' · ' + rec : ''}</small></div>${done ? `<em>${id === g.a ? g.pa : g.ph}</em>` : ''}</div>`;
   };
   const w = calWhen(se.year, wk, g);
-  return `<div class="cal-g ${mine ? 'me' : ''}">${side(g.a)}<div class="cal-at">${done ? '<span>FINAL</span>' : `<span>@</span><small>${w.time}</small>`}</div>${side(g.h)}${g.v ? `<div class="cal-v">📍 ${g.v}</div>` : ''}</div>`;
+  return `<div class="cal-g ${mine ? 'me' : ''}">${side(g.a)}<div class="cal-at">${done ? '<span>FINAL</span>' : `<span>@</span><small>${w.time}</small>`}${w.n ? `<i class="cal-net">${w.n}</i>` : ''}</div>${side(g.h)}${g.v ? `<div class="cal-v">📍 ${g.v}</div>` : ''}</div>`;
 }
 function renderCalendar() {
   const se = S.seasons[calSeasonIdx == null ? S.seasons.length - 1 : calSeasonIdx], team = TEAM[se.teamId];
@@ -203,17 +234,17 @@ function renderCalendar() {
   else if (calSel === 'PO') body = calPlayoffs(se);
   else {
     const wk = calSel, games = (se.league.weeks[wk - 1] || []).slice().sort((a, b) => calWhen(se.year, wk, a).min - calWhen(se.year, wk, b).min);
-    const groups = []; games.forEach(g => { const w = calWhen(se.year, wk, g), key = g.s === 'SUN4' || g.s === 'SUN4b' ? 'SUN4' : g.s === 'MNE' || g.s === 'MNF' ? 'MNF' + g.s : g.s; let grp = groups.find(x => x.key === key && (g.s === 'SUN1' || g.s === 'SUN4' || g.s === 'SUN4b' || g.s === 'INT' || true)); if (!grp) { grp = { key, w, g: [] }; groups.push(grp); } grp.g.push(g); });
+    const groups = []; games.forEach(g => { const w = calWhen(se.year, wk, g), key = w.date.toISOString().slice(0, 10) + '|' + w.name; let grp = groups.find(x => x.key === key); if (!grp) { grp = { key, w, g: [], times: [] }; groups.push(grp); } grp.g.push(g); if (!grp.times.includes(w.time)) grp.times.push(w.time); });
     const day = [];
     body = groups.map(gr => {
       const dkey = calLong(gr.w.date), head = day.includes(dkey) ? '' : `<div class="cal-day">${dkey}</div>`; day.push(dkey);
-      const time = gr.key === 'SUN4' ? '4:05 / 4:25 PM ET' : gr.w.time + ' ET';
-      return `${head}<div class="cal-slot"><span class="cal-tag ${/NIGHT/.test(gr.w.tag) ? 'prime' : ''}">${gr.w.name.toUpperCase()}</span><span class="cal-time">${time}</span></div><div class="cal-list">${gr.g.map(g => calGameRow(se, g, wk, shown)).join('')}</div>`;
+      const time = gr.times.join(' / ') + ' ET';
+      return `${head}<div class="cal-slot"><span class="cal-tag ${/NIGHT|THANKS|CHRISTMAS|BLACK/.test(gr.w.tag) ? 'prime' : ''}">${gr.w.name.toUpperCase()}</span><span class="cal-time">${time}</span></div><div class="cal-list">${gr.g.map(g => calGameRow(se, g, wk, shown)).join('')}</div>`;
     }).join('');
     const playing = new Set(games.flatMap(g => [g.a, g.h])), byes = TEAM_LIST.map(t => t.id).filter(id => !playing.has(id));
     if (byes.length) body += `<div class="cal-bye"><span>ON BYE</span>${byes.map(id => `<i class="${id === se.teamId ? 'me' : ''}">${badge(id)}${TEAM[id].nick}</i>`).join('')}</div>`;
-    const thu = calThursday(se.year, wk);
-    body = `<div class="cal-range">WEEK ${wk} · ${calShort(thu)} – ${calShort(calAdd(thu, wk === 18 ? 3 : 4))}</div>` + body;
+    const dts = games.map(g => calWhen(se.year, wk, g).date.getTime()), lo = new Date(Math.min(...dts)), hi = new Date(Math.max(...dts));
+    body = `<div class="cal-range">WEEK ${wk} · ${calShort(lo)} – ${calShort(hi)}</div>` + body;
   }
   setScreen(`<div class="wrap" style="${themeVars(se.teamId)}">
     <div class="topbar"><button class="btn btn-ghost" data-act="goHome">◂ BACK</button><span class="eyebrow">${se.year} · NFL CALENDAR</span></div>

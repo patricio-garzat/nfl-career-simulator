@@ -119,7 +119,7 @@ const LV_EZ = {
   MIA: { bg: null, ends: [[{ t: { s: 'MIAMI', f: '#F8F9F7', o: '#FC4C02', w: 3, ff: 'Racing Sans One', h: 56, n: 346, it: 1 } }], [{ t: { s: 'DOLPHINS', f: '#F8F9F7', o: '#FC4C02', w: 3, ff: 'Racing Sans One', h: 52, n: 400, it: 1 } }]] },
   NE: { bg: null, ends: [[{ t: { s: 'PATRIOTS', f: '#FAFAFA', o: '#002244', w: 2.5, ff: 'Barlow Condensed', fw: 800, h: 82, n: 260, x: 30 } }, { l: { k: 'team', x: -205, y: 0, w: 74 } }]] },
   NYJ: { bg: '#125740', ends: [[{ l: { k: 'img', src: 'assets/nfl/jets-white.png', x: 0, y: 0, w: 290, h: 91 } }]] },   // the Jets' own logo in white on green
-  BAL: { bg: '#241773', ends: [[{ t: { s: 'RAVENS', f: '#FFFFFF', o: '#9E7C0C', w: 4, ff: 'Black Ops One', h: 90, n: 280 } }], [{ t: { s: 'BALTIMORE', f: '#FFFFFF', o: '#9E7C0C', w: 4, ff: 'Black Ops One', h: 66, n: 400 } }]] },
+  BAL: { bg: '#241773', ends: [[{ l: { k: 'img', src: 'assets/nfl/ravens-wordmark.png', x: 0, y: 0, w: 470, h: 66 } }]] },   // the Ravens' own wordmark on purple
   CIN: { bg: '#FB4F14', deco: 'tiger', ends: [[{ t: { s: 'BENGALS', f: '#000000', o: '#FFFFFF', w: 4.5, ff: 'Alfa Slab One', h: 42, n: 420 } }]] },
   CLE: { bg: null, ends: [[{ t: { s: 'BROWNS', f: '#F8F9F7', o: '#FF3C00', w: 3, ff: 'Saira Extra Condensed', fw: 800, h: 62, n: 280 } }], [{ t: { s: 'CLEVELAND', f: '#F8F9F7', o: '#FF3C00', w: 3, ff: 'Saira Extra Condensed', fw: 800, h: 62, n: 360 } }]] },
   PIT: { bg: null, ends: [[{ t: { s: 'PITTSBURGH', f: '#FFB612', o: '#101820', w: 3, ff: 'Archivo Black', h: 46, n: 340, x: -34 } }, { l: { k: 'nfl', x: 228, y: 0, w: 50 } }], [{ t: { s: 'STEELERS', f: '#FFB612', o: '#101820', w: 3, ff: 'Archivo Black', h: 46, n: 300, x: -34 } }, { l: { k: 'nfl', x: 228, y: 0, w: 50 } }]] },

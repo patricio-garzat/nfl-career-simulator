@@ -1412,7 +1412,7 @@ function normJersey(c) {
   o.sleeveStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.sleeveStyle) ? o.sleeveStyle : 'even'; o.sleeveThick = clamp(Number(o.sleeveThick) || 100, 60, 200); o.sleeveNumY = clamp(Number(o.sleeveNumY) || 0, -50, 40);
   o.zp = jcNormZones(o.zp);
   o.shCount = clamp(Math.round(Number(o.shCount) || 0), 0, 3); o.shStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.shStyle) ? o.shStyle : 'even'; o.shThick = clamp(Number(o.shThick) || 100, 60, 200); o.shPos = clamp(Number(o.shPos) || 0, -8, 72); o.shAngle = clamp(Number(o.shAngle) || 0, -45, 45); o.sleevePos = clamp(Number(o.sleevePos) || 0, -8, 60);
-  o.showWord = o.showWord !== false; o.swoosh = !!o.swoosh; o.sleeveLogo = !!o.sleeveLogo; o.sleeveLogoFlipL = !!o.sleeveLogoFlipL; o.sleeveLogoFlipR = !!o.sleeveLogoFlipR; o.sleeveLogoSize = clamp(Number(o.sleeveLogoSize) || 100, 40, 160); o.noSideNums = !!o.noSideNums; o.sleeveNums = !!o.sleeveNums && !o.noSideNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
+  o.showWord = o.showWord !== false; o.swoosh = !!o.swoosh; o.sleeveLogo = !!o.sleeveLogo; o.sleeveLogoFlipL = !!o.sleeveLogoFlipL; o.sleeveLogoFlipR = !!o.sleeveLogoFlipR; o.sleeveLogoSize = clamp(Number(o.sleeveLogoSize) || 100, 40, 160); o.sleeveLogoRot = clamp(Number(o.sleeveLogoRot) || 0, -45, 45); o.sleeveLogoSpread = clamp(Number(o.sleeveLogoSpread) || 0, -24, 24); o.sleeveLogoY = clamp(Number(o.sleeveLogoY) || 0, -30, 40); o.noSideNums = !!o.noSideNums; o.sleeveNums = !!o.sleeveNums && !o.noSideNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
   const hx = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d; o.primary = hx(o.primary, '#FFFFFF'); o.secondary = hx(o.secondary, '#111418'); o.accent = hx(o.accent, '#FFFFFF');
   o.numSize = clamp(Number(o.numSize) || 100, 50, 150); o.nameSize = clamp(Number(o.nameSize) || 100, 50, 150); o.numY = clamp(Number(o.numY) || 0, -60, 70); o.numYFront = clamp(o.numYFront !== undefined && o.numYFront !== null && Number.isFinite(Number(o.numYFront)) ? Number(o.numYFront) : o.numY, -60, 70);   // number height: the front and the back are independent
   o.sideNumColor = /^#[0-9a-f]{6}$/i.test(o.sideNumColor) ? o.sideNumColor : ''; o.sideNumOutline = /^#[0-9a-f]{6}$/i.test(o.sideNumOutline) ? o.sideNumOutline : '';
@@ -1438,7 +1438,7 @@ function randomJersey(teamId, current) {
   if (rnd() < 0.15) c.collarContrast = false;
   c.numFont = pick(['cond', 'cond', 'block', 'athletic']); c.nameFont = c.numFont; c.numOutlineW = pick([0, 3.2, 3.2, 4.5]);
   c.sleeveStyle = pick(JC_SLEEVE_STYLES)[0]; c.sleeveThick = pick([90, 100, 120, 150]);
-  if (current) { c.numSize = current.numSize; c.numY = current.numY; c.numYFront = current.numYFront; c.noSideNums = current.noSideNums; c.nameSize = current.nameSize; c.zp = current.zp; c.swoosh = current.swoosh; c.sleeveLogo = current.sleeveLogo; c.sleeveLogoFlipL = current.sleeveLogoFlipL; c.sleeveLogoFlipR = current.sleeveLogoFlipR; c.sleeveLogoSize = current.sleeveLogoSize; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
+  if (current) { c.numSize = current.numSize; c.numY = current.numY; c.numYFront = current.numYFront; c.noSideNums = current.noSideNums; c.nameSize = current.nameSize; c.zp = current.zp; c.swoosh = current.swoosh; c.sleeveLogo = current.sleeveLogo; c.sleeveLogoFlipL = current.sleeveLogoFlipL; c.sleeveLogoFlipR = current.sleeveLogoFlipR; c.sleeveLogoSize = current.sleeveLogoSize; c.sleeveLogoRot = current.sleeveLogoRot; c.sleeveLogoSpread = current.sleeveLogoSpread; c.sleeveLogoY = current.sleeveLogoY; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
   return autoText(c);
 }
 
@@ -1570,7 +1570,7 @@ function jerseyOne(cfg, view, name, number, o = {}) {
   const sl = (cfg.sleeveLogo && tid && TEAM[tid] && UNI.slogo) ? ['L', 'R'].map(sd => {
     const g = UNI.slogo[view][sd], w = g.w * cfg.sleeveLogoSize / 100, k = lum(C['sleeve' + sd]) > 0.45 ? 'light' : 'dark';
     const href = o.logoData ? o.logoData[k] : jcLogoUrl(tid, k);
-    return `<image class="jc-slogo" href="${href}" x="${(-w / 2).toFixed(2)}" y="${(-w / 2).toFixed(2)}" width="${w.toFixed(2)}" height="${w.toFixed(2)}" preserveAspectRatio="xMidYMid meet" transform="translate(${g.x} ${g.y}) rotate(${g.r})${((back ? sd : (sd === 'L' ? 'R' : 'L')) === 'L') !== !!cfg['sleeveLogoFlip' + (back ? sd : (sd === 'L' ? 'R' : 'L'))] ? ' scale(-1 1)' : ''}"/>`;
+    return `<image class="jc-slogo" href="${href}" x="${(-w / 2).toFixed(2)}" y="${(-w / 2).toFixed(2)}" width="${w.toFixed(2)}" height="${w.toFixed(2)}" preserveAspectRatio="xMidYMid meet" transform="translate(${(g.x + (sd === 'L' ? -1 : 1) * (cfg.sleeveLogoSpread || 0)).toFixed(2)} ${(g.y + (cfg.sleeveLogoY || 0)).toFixed(2)}) rotate(${(g.r + (sd === 'L' ? -1 : 1) * (cfg.sleeveLogoRot || 0)).toFixed(2)})${((back ? sd : (sd === 'L' ? 'R' : 'L')) === 'L') !== !!cfg['sleeveLogoFlip' + (back ? sd : (sd === 'L' ? 'R' : 'L'))] ? ' scale(-1 1)' : ''}"/>`;
   }).join('') : '';
   const sleeveLogos = sl ? `<g clip-path="url(#${id}bo)">${sl}</g>` : '';
   const yokes = back ? ['yoke'] : ['yokeL', 'yokeR'];
@@ -2414,7 +2414,7 @@ function renderLocker(keepScroll) {
 </section>
 <section class="jc-card"><h4 class="jc-h">🏷 Team logo on the sleeves<small>right as is, left mirrored</small></h4>
         <div class="seg"><button class="tog ${cfg.sleeveLogo ? 'on' : ''}" data-act="jcSleeveLogo"><i></i>Logo on sleeves</button></div>
-        ${cfg.sleeveLogo ? range('Sleeve logo size', 'sleeveLogoSize', 40, 160, 5, cfg.sleeveLogoSize, '%') + `<div class="seg"><button class="tog ${cfg.sleeveLogoFlipR ? 'on' : ''}" data-act="jcSleeveFlip" data-s="R"><i></i>Flip right sleeve</button><button class="tog ${cfg.sleeveLogoFlipL ? 'on' : ''}" data-act="jcSleeveFlip" data-s="L"><i></i>Flip left sleeve</button></div>` : ''}
+        ${cfg.sleeveLogo ? range('Sleeve logo size', 'sleeveLogoSize', 40, 160, 5, cfg.sleeveLogoSize, '%') + range('Rotate · in ↔ out', 'sleeveLogoRot', -45, 45, 1, Math.round(cfg.sleeveLogoRot || 0), '°') + range('Spread · in ↔ out', 'sleeveLogoSpread', -24, 24, 1, Math.round(cfg.sleeveLogoSpread || 0)) + range('Height · up ↔ down', 'sleeveLogoY', -30, 40, 1, Math.round(cfg.sleeveLogoY || 0)) + `<div class="seg"><button class="tog ${cfg.sleeveLogoFlipR ? 'on' : ''}" data-act="jcSleeveFlip" data-s="R"><i></i>Flip right sleeve</button><button class="tog ${cfg.sleeveLogoFlipL ? 'on' : ''}" data-act="jcSleeveFlip" data-s="L"><i></i>Flip left sleeve</button></div>` : ''}
 </section>
 <section class="jc-card"><h4 class="jc-h">🏈 Team logo on the chest<small>drag it on the jersey, or use the sliders</small></h4>
         <div class="seg"><button class="tog ${cfg.torsoLogo ? 'on' : ''}" data-act="jcTorsoLogo"><i></i>Logo on chest</button>${cfg.torsoLogo ? '<button class="mini" data-act="jcLogoCenter">Reset position</button>' : ''}</div>
@@ -2665,7 +2665,7 @@ function jcInput(el, commit) {
   if (['numColor', 'numOutline', 'nameColor', 'nameOutline'].includes(path)) cfg.textCustom = true;
   if (['primary', 'secondary', 'accent'].includes(path)) autoText(cfg);
   jcSave(cfg);
-  const lab = document.querySelector(`[data-rv="${path}"]`); if (lab && el.type === 'range') lab.textContent = v + (/(Size|Thick|\.s)$/.test(path) ? '%' : path === 'shAngle' ? '°' : '');
+  const lab = document.querySelector(`[data-rv="${path}"]`); if (lab && el.type === 'range') lab.textContent = v + (/(Size|Thick|\.s)$/.test(path) ? '%' : /(shAngle|sleeveLogoRot)$/.test(path) ? '°' : '');
   const code = el.parentNode && el.parentNode.querySelector('code'); if (code) code.textContent = path.startsWith('parts.') ? 'CUSTOM' : String(v).toUpperCase();
   if (commit) { saveGame(); renderLocker(true); } else jcLive();
 }

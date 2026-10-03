@@ -815,7 +815,7 @@ async function openLiveGame(game, notes, season) {
       <div class="lv-log card" id="lvLog"></div>
     </div></div>`;
   document.body.appendChild(ov);
-  Snd.music(lvTrack(game), 0.16);
+  Snd.music(lvTrack(game), 0.32);
   const $ = id => document.getElementById(id), setScore = () => { $('lvScore_away').textContent = L.score.away; $('lvScore_home').textContent = L.score.home; };
   const setClock = (q, clock) => { $('lvQ').textContent = ['1st', '2nd', '3rd', '4th'][q - 1] + ' Q'; $('lvClock').textContent = clock; };
   const setBugDD = txt => { const el = $('lvBugDD'); if (el) el.textContent = txt; };

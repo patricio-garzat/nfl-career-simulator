@@ -36,13 +36,13 @@ function calWhen(year, wk, g) {
 // playoff dates: Wild Card weekend (Sat-Mon), Divisional (Sat-Sun), Conference Championships (Sun), Super Bowl (two Sundays later)
 function calPlayoffWhen(season, short) {
   const y = season.year, po = season.po || {}, afc = po.conf === 'AFC', seed = po.mySeed || 4;
-  const sat = n => calAdd(calThursday(y, n), 2), sun = n => calAdd(calThursday(y, n), 3), mon = n => calAdd(calThursday(y, n), 4);
+  const sun = n => calAdd(calThursday(y, n), 3), mon = n => calAdd(calThursday(y, n), 4);
   if (short === 'WC') {
     const k = { 2: 0, 7: 0, 3: 1, 6: 1, 4: 2, 5: 2 }[seed] || 0;
-    const t = afc ? [[sat(19), 16 * 60 + 30, 'Saturday'], [sat(19), 20 * 60 + 15, 'Saturday Night'], [sun(19), 13 * 60, 'Sunday']][k] : [[sun(19), 16 * 60 + 30, 'Sunday'], [sun(19), 20 * 60, 'Sunday Night'], [mon(19), 20 * 60, 'Monday Night']][k];
+    const t = afc ? [[sun(19), 13 * 60, 'Sunday'], [sun(19), 16 * 60 + 30, 'Sunday'], [sun(19), 20 * 60, 'Sunday Night']][k] : [[sun(19), 13 * 60, 'Sunday'], [sun(19), 16 * 60 + 30, 'Sunday'], [mon(19), 20 * 60 + 15, 'Monday Night']][k];
     return { date: t[0], time: calTimeStr(t[1]), name: t[2] };
   }
-  if (short === 'DIV') { const t = [[sat(20), 16 * 60 + 35, 'Saturday'], [sat(20), 20 * 60 + 15, 'Saturday Night'], [sun(20), 15 * 60, 'Sunday'], [sun(20), 18 * 60 + 30, 'Sunday Night']][(seed + (afc ? 0 : 2)) % 4]; return { date: t[0], time: calTimeStr(t[1]), name: t[2] }; }
+  if (short === 'DIV') { const t = [[sun(20), 13 * 60, 'Sunday'], [sun(20), 16 * 60 + 30, 'Sunday'], [sun(20), 20 * 60, 'Sunday Night'], [mon(20), 20 * 60 + 15, 'Monday Night']][(seed + (afc ? 0 : 2)) % 4]; return { date: t[0], time: calTimeStr(t[1]), name: t[2] }; }
   if (short === 'CONF') return { date: sun(21), time: calTimeStr(afc ? 15 * 60 : 18 * 60 + 30), name: afc ? 'Sunday' : 'Sunday Night' };
   return { date: calAdd(sun(21), 14), time: calTimeStr(18 * 60 + 30), name: 'Super Bowl Sunday' };
 }
@@ -121,7 +121,7 @@ function calAssign(gs, wk, year, ctx, rt, U) {
   const sorted = gs.slice().sort((x, y) => sc.get(y) - sc.get(x)), rest = new Set(gs);
   const take = (slot, pred) => { const g = sorted.find(x => rest.has(x) && (!pred || pred(x))); if (g) { g.s = slot; rest.delete(g); } return g; };
   const thu = calThursday(year, wk), thanks = thu.getUTCMonth() === 10 && thu.getUTCDate() >= 22 && thu.getUTCDate() <= 28;
-  if (wk === 18) { take('SNF'); take('SAT1'); take('SAT2'); }
+  if (wk === 18) { take('SNF'); }                                    // the finale is all Sunday (no Saturday games)
   else {
     take('SNF');
     if (wk <= 2) take('MNE');

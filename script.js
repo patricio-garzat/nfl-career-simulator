@@ -1740,6 +1740,18 @@ function updateCreateJersey() {
   const el = document.getElementById('createJersey'); if (!el) return;
   const n = parseInt(form.number, 10), ok = numberOk(form.pos, n);
   const shown = cleanJerseyName(form.jerseyName) || cleanJerseyName(surname(form.name)) || 'YOUR NAME';
+  const ym = form.youth && MFL_INFO[form.youth];
+  const sec = document.getElementById('collegeSec'), note = document.getElementById('youthNote'), eb = document.getElementById('stageEyebrow');
+  if (sec) sec.hidden = !!ym; if (note) note.hidden = !ym; if (eb) eb.textContent = ym ? 'YOUR FIRST JERSEY' : 'YOUR COLLEGE JERSEY';
+  if (ym) {
+    el.innerHTML = youthJerseySVG(form.youth, 'both', Number.isInteger(n) ? clamp(n, 0, 99) : '?', shown);
+    const yp0 = document.getElementById('createYouth'); if (yp0) yp0.innerHTML = '';
+    const cc0 = document.getElementById('createCollege'); if (cc0) cc0.innerHTML = `<img class="col-logo" src="${mflLogo(ym.slug)}" alt=""><b>${esc(form.youth)}</b>`;
+    if (updateCreateJersey.last !== 'y:' + form.youth) { updateCreateJersey.last = 'y:' + form.youth; el.classList.remove('jswap'); void el.offsetWidth; el.classList.add('jswap'); }
+    const hint0 = document.getElementById('numHint'); if (hint0) { hint0.textContent = ok ? `${form.pos} numbers: ${numberRule(form.pos)}` : `${form.pos} numbers must be ${numberRule(form.pos)}`; hint0.className = 'hint ' + (ok ? '' : 'bad'); }
+    const jn0 = document.querySelector('[data-model="jerseyName"]'); if (jn0) jn0.placeholder = cleanJerseyName(surname(form.name)) || 'Defaults to your last name';
+    return;
+  }
   el.innerHTML = jerseySVG(collegeJersey(form.college), shown, Number.isInteger(n) ? clamp(n, 0, 99) : '?', { view: 'both', noShield: true, word: String(form.college || 'ROOKIE').toUpperCase(), backLogo: COLLEGE_INFO[form.college] ? collegeLogo(COLLEGE_INFO[form.college].id, 80) : '' });
   const yp = document.getElementById('createYouth');
   if (yp) yp.innerHTML = form.youth && MFL_INFO[form.youth] ? `<div class="eyebrow">YOUR FIRST JERSEY · ${esc(form.youth).toUpperCase()} (MFL)</div><div class="stage-jersey">${youthJerseySVG(form.youth, 'both', Number.isInteger(n) ? clamp(n, 0, 99) : '?', shown)}</div>` : '';
@@ -1877,7 +1889,7 @@ function renderTitle() {
 let collegeDiv = 'ALL';
 const collegeImg = (name, size = 80, cls = 'col-logo') => { const c = COLLEGE_INFO[name]; return c ? `<img class="${cls}" src="${collegeLogo(c.id, size)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ''; };
 const collegeChip = name => `<span class="chip chip-col">${collegeImg(name, 40, 'col-logo xs')}${esc(name)}</span>`;
-const DIV_LABEL = { FBS: 'FBS', FCS: 'FCS', OTHER: 'Other', MX: 'México', LFA: 'LFA', UFL: 'UFL' };
+const DIV_LABEL = { FBS: 'FBS', FCS: 'FCS', OTHER: 'Other', MX: 'México', LFA: 'LFA', UFL: 'UFL', HS: 'High school', MFL: 'MFL' };
 // leagues shown first; picking one reveals its teams
 const COLLEGE_LEAGUES = [
   { k: 'NCAA', name: 'NCAA', sub: 'College football', logo: 'assets/leagues/ncaa.png', divs: ['FBS', 'FCS', 'OTHER'] },
@@ -1941,8 +1953,11 @@ function renderCreate() {
       <div class="pos-grid">${Object.keys(POS).map(p => `<button class="pos-btn ${form.pos === p ? 'sel' : ''}" data-act="pickPos" data-pos="${p}"><b>${p}</b><span>${POS[p].name}</span></button>`).join('')}</div>
       <label class="lbl lbl-m">First Team <span class="hint">where you started as a kid</span></label>
       <div class="youth-row" id="youthRow">${youthRowHTML()}</div>
+      <div id="collegeSec" ${form.youth ? 'hidden' : ''}>
       <label class="lbl lbl-m">College <span class="hint">every NCAA program + Mexican ONEFA and LFA teams + the UFL</span></label>
       ${collegePickerHTML()}
+      </div>
+      <div class="youth-note" id="youthNote" ${form.youth ? '' : 'hidden'}>🧒 <b>You'll play a season with your first team.</b> Then 5 high schools (USA and Mexico), the LFA and the UFL make you offers — and you pick where to go next. Leave First Team empty to choose a college right now.</div>
       <div class="row3">
         <div><label class="lbl">Age</label><input class="input" type="number" min="21" max="25" data-model="age" value="${form.age}"></div>
         <div><label class="lbl">Jersey Number <span class="hint" id="numHint"></span></label><input class="input" type="number" min="0" max="99" data-model="number" value="${form.number}"></div>
@@ -1952,7 +1967,7 @@ function renderCreate() {
       <input class="input" data-model="jerseyName" maxlength="12" placeholder="Defaults to your last name" value="${esc(form.jerseyName || '')}" autocomplete="off">
       <div class="row end"><button class="btn btn-ghost" data-act="toTitle">BACK</button><button class="btn btn-primary" data-act="genPlayer">GENERATE PLAYER</button></div>
     </div>
-    <div class="card jersey-stage"><div class="eyebrow">YOUR COLLEGE JERSEY</div><div id="createCollege" class="create-college"></div><div id="createJersey" class="stage-jersey"></div><div id="createYouth" class="create-youth"></div>
+    <div class="card jersey-stage"><div class="eyebrow" id="stageEyebrow">YOUR COLLEGE JERSEY</div><div id="createCollege" class="create-college"></div><div id="createJersey" class="stage-jersey"></div><div id="createYouth" class="create-youth"></div>
       <div class="muted small">The colors follow the college you pick. Name and number update as you type. You'll get your team's colors after the draft — and can design it freely in the Jersey Creator (Locker Room).</div></div>
     </div></div>`);
   updateCreateJersey();
@@ -1966,10 +1981,10 @@ function renderPreview() {
         ${ovrRing(P.ovr, 'big')}
         <div class="pc-id">
           <div class="pc-name">${esc(P.name)}</div>
-          <div class="chips">${posBadge(P.pos)}<span class="chip">${POS[P.pos].name}</span>${collegeChip(P.college)}${youthChip(P.youth)}<span class="chip">AGE ${P.age}</span></div>
-          <div class="chips"><span class="chip ${P.dev === 'Normal' ? '' : 'gold'}">${P.dev === 'Normal' ? '' : '★ '}${P.dev} development</span><span class="chip">Projection: ${draftProjectionLabel(P)}</span></div>
+          <div class="chips">${posBadge(P.pos)}<span class="chip">${POS[P.pos].name}</span>${P.college ? collegeChip(P.college) : ''}${youthChip(P.youth)}<span class="chip">AGE ${P.age}</span></div>
+          <div class="chips"><span class="chip ${P.dev === 'Normal' ? '' : 'gold'}">${P.dev === 'Normal' ? '' : '★ '}${P.dev} development</span>${P.college ? `<span class="chip">Projection: ${draftProjectionLabel(P)}</span>` : `<span class="chip">Recruits: ${rcLabel(rcLevel(P))}</span>`}</div>
         </div>
-        <div class="pc-jersey">${jerseySVG(collegeJersey(P.college), jName(P), P.number, { noShield: true, backLogo: COLLEGE_INFO[P.college] ? collegeLogo(COLLEGE_INFO[P.college].id, 80) : '' })}</div>
+        <div class="pc-jersey">${P.college ? jerseySVG(collegeJersey(P.college), jName(P), P.number, { noShield: true, backLogo: COLLEGE_INFO[P.college] ? collegeLogo(COLLEGE_INFO[P.college].id, 80) : '' }) : youthJerseySVG(P.youth, 'front', P.number, jName(P))}</div>
       </div>
       <div class="attr-grid">${attrBars(P)}</div>
     </div>
@@ -1977,8 +1992,9 @@ function renderPreview() {
       <button class="btn btn-ghost" data-act="backCreate">EDIT DETAILS</button>
       <div class="row">
         <button class="btn btn-ghost" data-act="reroll" ${rerolls ? '' : 'disabled'}>REROLL (${rerolls} left)</button>
-        <button class="btn btn-ghost" data-act="enterDraft">SKIP TO DRAFT</button>
-        <button class="btn btn-primary" data-act="startCollege">🎓 PLAY COLLEGE SEASON</button>
+        ${P.college ? `<button class="btn btn-ghost" data-act="enterDraft">SKIP TO DRAFT</button>
+        <button class="btn btn-primary" data-act="startCollege">🎓 PLAY COLLEGE SEASON</button>` : `<button class="btn btn-ghost" data-act="skipOffers">SKIP TO OFFERS</button>
+        <button class="btn btn-primary" data-act="startYouth">🧒 PLAY ${esc(P.youth).toUpperCase()} SEASON</button>`}
       </div>
     </div></div>`);
 }
@@ -2634,7 +2650,7 @@ const actions = {
     const pv = document.getElementById('youthPrev'); if (pv) { pv.style.setProperty('--yc', MFL_INFO[d.n].c1); pv.innerHTML = youthPrevHTML(); pv.classList.remove('jswap'); void pv.offsetWidth; pv.classList.add('jswap'); }
     Snd.play('mgGood', 0, 0);
   },
-  youthNone: () => { form.youth = ''; const r = document.getElementById('youthRow'); if (r) r.innerHTML = youthRowHTML(); closeModal(); },
+  youthNone: () => { form.youth = ''; const r = document.getElementById('youthRow'); if (r) r.innerHTML = youthRowHTML(); updateCreateJersey(); closeModal(); },
   confirmYes: () => { const f = pendingConfirm; pendingConfirm = null; closeModal(); if (f) f(); },
 
   /* create */
@@ -2649,7 +2665,7 @@ const actions = {
     const age = clamp(parseInt(form.age, 10) || 22, 21, 25), num = parseInt(form.number, 10);
     if (!numberOk(form.pos, num)) { toast(`${form.pos} jersey numbers must be ${numberRule(form.pos)}`); const i = document.querySelector('[data-model="number"]'); if (i) i.focus(); return; }
     form.age = age; rerolls = 3;
-    preview = generatePlayer(name, form.pos, form.college, age); preview.number = num; preview.jerseyName = cleanJerseyName(form.jerseyName); preview.youth = form.youth || ''; renderPreview();
+    preview = generatePlayer(name, form.pos, form.youth ? '' : form.college, age); preview.number = num; preview.jerseyName = cleanJerseyName(form.jerseyName); preview.youth = form.youth || ''; renderPreview();
   },
   reroll: () => { if (!rerolls) return; rerolls--; const num = preview.number, jn = preview.jerseyName, yt = preview.youth; preview = generatePlayer(preview.name, preview.pos, preview.college, preview.age); preview.number = num; preview.jerseyName = jn; preview.youth = yt; renderPreview(); },
   backCreate: () => renderCreate(),

@@ -805,3 +805,16 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .jc-parts .sw-row { gap: 6px; }
 .jc-parts .sw { width: 28px; height: 28px; }
 .jc-parts .sw-row .hint, .jc-parts .sw-row .mini { margin-left: auto; }
+
+/* Youth note + recruiting offers */
+.youth-note { margin: 10px 0 4px; padding: 12px 14px; border-radius: 14px; border: 1px dashed var(--line2); background: var(--w40); font-size: 14px; line-height: 1.45; }
+.offers .of-lead { margin: 4px 0 14px; } .offers .card { margin-bottom: 14px; }
+.of-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 10px; }
+.of-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; text-align: left; cursor: pointer; border-radius: 16px; color: var(--text); font: inherit; min-width: 0;
+  border: 1.5px solid color-mix(in srgb, var(--oc) 55%, var(--line2)); background: linear-gradient(105deg, color-mix(in srgb, var(--oc) 24%, transparent), var(--w60) 72%); transition: transform .15s, box-shadow .15s; }
+.of-card:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0, 0, 0, .35); } .of-card:active { transform: scale(.985); }
+.of-card img { width: 52px; height: 52px; object-fit: contain; flex: none; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .4)); }
+.of-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; } .of-t b { font-family: var(--head); font-size: 19px; letter-spacing: .04em; text-transform: uppercase; line-height: 1.1; }
+.of-t span { font-size: 12.5px; color: var(--mut); } .of-t em { font-style: normal; font-size: 12.5px; color: var(--lime); font-weight: 600; }
+.of-stars { flex: none; color: #ffc93d; font-size: 13px; letter-spacing: 1px; } .of-stars i { font-style: normal; opacity: .22; }
+.of-pro { flex: none; font: 800 11px var(--head); letter-spacing: .12em; padding: 3px 8px; border-radius: 99px; background: var(--lime); color: #0a1204; }

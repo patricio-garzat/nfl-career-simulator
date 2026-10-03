@@ -6,15 +6,29 @@
    ===================================================================== */
 let CS = null;
 const csTeamR = name => 66 + ((COLLEGES.find(c => c[0] === name) || [0, 0])[1]) * 3.4;     // school strength (only differences matter)
+const csInfoOf = name => (CS && CS.oppInfo && CS.oppInfo[name]) || COLLEGE_INFO[name];
+const csYouth = () => !!(CS && CS.kind === 'youth');
+const csLabel = () => csYouth() ? 'YOUTH SEASON' : (CS.info.div === 'HS' ? 'HIGH SCHOOL SEASON' : 'COLLEGE SEASON');
+const csIcon = () => csYouth() ? '🧒' : (CS.info.div === 'HS' ? '🏫' : '🎓');
+// how hard the recruiters are chasing you (0..1): rating first, season second
+const rcLevel = (P, perf = 0) => clamp((P.ovr - 60) / 26 + perf * 0.35, 0, 1);
+const rcLabel = l => l < 0.3 ? 'Low' : l < 0.55 ? 'Growing' : l < 0.8 ? 'High' : 'Elite';
 const csColors = info => ({ c1: info.c1 || '#1b3a6b', c2: info.c2 || '#ffffff' });
 const csTheme = info => { const c = csColors(info); return `--t1:${c.c1};--t2:${c.c2};--ta:${accentOf(c)}`; };
 const csBadge = (info, size = '') => { const c = csColors(info); return `<span class="team-badge logo ${size}" style="--t1:${c.c1};--t2:${c.c2};color:${textOn(c.c1)}"><img src="${collegeLogo(info.id, 120)}" alt="" onerror="this.style.visibility='hidden'"></span>`; };
 const csPack = (name, info) => { const c = csColors(info); return { id: info.id, name, nick: name, c1: c.c1, c2: c.c2, logo: collegeLogo(info.id, 120) }; };
 
-function csStart() {
-  const P = preview, info = COLLEGE_INFO[P.college];
-  const league = leagueOfDiv(info.div), G = league === 'NCAA' ? 12 : 10;
-  const rows = NCAA.filter(r => leagueOfDiv(r[2]) === league && r[1] !== P.college);
+function csStart(kind) {
+  const P = preview, youth = kind === 'youth';
+  let name, info, G, rows, oppInfo = null;
+  if (youth) {                                              // the MFL kids' season: 8 games against the other MFL clubs
+    const mi = MFL_INFO[P.youth]; name = P.youth; info = { id: 'mfl-' + mi.slug, div: 'MFL', conf: 'MFL', c1: mi.c1, c2: mi.c2 }; G = 8; oppInfo = {};
+    rows = MFL_TEAMS.filter(r => r[1] !== name).map(r => { oppInfo[r[1]] = { id: 'mfl-' + r[0], div: 'MFL', conf: 'MFL', c1: '#' + r[2], c2: '#' + r[3] }; return [r[0], r[1], 'MFL']; });
+  } else {
+    name = P.college; info = COLLEGE_INFO[name];
+    const league = info.div === 'HS' ? 'HS' : leagueOfDiv(info.div); G = league === 'NCAA' ? 12 : 10;
+    rows = league === 'HS' ? HS_ROWS.filter(r => r[1] !== name) : NCAA.filter(r => leagueOfDiv(r[2]) === league && r[1] !== name);
+  }
   const near = rows.filter(r => r[2] === info.div), other = rows.filter(r => r[2] !== info.div);
   const opps = []; const used = new Set();
   while (opps.length < G) {
@@ -22,11 +36,11 @@ function csStart() {
     const r = pick(src); if (used.has(r[1]) && used.size < rows.length - 1) continue; used.add(r[1]);
     opps.push({ name: r[1], r: csTeamR(r[1]) + gauss(0, 3), home: rnd() < 0.5 });
   }
-  CS = { P, info, G, idx: 0, games: [], playoffGames: [], schedule: opps, teamR: csTeamR(P.college) + gauss(0, 2.5), form: Math.exp(gauss(0, 0.11)), status: 'regular', done: false, ovr0: P.ovr, attr0: { ...P.attrs }, proj0: draftProjectionLabel(P), pick0: projectedPick(P), num: Number.isInteger(P.number) ? P.number : (NUM_DEFAULT[P.pos] || 1) };
+  CS = { P, kind: youth ? 'youth' : 'school', name, info, oppInfo, G, idx: 0, games: [], playoffGames: [], schedule: opps, teamR: csTeamR(name) + gauss(0, 2.5), form: Math.exp(gauss(0, 0.11)), status: 'regular', done: false, ovr0: P.ovr, attr0: { ...P.attrs }, proj0: draftProjectionLabel(P), pick0: projectedPick(P), num: Number.isInteger(P.number) ? P.number : (NUM_DEFAULT[P.pos] || 1) };
   mgInitSeason(CS, CS.P.pos);
   { let t = 0; for (let k = 0; k < 60; k++) t += csStats(0, 1).fp; CS.baseFp = Math.max(1, t / 60); }   // what a player with these exact ratings normally produces
   renderCollege();
-  if (CS.mg) setTimeout(() => { if (CS && CS.mg) mgOpen(csEnv()); }, 450);   // college camp mini game
+  if (CS.mg) setTimeout(() => { if (CS && CS.mg) mgOpen(csEnv()); }, 450);   // camp mini game
 }
 
 // one game's stat line for this prospect (same engine as the NFL season)
@@ -60,9 +74,9 @@ function csPlayGame() {
 }
 
 function csEnv() {
-  const opp = CS.schedule[Math.min(CS.idx, CS.G - 1)], oi = COLLEGE_INFO[opp.name];
-  return { se: CS, P: CS.P, t: csPack(CS.P.college, CS.info), o: csPack(opp.name, oi), number: CS.num, theme: csTheme(CS.info), save: false, onDone: () => renderCollege(),
-    jersey: view => jerseySVG(collegeJersey(CS.P.college), jName(CS.P), CS.num, { view, noShield: true, word: CS.P.college.toUpperCase(), backLogo: collegeLogo(CS.info.id, 80) }) };
+  const opp = CS.schedule[Math.min(CS.idx, CS.G - 1)], oi = csInfoOf(opp.name);
+  return { se: CS, P: CS.P, t: csPack(CS.name, CS.info), o: csPack(opp.name, oi), number: CS.num, theme: csTheme(CS.info), save: false, onDone: () => renderCollege(),
+    jersey: view => csYouth() ? youthJerseySVG(CS.name, view, CS.num, jName(CS.P)) : jerseySVG(collegeJersey(CS.name), jName(CS.P), CS.num, { view, noShield: true, word: CS.name.toUpperCase(), backLogo: collegeLogo(CS.info.id, 80) }) };
 }
 // same as seasonTotals(), but for the college season (there is no career save yet, so S is null)
 function csTotals() {
@@ -75,19 +89,19 @@ const csRec = () => { const w = CS.games.filter(g => g.w).length; return { w, l:
 function renderCollege() {
   const P = CS.P, cfg = POS[P.pos], info = CS.info, T = csTotals(), rec = csRec(), last = CS.games[CS.games.length - 1];
   const sum = cfg.summary(T), done = CS.done;
-  const nxt = CS.schedule[CS.idx], oi = nxt ? COLLEGE_INFO[nxt.name] : null;
-  const next = done ? `<div class="next-card done"><div class="eyebrow">SEASON COMPLETE</div><div class="nc-big">${rec.w}–${rec.l} · time for the draft board</div></div>`
+  const nxt = CS.schedule[CS.idx], oi = nxt ? csInfoOf(nxt.name) : null, yth = csYouth();
+  const next = done ? `<div class="next-card done"><div class="eyebrow">SEASON COMPLETE</div><div class="nc-big">${rec.w}–${rec.l} · ${yth ? 'time to meet the recruiters' : 'time for the draft board'}</div></div>`
     : `<div class="next-card"><div class="eyebrow">GAME ${CS.idx + 1} OF ${CS.G}</div><div class="nc-row">${csBadge(oi, 'lg')}<div><div class="nc-big">${nxt.home ? 'vs' : '@'} ${esc(nxt.name)}</div><div class="muted">${oi.conf ? esc(oi.conf) + ' · ' : ''}Team strength ${Math.round(nxt.r)}</div></div></div></div>`;
   const lastCard = last ? `<div class="last-game"><span class="muted">Last game:</span> <b class="r${last.rate}-t">${RATING[last.rate].icon} ${RATING[last.rate].k}</b> · ${fmt1(last.fp)} FP · ${last.w ? 'W' : 'L'} ${last.my}-${last.op} vs ${esc(last.opp)}</div>` : '';
-  const mgBanner = CS.mg && MG_META[CS.mg.kind] ? `<div class="banner dec-banner"><span>🎮 <b>COLLEGE CAMP</b> — ${MG_META[CS.mg.kind](P).title}</span><button class="btn btn-primary btn-sm" data-act="csMini">PLAY</button></div>` : '';
+  const mgBanner = CS.mg && MG_META[CS.mg.kind] ? `<div class="banner dec-banner"><span>🎮 <b>${yth ? 'YOUTH CAMP' : 'COLLEGE CAMP'}</b> — ${MG_META[CS.mg.kind](P).title}</span><button class="btn btn-primary btn-sm" data-act="csMini">PLAY</button></div>` : '';
   const buffs = CS.buffs.length ? `<div class="dec-buffs">${CS.buffs.map(x => `<span class="chip ${x.perf < 0 ? 'bad' : 'gold'}">${esc(x.label)} · ${x.left}g</span>`).join('')}</div>` : '';
   setScreen(`<div class="wrap" style="${csTheme(info)}">
-    <div class="brandbar"><span>🎓 COLLEGE SEASON</span><i></i><span class="muted">${esc(P.college).toUpperCase()}</span></div>
+    <div class="brandbar"><span>${csIcon()} ${csLabel()}</span><i></i><span class="muted">${esc(CS.name).toUpperCase()}</span></div>
     <header class="hero"><span class="hero-num">${CS.num}</span>
       <div class="hero-l">${csBadge(info, 'xl')}
-        <div><div class="eyebrow">${esc(P.college).toUpperCase()} · STARTER</div>
+        <div><div class="eyebrow">${esc(CS.name).toUpperCase()} · STARTER</div>
           <h1 class="player-name">${esc(P.name)}</h1>
-          <div class="chips">${posBadge(P.pos)}<span class="chip">#${CS.num}</span><span class="chip">AGE ${P.age}</span>${youthChip(P.youth)}<span class="chip gold">DRAFT: ${esc(draftProjectionLabel(P)).toUpperCase()}</span></div>
+          <div class="chips">${posBadge(P.pos)}<span class="chip">#${CS.num}</span><span class="chip">AGE ${P.age}</span>${yth ? '' : youthChip(P.youth)}${yth ? `<span class="chip gold">RECRUITS: ${rcLabel(rcLevel(P)).toUpperCase()}</span>` : `<span class="chip gold">DRAFT: ${esc(draftProjectionLabel(P)).toUpperCase()}</span>`}</div>
         </div></div>
       ${ovrRing(P.ovr, 'big')}
     </header>
@@ -95,31 +109,31 @@ function renderCollege() {
     <div class="dash-grid">
       <div class="col">
         <section class="card">
-          <div class="card-h"><h3>COLLEGE SEASON</h3><span class="rec">${rec.w}–${rec.l}</span></div>
+          <div class="card-h"><h3>${csLabel()}</h3><span class="rec">${rec.w}–${rec.l}</span></div>
           <div class="tiles">${tile('GP', T.gp)}${sum.map(s => tile(s.l, s.v)).join('')}${tile('FANTASY PPG', fmt1(T.ppg), 'hl')}</div>
           ${lastCard}${sparkBars(CS)}${buffs}
         </section>
         ${next}
         <div class="actions">
-          ${done ? '<button class="btn btn-primary btn-xl" data-act="csFinish">SEE MY DRAFT STOCK ▸</button>' : '<button class="btn btn-primary btn-xl" data-act="csPlay">PLAY NEXT GAME</button><button class="btn btn-secondary" data-act="csSim">SIMULATE SEASON</button>'}
+          ${done ? `<button class="btn btn-primary btn-xl" data-act="csFinish">${yth ? 'SEE MY OFFERS ▸' : 'SEE MY DRAFT STOCK ▸'}</button>` : '<button class="btn btn-primary btn-xl" data-act="csPlay">PLAY NEXT GAME</button><button class="btn btn-secondary" data-act="csSim">SIMULATE SEASON</button>'}
           <button class="btn btn-ghost only-m" data-act="csPlayer">PLAYER</button>
         </div>
       </div>
       <div class="col">
         <section class="card"><div class="card-h"><h3>ATTRIBUTES</h3></div><div class="attr-list">${attrBars(P)}</div></section>
-        <section class="card"><div class="card-h"><h3>DRAFT BOARD</h3></div><div class="muted small">Your season moves your rating — and the rating decides your draft spot. Big games and mini games raise your stock; bad ones drop it.</div></section>
+        <section class="card"><div class="card-h"><h3>${yth ? 'RECRUITERS' : 'DRAFT BOARD'}</h3></div><div class="muted small">${yth ? 'Your season moves your rating — and the rating decides who comes calling: 5 high schools (USA and Mexico), the LFA and the UFL. Big games and mini games raise their interest.' : 'Your season moves your rating — and the rating decides your draft spot. Big games and mini games raise your stock; bad ones drop it.'}</div></section>
       </div>
     </div></div>`, 'dash');
 }
 
 function csGameModal(game) {
-  const cfg = POS[CS.P.pos], rt = RATING[game.rate], oi = COLLEGE_INFO[game.opp];
+  const cfg = POS[CS.P.pos], rt = RATING[game.rate];
   let body = `<div class="perf r${game.rate}"><div class="perf-t">${rt.icon} ${rt.k} PERFORMANCE</div><div class="perf-fp">${fmt1(game.fp)} <small>Fantasy Points</small></div></div>
     <div class="mini-tiles">${cfg.cols.map(c => `<div><b>${c.g(game)}</b><span>${c.h}</span></div>`).join('')}</div>`;
   if (game.td > 0) body += `<div class="td-flash">🏈 TOUCHDOWN${game.td > 1 ? ' ×' + game.td : ''}!</div>`;
   if (CS.mg) body += `<div class="note">🎮 A mini game is ready.</div>`;
   openModal(`<div class="gm-head"><div class="eyebrow">GAME ${game.wk} · ${game.home ? 'vs' : '@'} ${esc(game.opp)}</div><div class="gm-res ${game.w ? 'w' : 'l'}">${game.w ? 'W' : 'L'} ${game.my}–${game.op}</div></div>${body}
-    <div class="row end"><button class="btn btn-ghost" data-act="csClose">CLOSE</button>${CS.mg ? '<button class="btn btn-primary" data-act="csMini">🎮 PLAY MINI GAME ▸</button>' : CS.done ? '<button class="btn btn-primary" data-act="csFinish">SEE MY DRAFT STOCK ▸</button>' : '<button class="btn btn-primary" data-act="csPlayModal">NEXT GAME ▸</button>'}</div>`, 'game');
+    <div class="row end"><button class="btn btn-ghost" data-act="csClose">CLOSE</button>${CS.mg ? '<button class="btn btn-primary" data-act="csMini">🎮 PLAY MINI GAME ▸</button>' : CS.done ? `<button class="btn btn-primary" data-act="csFinish">${csYouth() ? 'SEE MY OFFERS ▸' : 'SEE MY DRAFT STOCK ▸'}</button>` : '<button class="btn btn-primary" data-act="csPlayModal">NEXT GAME ▸</button>'}</div>`, 'game');
   Snd.play('whistle'); Snd.play(game.w ? 'win' : 'lose', 0.5);
   if (game.rate >= 5) Snd.play('cheer', 0.7); if (game.td > 0) { Snd.play('td', 0.6); burst(modalRoot.querySelector('.modal-card'), 30); }
 }
@@ -131,7 +145,7 @@ function csFinishSeason() {
   const greatShare = gp ? CS.games.filter(g => g.rate >= 4).length / gp : 0;
   const camp = CS.mgLog && CS.mgLog.length ? (CS.mgLog[0].score - 2.5) * 0.2 : 0;     // the camp mini game at the start of the season
   const perf = clamp(idx - 1, -0.6, 1.0) + (greatShare - 0.15) * 0.8 + camp;
-  const target = clamp(Math.round(perf * 5.5 + (w / G - 0.5) * 2.4 + 0.8 + (CS.train.ment || 0) + gauss(0, 0.9)), -5, 7);
+  const sc = csYouth() ? 0.6 : 1, target = clamp(Math.round((perf * 5.5 + (w / G - 0.5) * 2.4 + 0.8 + (CS.train.ment || 0) + gauss(0, 0.9)) * sc), csYouth() ? -3 : -5, csYouth() ? 4 : 7);
   const o0 = P.ovr; let guard = 0;
   while (calcOvr(P.pos, P.attrs) !== o0 + target && guard++ < 120) {
     const up = calcOvr(P.pos, P.attrs) < o0 + target, a = cfg.attrs.filter(([n]) => (up ? P.attrs[n] < 99 : P.attrs[n] > 35)); if (!a.length) break;
@@ -140,30 +154,69 @@ function csFinishSeason() {
   }
   P.ovr = calcOvr(P.pos, P.attrs);
   const grade = perf >= 0.55 ? ['ALL-AMERICAN SEASON', '🏆'] : perf >= 0.25 ? ['BREAKOUT YEAR', '🚀'] : perf >= -0.1 ? ['SOLID SEASON', '👍'] : perf >= -0.35 ? ['QUIET YEAR', '😐'] : ['ROUGH YEAR', '📉'];
-  CS.result = { camp: CS.mgLog && CS.mgLog.length ? CS.mgLog[0] : null, ovrFrom: CS.ovr0, ovrTo: P.ovr, perf, grade, w, l: G - w, T, proj1: draftProjectionLabel(P), pick1: projectedPick(P), changes: cfg.attrs.map(([n]) => ({ attr: n, from: CS.attr0[n], to: P.attrs[n], d: P.attrs[n] - CS.attr0[n] })) };
+  P.recruitPerf = perf; CS.result = { camp: CS.mgLog && CS.mgLog.length ? CS.mgLog[0] : null, ovrFrom: CS.ovr0, ovrTo: P.ovr, perf, grade, w, l: G - w, T, proj1: draftProjectionLabel(P), pick1: projectedPick(P), changes: cfg.attrs.map(([n]) => ({ attr: n, from: CS.attr0[n], to: P.attrs[n], d: P.attrs[n] - CS.attr0[n] })) };
   CS.finished = true;
   renderCollegeReport();
 }
 function renderCollegeReport() {
   const P = CS.P, R = CS.result, cfg = POS[P.pos], up = R.ovrTo > R.ovrFrom, down = R.ovrTo < R.ovrFrom, rise = R.pick1 < CS.pick0 - 3, fall = R.pick1 > CS.pick0 + 3;
+  const yth = csYouth(), lvl = rcLevel(P, R.perf);
   setScreen(`<div class="wrap narrow" style="${csTheme(CS.info)}">
-    <div class="eyebrow">COLLEGE SEASON REVIEW</div><h2 class="h-xxl">${R.grade[1]} ${R.grade[0]}</h2>
+    <div class="eyebrow">${csLabel()} REVIEW</div><h2 class="h-xxl">${R.grade[1]} ${R.grade[0]}</h2>
     <section class="card dev-card">
-      <div class="cs-sum">${csBadge(CS.info, 'lg')}<div><b>${esc(P.college)}</b><span>${R.w}–${R.l} · ${R.T.gp} games · ${fmt1(R.T.ppg)} fantasy PPG</span></div></div>
+      <div class="cs-sum">${csBadge(CS.info, 'lg')}<div><b>${esc(CS.name)}</b><span>${R.w}–${R.l} · ${R.T.gp} games · ${fmt1(R.T.ppg)} fantasy PPG</span></div></div>
       <div class="big-line">${cfg.line(R.T).map(x => `<div><b>${fmtN(x.v)}</b><span>${x.l}</span></div>`).join('')}</div>
       <div class="ovr-change"><div class="oc-from">OVR <b>${R.ovrFrom}</b></div><div class="oc-arrow ${up ? 'up' : down ? 'down' : ''}">→</div>
         <div class="oc-to ${up ? 'up' : down ? 'down' : ''}"><b id="ovrNum">${R.ovrFrom}</b><span>${up ? '▲' : down ? '▼' : '●'}</span></div></div>
       <div class="dev-list">${R.changes.map((c, i) => `<div class="dev-row" style="animation-delay:${0.1 + i * 0.12}s"><span>${c.attr}</span><b class="${c.d > 0 ? 'good' : c.d < 0 ? 'bad' : 'muted'}">${c.d > 0 ? '+' : ''}${c.d}</b><div class="bar ${barClass(c.to)}"><i style="--w:${c.to}%"></i></div><em>${c.to}</em></div>`).join('')}</div>
       ${R.camp ? `<div class="banner ${R.camp.score >= 3 ? 'good' : 'warn'} cs-stock">🎮 Camp: <b>${MG_GRADES[R.camp.score].n}</b> (${R.camp.score}/5) ${R.camp.score >= 3 ? 'helped' : 'hurt'} your rating</div>` : ''}
-      <div class="banner ${rise ? 'good' : fall ? 'warn' : ''} cs-stock">📋 <b>DRAFT STOCK:</b> ${esc(CS.proj0)} → <b>${esc(R.proj1)}</b> ${rise ? '▲ rising' : fall ? '▼ falling' : '● steady'}</div>
+      ${yth ? `<div class="banner ${lvl >= 0.55 ? 'good' : ''} cs-stock">📣 <b>RECRUITING BUZZ:</b> ${rcLabel(lvl)} — 5 high schools, the LFA and the UFL are watching</div>` : `<div class="banner ${rise ? 'good' : fall ? 'warn' : ''} cs-stock">📋 <b>DRAFT STOCK:</b> ${esc(CS.proj0)} → <b>${esc(R.proj1)}</b> ${rise ? '▲ rising' : fall ? '▼ falling' : '● steady'}</div>`}
     </section>
-    <div class="row end"><button class="btn btn-primary btn-xl" data-act="csDraft">ENTER THE DRAFT</button></div></div>`);
+    <div class="row end">${yth ? '<button class="btn btn-primary btn-xl" data-act="csOffers">SEE MY OFFERS ▸</button>' : '<button class="btn btn-primary btn-xl" data-act="csDraft">ENTER THE DRAFT</button>'}</div></div>`);
   Snd.play(up ? 'up' : down ? 'down' : 'tick', 0.4);
   setTimeout(() => { const el = document.getElementById('ovrNum'); if (el) countUp(el, R.ovrFrom, R.ovrTo); if (up && el) burst(el.closest('.dev-card'), 26); }, 350);
 }
 
+/* ---- RECRUITING OFFERS: after the MFL season, 5 high schools (USA + Mexico), 1 LFA team and 1 UFL team come calling ---- */
+function makeOffers(P) {
+  const lvl = rcLevel(P, P.recruitPerf || 0), tgt = 1 + clamp(lvl + gauss(0, 0.08), 0, 1) * 4;     // the better you are, the bigger the programs that call
+  const wsample = (pool, n, w) => { const items = pool.slice(), out = []; while (out.length < n && items.length) { const ws = items.map(w), tot = ws.reduce((a, b) => a + b, 0); let r = rnd() * tot, i = 0; for (; i < items.length - 1; i++) { r -= ws[i]; if (r <= 0) break; } out.push(items.splice(i, 1)[0]); } return out; };
+  const hw = t => Math.exp(-Math.pow(t[6] - tgt, 2) / 1.6) + 0.02;
+  const nUS = rnd() < 0.5 ? 3 : 2;
+  const hs = wsample(HS_TEAMS.filter(t => t[2] === 'USA'), nUS, hw).concat(wsample(HS_TEAMS.filter(t => t[2] === 'MX'), 5 - nUS, hw)).sort((a, b) => b[6] - a[6])
+    .map(t => ({ name: t[1], lg: 'HS', id: 'hs-' + t[0], c1: '#' + t[4], c2: '#' + t[5], stars: t[6], sub: `${t[3]} · ${t[2] === 'USA' ? 'USA' : 'México'}`, role: t[6] <= tgt - 0.4 ? 'Starter from day one' : t[6] >= tgt + 0.9 ? 'Battle for the job' : 'Real shot at starting' }));
+  const pro = (div, lg, sub) => { const r = pick(NCAA.filter(x => x[2] === div)); return { name: r[1], lg, id: r[0], c1: '#' + r[4], c2: '#' + r[5], stars: 0, sub, role: lvl >= 0.6 ? 'Wants you as a starter' : lvl >= 0.35 ? 'Wants you on the roster' : 'Tryout offer' }; };
+  return { lvl, hs, lfa: pro('LFA', 'LFA', 'México · pro league'), ufl: pro('UFL', 'UFL', 'United Football League') };
+}
+function offerCard(o) {
+  const stars = o.stars ? '★'.repeat(o.stars) + '<i>' + '★'.repeat(5 - o.stars) + '</i>' : '';
+  return `<button type="button" class="of-card" data-act="offerPick" data-n="${esc(o.name)}" style="--oc:${o.c1};--oc2:${o.c2}">
+    <img src="${collegeLogo(o.id, 120)}" alt="" onerror="this.style.visibility='hidden'"><div class="of-t"><b>${esc(o.name)}</b><span>${esc(o.sub)}</span><em>${esc(o.role)}</em></div>${stars ? `<div class="of-stars" title="Program prestige">${stars}</div>` : '<div class="of-pro">PRO</div>'}</button>`;
+}
+function renderOffers() {
+  const P = preview; if (!P.offers) P.offers = makeOffers(P);
+  const O = P.offers, y = MFL_INFO[P.youth] || { c1: '#4a5a7a' };
+  setScreen(`<div class="wrap narrow offers" style="--yc:${y.c1}">
+    <div class="eyebrow">AFTER YOUR ${esc(P.youth || 'MFL').toUpperCase()} SEASON</div><h2 class="h-xl">WHO WANTS YOU?</h2>
+    <div class="muted of-lead">Recruiting interest: <b>${rcLabel(O.lvl)}</b> · OVR ${P.ovr}. A better rating and a better season bring bigger programs. Pick one — you start your next season there.</div>
+    <section class="card"><div class="card-h"><h3>HIGH SCHOOLS</h3><span class="muted small">5 interested · USA + México</span></div><div class="of-grid">${O.hs.map(offerCard).join('')}</div></section>
+    <section class="card"><div class="card-h"><h3>PRO PATHWAYS</h3><span class="muted small">1 LFA · 1 UFL</span></div><div class="of-grid">${offerCard(O.lfa)}${offerCard(O.ufl)}</div></section>
+  </div>`);
+  Snd.play('up', 0.3);
+}
+const offerPool = name => (preview.offers ? [].concat(preview.offers.hs, [preview.offers.lfa, preview.offers.ufl]) : []).find(o => o.name === name);
+
 Object.assign(actions, {
   startCollege: () => csStart(),
+  startYouth: () => csStart('youth'),
+  skipOffers: () => { CS = null; preview.recruitPerf = 0; renderOffers(); },
+  csOffers: () => { CS = null; renderOffers(); },
+  offerPick: (d) => {
+    const o = offerPool(d.n); if (!o) return;
+    confirmBox(`Join ${esc(o.name)}?`, `${esc(o.sub)} · ${esc(o.role)}. You will play your next season there${o.lg === 'HS' ? '' : ' and then enter the draft'}.`, 'JOIN', () => {
+      preview.college = o.name; form.college = o.name; CS = null; Snd.play('whistle'); csStart();
+    });
+  },
   csPlay: () => { if (!CS || CS.done) return; if (CS.mg) { mgOpen(csEnv()); return; } const g = csPlayGame(); renderCollege(); csGameModal(g); },
   csPlayModal: () => { closeModal(); actions.csPlay(); },
   csClose: () => { closeModal(); },
@@ -174,7 +227,7 @@ Object.assign(actions, {
   csSim: async () => {
     if (!CS || CS.done) return; if (CS.mg) { mgOpen(csEnv()); return; }
     const ov = document.createElement('div'); ov.className = 'sim-overlay';
-    ov.innerHTML = `<div class="sim-box"><div class="eyebrow">SIMULATING ${esc(CS.P.college).toUpperCase()} SEASON</div><div class="sim-bar"><i></i></div><div class="sim-stage">REGULAR SEASON</div><div class="sim-feed"></div></div>`;
+    ov.innerHTML = `<div class="sim-box"><div class="eyebrow">SIMULATING ${esc(CS.name).toUpperCase()} SEASON</div><div class="sim-bar"><i></i></div><div class="sim-stage">REGULAR SEASON</div><div class="sim-feed"></div></div>`;
     document.body.appendChild(ov); const feed = ov.querySelector('.sim-feed'), bar = ov.querySelector('.sim-bar i');
     while (!CS.done) {
       const g = csPlayGame(); Snd.play(g.td ? 'cheer' : 'tick');
@@ -188,4 +241,4 @@ Object.assign(actions, {
   },
 });
 // when the draft starts, keep the college line in the career
-(() => { const base = actions.enterDraft; actions.enterDraft = function () { const res = base.apply(this, arguments); if (CS && CS.finished && CS.P === preview && S) { S.college = { school: CS.P.college, w: CS.result.w, l: CS.result.l, grade: CS.result.grade[0], ovrFrom: CS.result.ovrFrom, ovrTo: CS.result.ovrTo }; saveGame(); } return res; }; })();
+(() => { const base = actions.enterDraft; actions.enterDraft = function () { const res = base.apply(this, arguments); if (CS && CS.finished && CS.kind !== 'youth' && CS.P === preview && S) { S.college = { school: CS.name, w: CS.result.w, l: CS.result.l, grade: CS.result.grade[0], ovrFrom: CS.result.ovrFrom, ovrTo: CS.result.ovrTo }; saveGame(); } return res; }; })();

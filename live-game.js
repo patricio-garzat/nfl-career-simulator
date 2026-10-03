@@ -4,6 +4,23 @@
    believable script of plays and animates each one. Whatever happens on the field always adds up to the real box score.
    ===================================================================== */
 const LV = { speed: 1, run: 0 };
+// when the two teams' primary colors are too alike to tell the players apart, the visitors switch to their secondary color
+const lvLab = hex => {
+  const n = parseInt(String(hex).replace('#', '').padStart(6, '0').slice(0, 6), 16), lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  const r = lin(n >> 16), g = lin((n >> 8) & 255), b = lin(n & 255), f = t => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const x = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047), y = f(0.2126 * r + 0.7152 * g + 0.0722 * b), z = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883);
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+};
+const lvDelta = (a, b) => { const p = lvLab(a), q = lvLab(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
+const LV_SIMILAR = 22;                                        // CIE76 color distance under which two primary colors look the same on the field
+function lvColors(awayId, homeId) {
+  const a = TEAM[awayId], h = TEAM[homeId], col = { [awayId]: a.c1, [homeId]: h.c1 };
+  if (lvDelta(a.c1, h.c1) < LV_SIMILAR) {
+    const opts = [a.c2, '#FFFFFF'];                                                                     // secondary color first; plain white only if even that is too close
+    col[awayId] = opts.find(c => lvDelta(c, h.c1) >= LV_SIMILAR) || a.c2;
+  }
+  return col;
+}
 const NFL_MID_LOGO = { BAL: 'assets/nfl/ravens-shield.png' };   // teams whose midfield logo is not their standard one (Ravens: the BR shield)
 const LV_PACE = 0.65;                                        // plays unfold at this fraction of their scripted speed (smaller = slower, more like watching a real snap)
 const LV_FW = 1200, LV_FH = 533, LV_PAD = 10;               // field drawing: 120 yards x 53.3 yards, 10 px per yard (endzones included)
@@ -332,7 +349,7 @@ function lvScene(play, ctx) {
   const meOff = ['QB', 'RB', 'WR', 'TE', 'OL', 'K'].includes(S.player.pos), myRole = LV_ME[S.player.pos];
   const offIsMe = play.off === 'me', dir = offIsMe ? ctx.myDir : -ctx.myDir, los = dir === 1 ? play.los : 100 - play.los;
   const P = (u, v) => ({ x: lvX(clamp(los + dir * u, -9.4, 109.4)), y: lvY(v) });
-  const offCol = TEAM[offIsMe ? ctx.myId : ctx.oppId].c1, defCol = TEAM[offIsMe ? ctx.oppId : ctx.myId].c1;
+  const colOf = id => (ctx.col && ctx.col[id]) || TEAM[id].c1, offCol = colOf(offIsMe ? ctx.myId : ctx.oppId), defCol = colOf(offIsMe ? ctx.oppId : ctx.myId);
   return { dir, los, P, offCol, defCol, offIsMe, myRole, meOff, meOnField: offIsMe ? meOff : !meOff };
 }
 function lvMakeActors(sc, play) {
@@ -342,7 +359,7 @@ function lvMakeActors(sc, play) {
     const q = (off ? F.hud : F.dst)[role], p = sc.P(q[0], q[1]), isMe = sc.meOnField && off === sc.meOff && role === sc.myRole;
     const col = off ? sc.offCol : sc.defCol, id = role + (off ? '' : '_d'), hc = off && F.hc ? sc.P(F.hc[0], F.hc[1]) : null, face = hc ? Math.atan2(hc.y - p.y, hc.x - p.x) : (off ? sc.dir === 1 : sc.dir !== 1) ? 0 : Math.PI;   // the huddle looks at its middle
     const el = document.createElementNS(svg, 'g'); el.setAttribute('class', 'lv-pl' + (isMe ? ' me' : ''));
-    el.innerHTML = `<g class="lv-fc"><path d="M9 -5.2L16.5 0L9 5.2Z" fill="${isMe ? '#ffd23d' : '#fff'}" opacity=".92"/></g><circle r="${isMe ? 12.5 : 9.5}" fill="${col}" stroke="${isMe ? '#ffd23d' : '#fff'}" stroke-width="${isMe ? 3.5 : 2}"/>`
+    el.innerHTML = `<g class="lv-fc"><path d="M9 -5.2L16.5 0L9 5.2Z" fill="${isMe ? '#ffd23d' : '#fff'}" opacity=".92"/></g><circle r="${isMe ? 12.5 : 9.5}" fill="${col}" stroke="${isMe ? '#ffd23d' : lum(col) > 0.82 ? '#1b2230' : '#fff'}" stroke-width="${isMe ? 3.5 : 2}"/>`
       + (isMe ? `<text y="3.6" text-anchor="middle" class="lv-pn">${playerNumber()}</text>` : `<text y="2.7" text-anchor="middle" class="lv-pr" fill="${contrastOn(col)}">${lvLabel(role)}</text>`);
     g.appendChild(el); actors[id] = { el, fc: el.querySelector('.lv-fc'), x: p.x, y: p.y, id, role, off, isMe, face };
     el.setAttribute('transform', `translate(${p.x} ${p.y})`);
@@ -870,7 +887,7 @@ function lvTrack(game) {
 async function openLiveGame(game, notes, season) {
   const myId = game.tm, oppId = game.opp, away = game.home ? oppId : myId, home = game.home ? myId : oppId, P = S.player;
   const myDir = game.home ? -1 : 1;                          // away team attacks to the right, home team to the left
-  const L = { game, away, home, myId, oppId, myDir, score: { away: 0, home: 0 }, T: {}, token: ++LV.run, skipped: false, speed: LV.speed || 1 };
+  const L = { game, away, home, col: lvColors(away, home), myId, oppId, myDir, score: { away: 0, home: 0 }, T: {}, token: ++LV.run, skipped: false, speed: LV.speed || 1 };
   POS[P.pos].stats.forEach(x => { L.T[x.k] = 0; });
   const ov = document.createElement('div'); ov.className = 'lv-overlay'; ov.id = 'lvOverlay'; ov.style.cssText = `${themeVars(myId)}`;
   const label = game.k === 'PO' ? (game.round || 'PLAYOFFS') : `WEEK ${game.wk}`;
@@ -936,7 +953,7 @@ async function openLiveGame(game, notes, season) {
       Snd.play(e.side === 'me' ? 'cheer' : 'down'); await banner(`${t.id} ${e.label}`, e.side === 'me' ? 'good' : 'bad', 1300); await sleep(300);
       continue;
     }
-    const p = e.play, sc = lvScene(p, { myDir, myId, oppId });
+    const p = e.play, sc = lvScene(p, { myDir, myId, oppId, col: L.col });
     poss(sideOf(p.off));
     const dd = p.kind === 'xp' ? 'Extra point' : p.kind === 'fg' ? `Field goal · ${p.yards} yds` : `${['', '1st', '2nd', '3rd', '4th'][p.down]} & ${p.dist}`;
     const spot = p.los < 50 ? `${TEAM[p.off === 'me' ? myId : oppId].id} ${p.los}` : (p.los === 50 ? 'Midfield' : `${TEAM[p.off === 'me' ? oppId : myId].id} ${100 - p.los}`);

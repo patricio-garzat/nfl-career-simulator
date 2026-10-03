@@ -126,7 +126,7 @@ const LV_EZ = {
   PIT: { bg: null, ends: [[{ t: { s: 'PITTSBURGH', f: '#FFB612', o: '#101820', w: 3, ff: 'Archivo Black', h: 46, n: 340, x: -34 } }, { l: { k: 'nfl', x: 228, y: 0, w: 50 } }], [{ t: { s: 'STEELERS', f: '#FFB612', o: '#101820', w: 3, ff: 'Archivo Black', h: 46, n: 300, x: -34 } }, { l: { k: 'nfl', x: 228, y: 0, w: 50 } }]] },
   HOU: { bg: '#03202F', ends: [[{ t: { s: 'TEXANS', f: '#FFFFFF', o: '#A71930', w: 3.5, ff: 'Russo One', h: 60, n: 330 } }]] },
   IND: { bg: '#1A4FB0', ends: [[{ l: { k: 'img', src: 'assets/nfl/colts-wordmark.png', x: 0, y: 0, w: 250, h: 76, stretch: 1 } }]] },   // the COLTS wordmark in white on blue (stretched wide, as painted on a field)
-  JAX: { bg: '#0A5B7B', ends: [[{ t: { s: 'JAGUARS', f: '#FFFFFF', ff: 'Archivo Black', h: 40, n: 330, y: 6 } }, { t: { s: 'JACKSONVILLE', f: '#E8F1F4', ff: 'Archivo Black', h: 16, n: 250, y: -30 } }]] },
+  JAX: { bg: '#000000', op: 0.96, ends: [[{ l: { k: 'img', src: 'assets/nfl/jaguars-wordmark.png', x: 0, y: 0, w: 250, h: 76 } }]] },   // JACKSONVILLE JAGUARS on black
   TEN: { bg: null, ends: [[{ t: { s: 'TITANS', f: '#0C2340', o: '#FFFFFF', w: 5, ff: 'Russo One', h: 66, n: 480, sh: ['#4B92DB', 4, 4] } }]] },
   DEN: { bg: null, ends: [[{ t: { s: 'BRONCOS', f: '#FB4F14', o: '#FFFFFF', w: 4, ff: 'Russo One', h: 60, n: 360 } }]] },
   KC: { bg: '#FFB81C', ends: [[{ l: { k: 'img', src: 'assets/nfl/chiefs-wordmark.png', x: 0, y: 0, w: 315, h: 76 } }]] },   // CHIEFS wordmark, white outline, on gold
@@ -141,7 +141,7 @@ const LV_EZ = {
   GB: { bg: '#2E6B2E', op: 0.9, ends: [[{ t: { s: 'PACKERS', f: '#FFB612', o: '#FFFFFF', w: 3, ff: 'Alfa Slab One', h: 66, n: 340 } }], [{ t: { s: 'GREEN BAY', f: '#FFB612', o: '#FFFFFF', w: 3, ff: 'Alfa Slab One', h: 66, n: 410 } }]] },
   MIN: { bg: '#4F2683', ends: [[{ t: { s: 'VIKINGS', f: '#F4F1EA', ff: 'Cinzel', fw: 900, h: 64, n: 400, cap: 0.7 } }]] },
   ATL: { bg: null, ends: [[{ l: { k: 'img', src: 'assets/nfl/falcons-atl.png', x: 0, y: 0, w: 240, h: 92 } }]] },   // the ATL logo on bare turf
-  CAR: { bg: null, ends: [[{ t: { s: 'PANTHERS', f: '#000000', o: '#0085CA', w: 5, ff: 'Russo One', h: 48, n: 420, it: 1 } }]] },
+  CAR: { bg: null, ends: [[{ l: { k: 'img', src: 'assets/nfl/panthers-wordmark.png', x: 0, y: 0, w: 302, h: 76 } }]] },   // PANTHERS script on bare turf
   NO: { bg: null, deco: 'sband', ends: [[{ t: { s: 'SAINTS', f: '#000000', o: '#D3BC8D', w: 2.5, ff: 'Alfa Slab One', h: 58, n: 330 } }]] },
   TB: { bg: null, ends: [[{ t: { s: 'BUCCANEERS', f: '#D50A0A', o: '#FFFFFF', w: 1.5, ff: 'Alfa Slab One', h: 42, n: 400, sh: ['#111111', 4, 4] } }]] },
   ARI: { bg: null, ends: [[{ l: { k: 'img', src: 'assets/nfl/cardinals-wordmark.png', x: 0, y: 0, w: 430, h: 92 } }]] },   // ARIZONA CARDINALS wordmark with a white outline on bare turf

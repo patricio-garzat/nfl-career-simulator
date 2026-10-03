@@ -1,6 +1,6 @@
 /* =====================================================================
    PRESEASON CAMP — at the start of each season you play ONE mini game for your position; the grade sets how the whole season goes and how your rating moves:
-     QB    → READ THE DEFENSE (5 coverages, 5 targets, disguised looks)
+     QB    → FIND THE OPEN MAN (WR or RB; level 3: the defense switches)
      RB    → FIND THE HOLE    (3 gaps, a defense that shifts, a juke at the end)
      WR/TE → CATCH IT         (different throws: deep, slant, lob, knuckle, contested)
      K     → KICK IT          (different situations: hash, rain, snow, wind, pressure)
@@ -22,7 +22,7 @@ function mgMods(se) { let perf = 1; (se.buffs || []).forEach(b => { if (b.left >
 // after every game the bonuses age (the camp bonus lasts the whole season); there are no more mini games during the season
 function mgAfterGame(se, game, notes) { mgEnsure(se); se.buffs.forEach(b => { b.left--; }); se.buffs = se.buffs.filter(b => b.left > 0); }
 const MG_META = {
-  qb: P => ({ icon: '🏈', title: 'READ THE DEFENSE', how: 'Read the coverage, find the open man.', legend: [['🔴', 'Blitz', 'RB'], ['🛡️', 'Two deep', 'TE'], ['🟨', 'Soft corners', 'WR'], ['🔱', 'Three deep', 'SLOT'], ['🔗', 'Man', 'RUN']] }),
+  qb: P => ({ icon: '🏈', title: 'FIND THE OPEN MAN', how: 'A defender sticks to one receiver. Throw to the other one.', legend: [['🔴', 'Defender on him', 'covered'], ['🟢', 'Nobody close', 'THROW HERE']] }),
   rb: P => ({ icon: '🏃', title: 'BREAK AWAY', how: 'Dodge the defenders and outrun the tackler.', legend: [['⌨️', '← → keys', 'dodge'], ['🏃', 'Tackler behind you', 'don\'t stumble']] }),
   catch: P => ({ icon: '🙌', title: P.pos === 'TE' ? 'CATCH IT · SEAM' : 'CATCH IT · GO ROUTE', how: 'Run to where the ball will land.', legend: [['⌨️', 'Arrow keys / drag', 'move'], ['⭕', 'Ring', 'be there first']] }),
   kick: P => ({ icon: '🥅', title: 'KICK IT', how: 'Aim into the wind, stop the bar in the green.', legend: [['💨', 'Wind pushes', 'AIM AGAINST'], ['⏹', 'Power', 'GREEN']] }),
@@ -151,85 +151,60 @@ const mgPop = (ctx, x, y, txt, cls) => { const fx = ctx.stage.querySelector('#mg
 const mgShake = ctx => { ctx.stage.classList.remove('mg-shake'); void ctx.stage.offsetWidth; ctx.stage.classList.add('mg-shake'); };
 
 /* =====================================================================
-   QB — READ THE DEFENSE
-   5 coverages, 5 targets. Attempts 3-5 disguise the look: the defense rotates after the snap.
+   QB — FIND THE OPEN MAN
+   Two receivers: the WR (deep) and the RB (short). A defender is stuck to one of them: throw to the other one.
+   Level 1: it is obvious. Level 2: both have a defender, one is much closer. Level 3: the defense SWITCHES right after the snap.
    ===================================================================== */
-const QB_DEF = {
-  blitz: { name: 'BLITZ', ans: 'RB', tip: 'Blitz → hot throw to the RB.' },
-  cover2: { name: 'COVER 2', ans: 'TE', tip: 'Two deep → seam to the TE.' },
-  cover3: { name: 'COVER 3', ans: 'WR2', tip: 'Three deep → slot underneath.' },
-  soft: { name: 'SOFT CORNERS', ans: 'WR1', tip: 'Corners off → outside WR.' },
-  man: { name: 'MAN', ans: 'RUN', tip: 'Man coverage → scramble!' },
+const QB_R = {
+  WR: { x: 292, y: 140, c: '#ffd23d', l: 'WR', route: [[292, 140], [292, 70], [268, 36]] },
+  RB: { x: 104, y: 190, c: '#c5ff3a', l: 'RB', route: [[104, 190], [64, 186], [38, 158]] },
 };
-const QB_TG = {
-  WR1: { x: 28, y: 142, c: '#ffd23d', l: 'WR', route: [[28, 142], [28, 78], [10, 44]] },
-  WR2: { x: 270, y: 152, c: '#ff8fd0', l: 'SLOT', route: [[270, 152], [270, 116], [246, 106]] },
-  TE: { x: 226, y: 144, c: '#35e0ff', l: 'TE', route: [[226, 144], [226, 92], [214, 34]] },
-  RB: { x: 130, y: 186, c: '#c5ff3a', l: 'RB', route: [[130, 186], [104, 188], [72, 164]] },
-  RUN: { x: 170, y: 168, c: '#ffffff', l: 'RUN', route: [[170, 168], [190, 120], [200, 72]] },
-};
-const QB_LOOK = {
-  blitz: { DL: [[140, 124], [158, 124], [182, 124], [200, 124]], LB: [[130, 132], [170, 130], [212, 132]], CB: [[28, 116], [276, 120]], S: [[108, 100], [232, 98]] },
-  cover2: { DL: [[140, 118], [158, 118], [182, 118], [200, 118]], LB: [[120, 98], [170, 92], [222, 98]], CB: [[28, 104], [276, 108]], S: [[88, 34], [252, 34]] },
-  cover3: { DL: [[140, 118], [158, 118], [182, 118], [200, 118]], LB: [[116, 100], [160, 98], [226, 100]], CB: [[28, 46], [276, 50]], S: [[170, 28], [208, 80]] },
-  soft: { DL: [[140, 118], [158, 118], [182, 118], [200, 118]], LB: [[130, 98], [170, 94], [214, 98]], CB: [[28, 72], [276, 74]], S: [[120, 34], [222, 34]] },
-  man: { DL: [[140, 118], [158, 118], [182, 118], [200, 118]], LB: [[134, 150], [226, 126], [170, 96]], CB: [[28, 130], [270, 136]], S: [[170, 36], [100, 100]] },
-};
+const QB_COVER = { WR: [276, 126], RB: [120, 178] }, QB_NEAR = { WR: [244, 100], RB: [144, 154] };   // right on top of him / still in the picture but clearly behind
 function mgQB(ctx, i, st) {
-  if (!st.plan) { st.plan = shuffle(Object.keys(QB_DEF)); st.flip = [rnd() < 0.5, rnd() < 0.5, rnd() < 0.5, rnd() < 0.5, rnd() < 0.5]; }
-  const key = st.plan[i], d = QB_DEF[key], T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2, flip = st.flip[i];
-  const mx = x => (flip ? 340 - x : x), disguise = i >= 2 && rnd() < 0.7, preKey = disguise ? pick(Object.keys(QB_DEF).filter(k => k !== key)) : key;
-  const order = ['DL', 'LB', 'CB', 'S'], flat = lk => order.flatMap(g => lk[g]);
-  const pre = flat(QB_LOOK[preKey]), fin = flat(QB_LOOK[key]);
-  const defs = fin.map((p, k) => mgGuy(mx(pre[k][0]), pre[k][1], O1, O2, { s: 1.12, down: true, cls: 'mg-d', attrs: `data-f="${mx(p[0])},${p[1]}"` })).join('');
+  const lv = MG_LV.indexOf(i);
+  if (!st.open) { const a = shuffle(['WR', 'RB']); st.open = [a[0], a[1], pick(['WR', 'RB'])]; st.flip = [rnd() < 0.5, rnd() < 0.5, rnd() < 0.5]; }
+  const open = st.open[lv], shut = open === 'WR' ? 'RB' : 'WR', flip = st.flip[lv], mx = x => (flip ? 340 - x : x);
+  const T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2, switchy = lv === 2;
+  const line = [[148, 134], [196, 134]];                                            // the two key defenders start on the line and then pick their men
+  const fin = [QB_COVER[shut], lv === 0 ? [170, 56] : QB_NEAR[open]];              // final spots: one is glued to a receiver, the other is far from the open man
+  const pre = switchy ? [QB_COVER[open], QB_NEAR[shut]] : fin;                      // level 3 shows the opposite picture first
+  const defs = fin.map((f, k) => mgGuy(mx(line[k][0]), line[k][1], '#e04b4b', '#4a1010', { s: 1.25, down: true, cls: 'mg-d', attrs: `data-p="${mx(pre[k][0])},${pre[k][1]}" data-f="${mx(f[0])},${f[1]}"` })).join('');
+  const dl = [140, 158, 182, 200].map(x => mgGuy(x, 118, '#b83a3a', '#4a1010', { s: 1.0, down: true })).join(''), ol = [134, 152, 170, 188, 206].map(x => mgGuy(x, 146, T1, T2, { s: 1.0 })).join('');
   const marker = c => `<marker id="mgA${c.slice(1)}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`;
-  const routes = Object.entries(QB_TG).map(([k, g]) => `<path d="M${g.route.map(p => `${mx(p[0])} ${p[1]}`).join(' L')}" stroke="${g.c}" stroke-width="2.4" stroke-dasharray="6 5" fill="none" marker-end="url(#mgA${g.c.slice(1)})" opacity="${k === 'RUN' ? 0.55 : 0.9}" class="mg-route"/>`).join('');
-  const tell = {
-    blitz: `<g stroke="#ff4d4d" stroke-width="3" fill="none" stroke-linecap="round"><path d="M${mx(130)} 128 L${mx(158)} 156"/><path d="M${mx(170)} 126 L${mx(170)} 152"/><path d="M${mx(212)} 128 L${mx(186)} 156"/><path d="M${mx(108)} 102 L${mx(150)} 154"/></g>`,
-    cover2: `<rect x="6" y="8" width="160" height="64" rx="10" fill="${O1}" fill-opacity=".3" stroke="${O1}" stroke-dasharray="4 4"/><rect x="174" y="8" width="160" height="64" rx="10" fill="${O1}" fill-opacity=".3" stroke="${O1}" stroke-dasharray="4 4"/>`,
-    cover3: `<rect x="6" y="8" width="108" height="64" rx="10" fill="${O1}" fill-opacity=".3" stroke="${O1}" stroke-dasharray="4 4"/><rect x="116" y="8" width="108" height="64" rx="10" fill="${O1}" fill-opacity=".3" stroke="${O1}" stroke-dasharray="4 4"/><rect x="226" y="8" width="108" height="64" rx="10" fill="${O1}" fill-opacity=".3" stroke="${O1}" stroke-dasharray="4 4"/>`,
-    soft: `<g stroke="#ffd23d" stroke-width="2" stroke-dasharray="3 4" fill="none"><path d="M${mx(28)} 80 L${mx(28)} 130"/><path d="M${mx(276)} 82 L${mx(276)} 132"/></g>`,
-    man: `<g stroke="#ff9a9a" stroke-width="1.8" stroke-dasharray="2 3" fill="none"><path d="M${mx(28)} 134 L${mx(28)} 142"/><path d="M${mx(270)} 140 L${mx(270)} 150"/><path d="M${mx(226)} 130 L${mx(226)} 140"/><path d="M${mx(134)} 154 L${mx(130)} 182"/></g><path d="M${mx(170)} 150 L${mx(184)} 60" stroke="#6dffbb" stroke-width="14" stroke-opacity=".18" stroke-linecap="round" fill="none"/>`,
-  }[key];
-  const ol = [134, 152, 170, 188, 206].map(x => mgGuy(x, 146, T1, T2, { s: 1.0 })).join('');
-  const tgs = Object.entries(QB_TG).map(([k, g]) => { const x = mx(g.x), y = g.y; return `<g class="mg-tg" data-pick="${k}" style="cursor:pointer"><circle cx="${x}" cy="${y}" r="22" fill="transparent"/>${k === 'RUN' ? '' : mgGuy(x, y, T1, T2, { s: 1.4 })}<text x="${x}" y="${y + 23}" text-anchor="middle" font-size="10" font-weight="800" fill="${g.c}" font-family="Barlow Condensed, sans-serif" letter-spacing=".08em" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke">${g.l}</text></g>`; }).join('');
-  const call = pick(['SMASH', 'TRIPS BUNCH', 'FLOOD', 'MESH', 'Y-CROSS', 'FOUR VERTS', 'STICK', 'CURL-FLAT', 'SLANT', 'DRAGON', 'LEVELS', 'HITCH-GO']);
-  ctx.stage.innerHTML = `<svg class="mg-svg" viewBox="0 0 340 250">${mgTopField(ctx)}<defs>${marker('#ffd23d')}${marker('#ff8fd0')}${marker('#35e0ff')}${marker('#c5ff3a')}${marker('#ffffff')}</defs>
-    <line x1="0" x2="340" y1="132" y2="132" stroke="#4aa8ff" stroke-width="2.5" stroke-opacity=".85"/>${routes}
-    <g id="mgTell" opacity="0" style="transition:opacity .35s">${tell}</g>${defs}${ol}${tgs}${mgGuy(170, 168, T1, T2, { s: 1.5, you: true, cls: 'mg-qb' })}
-    <g id="mgBallG">${mgBall(170, 168, 0.85, 0, 'mgBallEl')}</g><g id="mgFx"></g></svg><div class="mg-call">PLAY: <b>${call}</b> · ${MG_LV.indexOf(i) + 1}/3</div>`;
-  ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns five">${Object.entries(QB_TG).map(([k, g]) => `<button class="mg-b" data-pick="${k}" style="--c:${g.c}">${g.l}</button>`).join('')}</div>`;
-  ctx.say('Defense is lining up…');
-  const secs = [5.2, 4.8, 4.4, 4.0, 3.6][i];
+  const routes = Object.entries(QB_R).map(([k, g]) => `<path d="M${g.route.map(p => `${mx(p[0])} ${p[1]}`).join(' L')}" stroke="${g.c}" stroke-width="2.4" stroke-dasharray="6 5" fill="none" marker-end="url(#mgA${g.c.slice(1)})" opacity=".9" class="mg-route"/>`).join('');
+  const tgs = Object.entries(QB_R).map(([k, g]) => { const x = mx(g.x), y = g.y; return `<g class="mg-tg" data-pick="${k}" style="cursor:pointer"><circle cx="${x}" cy="${y}" r="26" fill="transparent"/>${mgGuy(x, y, T1, T2, { s: 1.5 })}<text x="${x}" y="${y + 25}" text-anchor="middle" font-size="12" font-weight="800" fill="${g.c}" font-family="Barlow Condensed, sans-serif" letter-spacing=".08em" stroke="rgba(0,0,0,.6)" stroke-width="2.6" paint-order="stroke">${g.l}</text></g>`; }).join('');
+  const ringAt = (p, c) => `<circle cx="${mx(p[0])}" cy="${p[1]}" r="20" fill="none" stroke="${c}" stroke-width="3.2" stroke-dasharray="5 4"/>`;
+  const rings = `<g id="mgRings" opacity="0" style="transition:opacity .35s">${ringAt([QB_R[open].x, QB_R[open].y], '#6dffbb')}${ringAt(QB_COVER[shut], '#ff5d5d')}</g>`;
+  ctx.stage.innerHTML = `<svg class="mg-svg" viewBox="0 0 340 250">${mgTopField(ctx)}<defs>${marker('#ffd23d')}${marker('#c5ff3a')}</defs>
+    <line x1="0" x2="340" y1="132" y2="132" stroke="#4aa8ff" stroke-width="2.5" stroke-opacity=".85"/>${routes}${dl}${defs}${ol}${tgs}${rings}${mgGuy(170, 168, T1, T2, { s: 1.5, you: true, cls: 'mg-qb' })}
+    <g id="mgBallG">${mgBall(170, 168, 0.85, 0, 'mgBallEl')}</g><g id="mgFx"></g></svg><div class="mg-call">FIND THE OPEN MAN · ${lv + 1}/3</div>`;
+  ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns two">${Object.entries(QB_R).map(([k, g]) => `<button class="mg-b" data-pick="${k}" style="--c:${g.c}">${g.l}</button>`).join('')}</div>`;
+  ctx.say('The defense is getting set…');
+  const secs = [5.5, 4.8, 4.4][lv];
   return (async () => {
     await sleep(350); if (!ctx.alive()) return false;
-    const moveDefs = () => ctx.stage.querySelectorAll('.mg-d').forEach(g => { const [fx, fy] = g.dataset.f.split(',').map(Number); g.style.transform = `translate(${fx}px,${fy}px)`; });
-    const showTell = () => { const t = ctx.stage.querySelector('#mgTell'); if (t) t.style.opacity = 1; };
-    if (!disguise) { moveDefs(); showTell(); }
+    const go = key => ctx.stage.querySelectorAll('.mg-d').forEach(g => { const [fx, fy] = g.dataset[key].split(',').map(Number); g.style.transform = `translate(${fx}px,${fy}px)`; });
+    go('p'); ctx.say(switchy ? 'Who is open? <b>Watch closely…</b>' : 'Throw to the receiver with <b>nobody close</b>.');
     await sleep(900); if (!ctx.alive()) return false;
     ctx.say('<b>HIKE!</b>', 'go'); Snd.play('mgSnap', 0.02);
     mgPickBtn(ctx, '.mg-btns .mg-b, .mg-tg');
-    if (disguise) setTimeout(() => { if (!ctx.alive() || !ctx.pick) return; moveDefs(); showTell(); ctx.say('<b>⚠ THE DEFENSE ROTATES!</b>', 'go'); Snd.play('mgSwish', 0); }, 1100);
+    if (switchy) setTimeout(() => { if (!ctx.alive() || !ctx.pick) return; go('f'); ctx.say('<b>⚠ THE DEFENSE SWITCHES!</b>', 'go'); Snd.play('mgSwish', 0); }, 1000);
     const pickd = await mgChoice(ctx, secs); if (!ctx.alive()) return false;
-    ctx.ctrl.innerHTML = ''; moveDefs(); showTell();
+    ctx.ctrl.innerHTML = ''; go('f'); const rg = ctx.stage.querySelector('#mgRings'); if (rg) rg.style.opacity = 1;
     const quick = pickd && (performance.now() - ctx.pickStart) / 1000 < secs * 0.45;
-    const ok = pickd === d.ans, bg = ctx.stage.querySelector('#mgBallG'), qb = ctx.stage.querySelector('.mg-qb');
+    const ok = pickd === open, bg = ctx.stage.querySelector('#mgBallG');
     let txt = '';
     if (!pickd) { txt = 'SACKED! Too slow'; mgPop(ctx, 170, 150, 'SACK!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx); }
-    else if (pickd === 'RUN') {
-      const yy = ok ? 70 : 128;
-      qb.style.transition = 'transform .7s ease-in'; qb.style.transform = `translate(${mx(196)}px,${yy}px)`; bg.style.transition = 'transform .7s ease-in'; bg.style.transform = `translate(${mx(196) - 170}px,${yy - 168}px)`; await sleep(720);
-      if (ok) { const y = randInt(9, 18); txt = `SCRAMBLE! ${mgYardsStr(y)}`; mgPop(ctx, mx(196), 56, mgYardsStr(y), 'good'); Snd.play('mgSwish', 0); } else { txt = 'TACKLED behind the line'; mgPop(ctx, mx(190), 118, 'TACKLED', 'bad'); Snd.play('mgHit', 0); mgShake(ctx); }
-    } else {
-      const tg = QB_TG[pickd], tx = mx(tg.x), ty = tg.y - 6; Snd.play('mgThrow', 0);
+    else {
+      const tg = QB_R[pickd], tx = mx(tg.x), ty = tg.y - 6; Snd.play('mgThrow', 0);
       await new Promise(r => { const t0 = performance.now(), dur = 520; const step = () => { if (!ctx.alive()) return r(); const k = Math.min(1, (performance.now() - t0) / dur), x = 170 + (tx - 170) * k, y = 168 + (ty - 168) * k - Math.sin(Math.PI * k) * 26; ctx.stage.querySelector('#mgBallEl').setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(k * 540).toFixed(0)}) scale(${(0.85 + Math.sin(Math.PI * k) * 0.35).toFixed(2)})`); if (k < 1) requestAnimationFrame(step); else r(); }; step(); });
-      if (ok) { const y = pickd === 'WR1' ? randInt(18, 32) : pickd === 'WR2' ? randInt(10, 18) : pickd === 'TE' ? randInt(12, 22) : randInt(7, 13); txt = `COMPLETE! ${mgYardsStr(y)}`; mgPop(ctx, tx, ty - 14, mgYardsStr(y), 'good'); Snd.play('mgPat', 0); if (y >= 20) Snd.play('td', 0.15); }
-      else if (key === 'blitz') { txt = 'SACKED! The blitz got there'; mgPop(ctx, 170, 150, 'SACK!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx); }
-      else if (pickd === 'WR1' && key !== 'soft') { txt = 'INTERCEPTED!'; mgPop(ctx, tx, ty - 14, 'INT!', 'bad'); Snd.play('mgHit', 0); }
-      else { txt = 'Incomplete — covered'; mgPop(ctx, tx, ty - 14, 'INC', 'bad'); Snd.play('mgPat', 0); }
+      if (ok) { const y = pickd === 'WR' ? randInt(14, 32) : randInt(5, 12); txt = `COMPLETE! ${mgYardsStr(y)}`; mgPop(ctx, tx, ty - 14, mgYardsStr(y), 'good'); Snd.play('mgPat', 0); if (y >= 20) Snd.play('td', 0.15); }
+      else if (pickd === 'WR') { txt = 'INTERCEPTED! The WR was covered'; mgPop(ctx, tx, ty - 14, 'INT!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx); }
+      else { txt = 'TACKLED! The RB was covered'; mgPop(ctx, tx, ty - 14, 'LOSS', 'bad'); Snd.play('mgHit', 0); mgShake(ctx); }
     }
     if (ok && quick) { ctx.perfects++; txt += ' · ✨ quick read'; }
-    ctx.say(`${ok ? '✅' : '❌'} ${txt}${ok ? '' : `<span class="mg-tip">${d.name}: ${d.tip}</span>`}`, ok ? 'good' : 'bad');
+    const tip = `${shut} had a defender on him — <b>${open}</b> was open${switchy ? ' (after the switch)' : ''}.`;
+    ctx.say(`${ok ? '✅' : '❌'} ${txt}${ok ? '' : `<span class="mg-tip">${tip}</span>`}`, ok ? 'good' : 'bad');
     return ok;
   })();
 }

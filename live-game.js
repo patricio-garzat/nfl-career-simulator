@@ -118,7 +118,7 @@ const LV_EZ = {
   BUF: { bg: '#00338D', ends: [[{ t: { s: 'BILLS', f: '#F5F5F5', o: '#C60C30', w: 3, ff: 'Alfa Slab One', h: 76, n: 290 } }]] },
   MIA: { bg: null, ends: [[{ t: { s: 'MIAMI', f: '#F8F9F7', o: '#FC4C02', w: 3, ff: 'Racing Sans One', h: 56, n: 346, it: 1 } }], [{ t: { s: 'DOLPHINS', f: '#F8F9F7', o: '#FC4C02', w: 3, ff: 'Racing Sans One', h: 52, n: 400, it: 1 } }]] },
   NE: { bg: null, ends: [[{ t: { s: 'PATRIOTS', f: '#FAFAFA', o: '#002244', w: 2.5, ff: 'Barlow Condensed', fw: 800, h: 82, n: 260, x: 30 } }, { l: { k: 'team', x: -205, y: 0, w: 74 } }]] },
-  NYJ: { bg: '#125740', ends: [[{ t: { s: 'JETS', f: '#F1F5F0', ff: 'Racing Sans One', h: 71, n: 435, it: 1 } }]] },
+  NYJ: { bg: '#125740', ends: [[{ l: { k: 'img', src: 'assets/nfl/jets-white.png', x: 0, y: 0, w: 290, h: 91 } }]] },   // the Jets' own logo in white on green
   BAL: { bg: '#241773', ends: [[{ t: { s: 'RAVENS', f: '#FFFFFF', o: '#9E7C0C', w: 4, ff: 'Black Ops One', h: 90, n: 280 } }], [{ t: { s: 'BALTIMORE', f: '#FFFFFF', o: '#9E7C0C', w: 4, ff: 'Black Ops One', h: 66, n: 400 } }]] },
   CIN: { bg: '#FB4F14', deco: 'tiger', ends: [[{ t: { s: 'BENGALS', f: '#000000', o: '#FFFFFF', w: 4.5, ff: 'Alfa Slab One', h: 42, n: 420 } }]] },
   CLE: { bg: null, ends: [[{ t: { s: 'BROWNS', f: '#F8F9F7', o: '#FF3C00', w: 3, ff: 'Saira Extra Condensed', fw: 800, h: 62, n: 280 } }], [{ t: { s: 'CLEVELAND', f: '#F8F9F7', o: '#FF3C00', w: 3, ff: 'Saira Extra Condensed', fw: 800, h: 62, n: 360 } }]] },
@@ -159,7 +159,7 @@ function lvEzItems(items, team) {
     }
     if (it.l) {
       const l = it.l, src = l.k === 'team' ? logoUrl(team.id) : l.k === 'nfl' ? NFL_LOGO : `https://a.espncdn.com/i/teamlogos/nfl/500/${l.k}.png`;   // afc / nfc from the ESPN CDN
-      return `<image href="${src}" x="${l.x - l.w / 2}" y="${l.y - l.w / 2}" width="${l.w}" height="${l.w}" opacity=".95" preserveAspectRatio="xMidYMid meet"${l.g ? ' style="filter:grayscale(1) brightness(1.25)"' : ''}/>`;
+      const lh = l.h || l.w; return `<image href="${l.src || src}" x="${l.x - l.w / 2}" y="${l.y - lh / 2}" width="${l.w}" height="${lh}" opacity=".95" preserveAspectRatio="xMidYMid meet"${l.g ? ' style="filter:grayscale(1) brightness(1.25)"' : ''}/>`;
     }
     if (it.x === 'spark') return lvSpark(it.px, it.py, it.r);
     if (it.x === 'bolt') return lvBolt(it.px, it.py, it.r);

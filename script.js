@@ -1182,7 +1182,20 @@ const Snd = (() => {
     const go = () => { if (f) { try { f(ctx.currentTime + 0.02 + delay, ...args); } catch (e) { /* never break the game over a sound */ } } };
     if (ctx.state === 'running') go(); else revive().then(ok => { if (ok) go(); });
   }
-  ['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, () => { if (!muted && ctx && ctx.state !== 'running') revive(); }, { passive: true, capture: true }));
+  // Phones are picky: the audio context must be created / resumed INSIDE a tap (iOS only counts touchend / click, not touchstart), and iOS keeps Web Audio silent
+  // while the ringer switch is off unless the page asks for the "playback" audio session. So: build it on the first gesture of any kind and prime the session once.
+  let primed = false;
+  function primeSession() {
+    if (primed) return; primed = true;
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* ignore */ }
+    try { const b = ctx.createBuffer(1, 1, 22050), src = ctx.createBufferSource(); src.buffer = b; src.connect(ctx.destination); src.start(0); } catch (e) { /* ignore */ }
+    try { const au = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='); au.volume = 0.01; const p = au.play(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* ignore */ }
+  }
+  ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchend', 'keydown'].forEach(ev => window.addEventListener(ev, () => {
+    if (muted) return;
+    if (!ctx) init();
+    if (ctx) { primeSession(); if (ctx.state !== 'running') revive(); }
+  }, { passive: true, capture: true }));
   document.addEventListener('visibilitychange', () => { if (!document.hidden && !muted && ctx && ctx.state !== 'running') revive(); });
   function setMuted(m) {
     muted = m;

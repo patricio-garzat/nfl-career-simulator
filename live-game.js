@@ -817,9 +817,10 @@ async function openLiveGame(game, notes, season) {
       <div class="lv-log card" id="lvLog"></div>
     </div></div>`;
   document.body.appendChild(ov);
-  const musicVol = () => { let v = 40; try { const x = parseInt(localStorage.getItem('nfl_music_vol'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
-  Snd.music(lvTrack(game), musicVol() / 100 * 0.8);
-  const mv = ov.querySelector('#lvMusic'); if (mv) { mv.value = musicVol(); mv.addEventListener('input', () => { Snd.setMusicVol(mv.value / 100 * 0.8); try { localStorage.setItem('nfl_music_vol', mv.value); } catch (e) { /* ignore */ } }); }
+  const musicVol = () => { let v = 55; try { const x = parseInt(localStorage.getItem('nfl_music_vol2'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
+  const vol = v => Math.pow(v / 100, 1.6);                            // wide range: whisper-quiet at the left, full volume at the right, fine control in between
+  Snd.music(lvTrack(game), vol(musicVol()));
+  const mv = ov.querySelector('#lvMusic'); if (mv) { mv.value = musicVol(); mv.addEventListener('input', () => { Snd.setMusicVol(vol(mv.value)); try { localStorage.setItem('nfl_music_vol2', mv.value); } catch (e) { /* ignore */ } }); }
   const $ = id => document.getElementById(id), setScore = () => { $('lvScore_away').textContent = L.score.away; $('lvScore_home').textContent = L.score.home; };
   const setClock = (q, clock) => { $('lvQ').textContent = ['1st', '2nd', '3rd', '4th'][q - 1] + ' Q'; $('lvClock').textContent = clock; };
   const setBugDD = txt => { const el = $('lvBugDD'); if (el) el.textContent = txt; };

@@ -4,6 +4,7 @@
    believable script of plays and animates each one. Whatever happens on the field always adds up to the real box score.
    ===================================================================== */
 const LV = { speed: 1, run: 0 };
+const NFL_MID_LOGO = { BAL: 'assets/nfl/ravens-shield.png' };   // teams whose midfield logo is not their standard one (Ravens: the BR shield)
 const LV_PACE = 0.65;                                        // plays unfold at this fraction of their scripted speed (smaller = slower, more like watching a real snap)
 const LV_FW = 1200, LV_FH = 533, LV_PAD = 10;               // field drawing: 120 yards x 53.3 yards, 10 px per yard (endzones included)
 const lvX = abs => 100 + abs * 10;                          // yards from the left goal line -> px
@@ -263,7 +264,7 @@ function lvFieldSVG(away, home, sb) {
     <g class="lv-lines">${lines}${hashes}</g>
     <g class="lv-nums" fill="#fff" fill-opacity=".92">${nums}</g>
     ${sb ? `<image href="${NFL_LOGO}" x="${lvX(50) - 90}" y="${cy - 90}" width="180" height="180" opacity=".95" preserveAspectRatio="xMidYMid meet"/>${[20, 80].map(y => `<image href="super-bowl-trophy.png" x="${lvX(y) - 40}" y="${cy - 49}" width="80" height="98" opacity=".95" preserveAspectRatio="xMidYMid meet"/>`).join('')}`   // Super Bowl: the NFL shield at midfield, a small Lombardi trophy on each 20
-      : `<image href="${logoUrl(home)}" x="${lvX(50) - 90}" y="${cy - 90}" width="180" height="180" opacity=".92" preserveAspectRatio="xMidYMid meet"/>`}
+      : `<image href="${NFL_MID_LOGO[home] || logoUrl(home)}" x="${lvX(50) - 90}" y="${cy - 90}" width="180" height="180" opacity=".92" preserveAspectRatio="xMidYMid meet"/>`}
     ${pylons}${post(-10, 1)}${post(1210, -1)}
     <rect id="lvLos" y="${LV_PAD}" width="4" height="${LV_FH}" fill="#4aa8ff" opacity="0"/><rect id="lvFd" y="${LV_PAD}" width="4" height="${LV_FH}" fill="#ffd23d" opacity="0"/>
     <g id="lvActors"></g><g id="lvFx"></g></svg>`;

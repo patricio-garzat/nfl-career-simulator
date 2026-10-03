@@ -98,7 +98,7 @@ function mgField(ctx, w, h, id, yRef, Aref) {
   const inner = mgFieldInner({ id: id + 'g', w, sl: 14, y0: 0, y1: h, yRef, Aref, ppy, Amin: Aref - (h - yRef) / ppy - 1, Amax: Aref + yRef / ppy + 1, numL: 50, numR: w - 50 });
   const mid = yOf(50);
   return `<defs>${mgGrassPat(id + 'g')}</defs><rect width="${w}" height="${h}" rx="14" fill="#1d6c3d"/>${inner}
-    ${mid > 20 && mid < h - 20 ? `<image href="${t.logo}" x="${w / 2 - 44}" y="${mid - 44}" width="88" height="88" opacity=".88" preserveAspectRatio="xMidYMid meet"/>` : ''}
+    ${mid > 20 && mid < h - 20 ? `<image href="${(ctx.env.nfl && typeof NFL_MID_LOGO !== 'undefined' && NFL_MID_LOGO[t.id]) || t.logo}" x="${w / 2 - 44}" y="${mid - 44}" width="88" height="88" opacity=".88" preserveAspectRatio="xMidYMid meet"/>` : ''}
     <rect width="${w}" height="16" rx="8" fill="#050810" opacity=".75"/><rect y="${h - 14}" width="${w}" height="14" rx="7" fill="#050810" opacity=".75"/>
     <g class="mg-crowd">${mgCrowd(0, 4, w, 2, t.c1, o.c1)}</g><g class="mg-crowd">${mgCrowd(0, h - 11, w, 2, t.c1, t.c2)}</g>`;
 }
@@ -290,7 +290,7 @@ function mgRB(ctx, i, st) {
     <rect width="340" height="300" rx="14" fill="url(#mgRG)"/>
     <g id="mgRW" style="transform:translate(0px,${RY}px)">
       ${mgFieldInner({ id: 'mgRGp', w: 340, sl: 14, y0: -GOAL - 100, y1: 110, yRef: 0, Aref: start, ppy: 10, Amin: start - 12, Amax: 100, numL: 50, numR: 290 })}
-      ${yOfA(50) < 100 && yOfA(50) > -GOAL - 100 ? `<image href="${ctx.t.logo}" x="126" y="${yOfA(50) - 44}" width="88" height="88" opacity=".88" preserveAspectRatio="xMidYMid meet"/>` : ''}
+      ${yOfA(50) < 100 && yOfA(50) > -GOAL - 100 ? `<image href="${(ctx.env.nfl && typeof NFL_MID_LOGO !== 'undefined' && NFL_MID_LOGO[ctx.t.id]) || ctx.t.logo}" x="126" y="${yOfA(50) - 44}" width="88" height="88" opacity=".88" preserveAspectRatio="xMidYMid meet"/>` : ''}
       ${mgEndZone(ctx, 14, -GOAL - 100, 312, 100, 0.6)}<rect x="14" y="${-GOAL - 100}" width="312" height="100" fill="url(#mgRGp)" pointer-events="none"/>
       <line x1="14" x2="326" y1="${-GOAL}" y2="${-GOAL}" stroke="#fff" stroke-width="3.4"/><line x1="14" x2="326" y1="${-GOAL - 100}" y2="${-GOAL - 100}" stroke="#fff" stroke-width="3.4"/>
       <rect x="0" y="${-GOAL - 122}" width="340" height="22" fill="#f6f7f4"/><g stroke="#ffd23d" stroke-width="3.4" stroke-linecap="round" fill="none"><line x1="158" x2="182" y1="${-GOAL - 114}" y2="${-GOAL - 114}"/><line x1="170" x2="170" y1="${-GOAL - 100}" y2="${-GOAL - 114}"/><circle cx="158" cy="${-GOAL - 114}" r="2.2"/><circle cx="182" cy="${-GOAL - 114}" r="2.2"/></g>

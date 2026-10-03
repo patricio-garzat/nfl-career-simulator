@@ -904,3 +904,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
   .ff-overlay .ff-ring { width: 150px; }
 }
 .ff-c > * { flex: none; }
+
+/* career timeline: seasons before the NFL */
+.tl-row.pre { cursor: default; opacity: .92; } .tl-row.pre .tl-pl { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 12px; background: rgba(255, 255, 255, .07); border: 1px solid var(--line); } .tl-row.pre .tl-pl img { width: 34px; height: 34px; object-fit: contain; }
+.tl-row.pre:hover { transform: none; border-color: var(--line); }

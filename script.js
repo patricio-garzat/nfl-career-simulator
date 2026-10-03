@@ -2565,13 +2565,20 @@ function renderCareer() {
       <div class="tl-aw">${(se.awards || []).slice(0, 5).map(a => a.icon).join(' ')}</div></button>`;
   }).join('');
   const ach = achievementLines();
+  // the seasons before the NFL: your kids team (MFL) and your college / league team
+  const preRow = (yr, logo, name, sub, rec, line, icon, col) => `<div class="tl-row pre" style="--t1:${col || '#2b3a55'};--ta:${col || '#2b3a55'}"><div class="tl-year">${yr}</div><span class="tl-pl">${logo}</span>
+      <div class="tl-main"><b>${esc(name)}</b><span class="muted">${sub} · ${rec}</span><span class="tl-line">${line}</span></div><div class="tl-aw">${icon || ''}</div></div>`;
+  const lineOf = r => `${(r.line || []).map(x => `${fmtN(x.v)} ${x.l}`).join(' · ')}${r.ppg != null ? ` · <b>${fmt1(r.ppg)} PPG</b>` : ''} · OVR ${r.ovrFrom} → ${r.ovrTo}`;
+  const yr0 = d.year - (S.college ? 1 : 0) - (P.youthRec ? 1 : 0);
+  const pre = (P.youthRec && MFL_INFO[P.youthRec.team] ? preRow(yr0, `<img src="${mflLogo(MFL_INFO[P.youthRec.team].slug)}" alt="">`, P.youthRec.team, 'Youth · MFL', `${P.youthRec.w}–${P.youthRec.l}`, lineOf(P.youthRec), P.youthRec.icon, MFL_INFO[P.youthRec.team].c1) : '')
+    + (S.college ? preRow(d.year - 1, COLLEGE_INFO[S.college.school] ? `<img src="${collegeLogo(COLLEGE_INFO[S.college.school].id, 80)}" alt="" onerror="this.style.visibility='hidden'">` : '', S.college.school, S.college.line ? 'College' : 'Before the draft', `${S.college.w}–${S.college.l}`, S.college.line ? lineOf(S.college) : `OVR ${S.college.ovrFrom} → ${S.college.ovrTo} · ${esc(S.college.grade || '')}`, S.college.icon, COLLEGE_INFO[S.college.school] && COLLEGE_INFO[S.college.school].c1) : '');
   setScreen(`<div class="wrap">
     <div class="topbar"><button class="btn btn-ghost" data-act="goHome">◂ BACK</button><span class="eyebrow">CAREER TIMELINE</span></div>
     <header class="season-head"><h2 class="h-xl">${esc(P.name)}</h2><div class="chips">${posBadge(P.pos)}${collegeChip(P.college)}<span class="chip">AGE ${P.age}</span><span class="chip">OVR ${P.ovr}</span></div></header>
     <div class="tiles auto">${tile('GAMES', fmt(C.gp))}${cfg.career(C).map(s => tile(s.l.toUpperCase(), s.v)).join('')}${tile('FANTASY CAREER', fmt1(C.fp) + ' PTS', 'hl')}${tile('EARNINGS', money(S.earnings), 'gold')}</div>
     <div class="card"><div class="card-h"><h3>ACHIEVEMENTS</h3></div>${ach.length ? ach.map(a => `<div class="ach">${a.icon} ${a.text}</div>`).join('') : '<div class="muted">No awards yet — keep grinding.</div>'}</div>
     <h3 class="sec-h">TIMELINE <small>(click a season to open its stats)</small></h3>
-    <div class="timeline">
+    <div class="timeline">${pre}
       <div class="tl-draft"><span>${d.year}</span> ${d.undrafted ? 'Signed as an undrafted free agent' : `Drafted — Round ${d.round}, Pick #${d.pick} (Overall #${d.overall})`} by ${TEAM[d.teamId].name}</div>${rows}</div>
     <div class="row end"><button class="btn btn-danger-ghost" data-act="retireAsk">RETIRE FROM THE NFL</button></div></div>`);
 }

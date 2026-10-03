@@ -155,6 +155,7 @@ function csFinishSeason() {
   P.ovr = calcOvr(P.pos, P.attrs);
   const grade = perf >= 0.55 ? ['ALL-AMERICAN SEASON', '🏆'] : perf >= 0.25 ? ['BREAKOUT YEAR', '🚀'] : perf >= -0.1 ? ['SOLID SEASON', '👍'] : perf >= -0.35 ? ['QUIET YEAR', '😐'] : ['ROUGH YEAR', '📉'];
   P.recruitPerf = perf; CS.result = { camp: CS.mgLog && CS.mgLog.length ? CS.mgLog[0] : null, ovrFrom: CS.ovr0, ovrTo: P.ovr, perf, grade, w, l: G - w, T, proj1: draftProjectionLabel(P), pick1: projectedPick(P), changes: cfg.attrs.map(([n]) => ({ attr: n, from: CS.attr0[n], to: P.attrs[n], d: P.attrs[n] - CS.attr0[n] })) };
+  if (csYouth()) P.youthRec = { team: CS.name, w, l: G - w, grade: grade[0], icon: grade[1], ovrFrom: CS.ovr0, ovrTo: P.ovr, line: cfg.line(T).map(x => ({ v: x.v, l: x.l })), ppg: T.ppg, gp: T.gp };   // kept for the career timeline
   CS.finished = true;
   renderCollegeReport();
 }
@@ -243,4 +244,4 @@ Object.assign(actions, {
   },
 });
 // when the draft starts, keep the college line in the career
-(() => { const base = actions.enterDraft; actions.enterDraft = function () { const res = base.apply(this, arguments); if (CS && CS.finished && CS.kind !== 'youth' && CS.P === preview && S) { S.college = { school: CS.name, w: CS.result.w, l: CS.result.l, grade: CS.result.grade[0], ovrFrom: CS.result.ovrFrom, ovrTo: CS.result.ovrTo }; saveGame(); } return res; }; })();
+(() => { const base = actions.enterDraft; actions.enterDraft = function () { const res = base.apply(this, arguments); if (CS && CS.finished && CS.kind !== 'youth' && CS.P === preview && S) { S.college = { school: CS.name, w: CS.result.w, l: CS.result.l, grade: CS.result.grade[0], icon: CS.result.grade[1], ovrFrom: CS.result.ovrFrom, ovrTo: CS.result.ovrTo, line: POS[CS.P.pos].line(CS.result.T).map(x => ({ v: x.v, l: x.l })), ppg: CS.result.T.ppg, gp: CS.result.T.gp }; saveGame(); } return res; }; })();

@@ -187,7 +187,8 @@ function lvEndZone(x, team, rot, endIdx) {
   const paint = turf + (d.bg ? `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="${d.bg}" opacity="${d.op || 0.94}"/>` : '');
   const local = (d.deco === 'tiger' ? lvTiger() : '') + (d.deco === 'band' ? `<rect x="-270" y="-50" width="540" height="7" fill="#fff" opacity=".85"/>` : '')
     + (d.deco === 'sband' ? `<rect x="-270" y="-50" width="540" height="9" fill="#101010" opacity=".92"/><rect x="-270" y="-39" width="540" height="2" fill="#D3BC8D"/>` : '') + lvEzItems(items, team);
-  return `${paint}<g transform="translate(${cx} ${cy}) rotate(${rot})">${local}</g>`;
+  const cid = 'lvEzC' + x;                                          // nothing may spill over the white border: clip to the end zone itself
+  return `<defs><clipPath id="${cid}"><rect x="${x}" y="${top}" width="100" height="${LV_FH}"/></clipPath></defs><g clip-path="url(#${cid})">${paint}<g transform="translate(${cx} ${cy}) rotate(${rot})">${local}</g></g>`;
 }
 
 /* ---------- the field ---------- */

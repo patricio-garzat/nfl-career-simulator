@@ -1752,10 +1752,10 @@ function updateCreateJersey() {
     const jn0 = document.querySelector('[data-model="jerseyName"]'); if (jn0) jn0.placeholder = cleanJerseyName(surname(form.name)) || 'Defaults to your last name';
     return;
   }
-  el.innerHTML = jerseySVG(collegeJersey(form.college), shown, Number.isInteger(n) ? clamp(n, 0, 99) : '?', { view: 'both', noShield: true, word: String(form.college || 'ROOKIE').toUpperCase(), backLogo: COLLEGE_INFO[form.college] ? collegeLogo(COLLEGE_INFO[form.college].id, 80) : '' });
+  el.innerHTML = jerseySVG(form.college ? collegeJersey(form.college) : neutralJersey(), shown, Number.isInteger(n) ? clamp(n, 0, 99) : '?', { view: 'both', noShield: true, word: String(form.college || 'ROOKIE').toUpperCase(), backLogo: COLLEGE_INFO[form.college] ? collegeLogo(COLLEGE_INFO[form.college].id, 80) : '' });
   const yp = document.getElementById('createYouth');
   if (yp) yp.innerHTML = form.youth && MFL_INFO[form.youth] ? `<div class="eyebrow">YOUR FIRST JERSEY · ${esc(form.youth).toUpperCase()} (MFL)</div><div class="stage-jersey">${youthJerseySVG(form.youth, 'both', Number.isInteger(n) ? clamp(n, 0, 99) : '?', shown)}</div>` : '';
-  const cc = document.getElementById('createCollege'); if (cc) cc.innerHTML = `${collegeImg(form.college, 80, 'col-logo')}<b>${esc(form.college)}</b>`;
+  const cc = document.getElementById('createCollege'); if (cc) cc.innerHTML = form.college ? `${collegeImg(form.college, 80, 'col-logo')}<b>${esc(form.college)}</b>` : '<b class="muted">No team selected yet</b>';
   if (updateCreateJersey.last !== form.college) { updateCreateJersey.last = form.college; el.classList.remove('jswap'); void el.offsetWidth; el.classList.add('jswap'); }
   const hint = document.getElementById('numHint');
   if (hint) { hint.textContent = ok ? `${form.pos} numbers: ${numberRule(form.pos)}` : `${form.pos} numbers must be ${numberRule(form.pos)}`; hint.className = 'hint ' + (ok ? '' : 'bad'); }
@@ -1900,13 +1900,13 @@ const COLLEGE_LEAGUES = [
 const leagueOfDiv = d => (COLLEGE_LEAGUES.find(l => l.divs.includes(d)) || {}).k || 'NCAA';
 let collegeLeague = '';   // '' = the league screen
 function collegePickerHTML() {
-  const cur = COLLEGE_INFO[form.college] || COLLEGE_INFO['Alabama'];
+  const cur = COLLEGE_INFO[form.college] || null;
   const count = l => NCAA.filter(r => l.divs.includes(r[2])).length;
   const leagues = COLLEGE_LEAGUES.map(l => `<button type="button" class="cp-league" data-act="collegeLeague" data-l="${l.k}"><img src="${l.logo}" alt=""><div><b>${l.name}</b><span>${l.sub}</span><em>${count(l)} teams</em></div></button>`).join('');
   const subs = [['ALL', 'All'], ['FBS', 'FBS'], ['FCS', 'FCS'], ['OTHER', 'Other']].map(([k, l]) => `<button type="button" class="mini ${collegeDiv === k ? 'on' : ''}" data-act="collegeTab" data-d="${k}">${l}</button>`).join('');
   const tiles = NCAA.map(([id, name, div, conf]) => `<button type="button" class="cp-tile ${name === form.college ? 'on' : ''}" data-act="pickCollege" data-n="${esc(name)}" data-d="${div}" data-l="${leagueOfDiv(div)}" data-q="${esc((name + ' ' + conf + (div === 'MX' ? ' mexico méxico onefa' : div === 'LFA' ? ' lfa mexico méxico liga profesional' : div === 'UFL' ? ' ufl united football league professional pro' : ' ncaa')).toLowerCase())}" title="${esc(name)}${conf ? ' · ' + esc(conf) : ''}"><img src="${collegeLogo(id, 80)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><span>${esc(name)}</span></button>`).join('');
   return `<div class="college-pick" id="cpRoot">
-    <div class="cp-cur" id="cpCur">${collegeImg(form.college, 120, 'col-logo lg')}<div><b>${esc(form.college)}</b><span>${cur ? (cur.conf ? esc(cur.conf) + ' · ' : '') + DIV_LABEL[cur.div] : ''}</span></div></div>
+    <div class="cp-cur" id="cpCur">${cur ? `${collegeImg(form.college, 120, 'col-logo lg')}<div><b>${esc(form.college)}</b><span>${(cur.conf ? esc(cur.conf) + ' · ' : '') + DIV_LABEL[cur.div]}</span></div>` : '<span class="youth-ph">🎓</span><div><b>No team selected</b><span>pick a league below</span></div>'}</div>
     <div class="cp-tools"><button type="button" class="mini cp-back" id="cpBack" data-act="collegeBack" hidden>◂ LEAGUES</button><input class="input cp-search" data-filter="college" placeholder="Search ${NCAA.length} teams…" autocomplete="off"></div>
     <div class="cp-leagues" id="cpLeagues">${leagues}</div>
     <div class="minis cp-subs" id="cpSubs" hidden>${subs}</div>
@@ -1927,7 +1927,7 @@ function applyCollegeFilter() {
   });
   const e = grid.querySelector('.cp-empty'); if (e) e.hidden = n > 0;
 }
-let form = { name: '', pos: 'WR', college: 'Alabama', age: 22, number: NUM_DEFAULT.WR, jerseyName: '', youth: '' };
+let form = { name: '', pos: 'WR', college: '', age: 22, number: NUM_DEFAULT.WR, jerseyName: '', youth: '' };
 let preview = null, rerolls = 3;
 // first team: the MFL (Monterrey Football League) youth club where you started as a kid (optional, just for the story)
 const youthChip = name => { const i = MFL_INFO[name]; return i ? `<span class="chip chip-col youth-chip" style="--yc:${i.c1}"><img class="col-logo xs" src="${mflLogo(i.slug)}" alt="">${esc(name)} <small>MFL</small></span>` : ''; };
@@ -2632,7 +2632,7 @@ const actions = {
   /* title */
   toTitle: () => { closeModal(); renderTitle(); },
   startCareer: () => {
-    const go = () => { form = { name: '', pos: 'WR', college: 'Alabama', age: 22, number: NUM_DEFAULT.WR, jerseyName: '', youth: '' }; renderCreate(); };
+    const go = () => { form = { name: '', pos: 'WR', college: '', age: 22, number: NUM_DEFAULT.WR, jerseyName: '', youth: '' }; renderCreate(); };
     if (hasSave()) confirmBox('Start a new career?', 'Your saved career will be replaced as soon as you enter the draft.', 'NEW CAREER', go, true); else go();
   },
   continueCareer: () => { if (loadGame()) goHome(); else { toast('No save found'); renderTitle(); } },
@@ -2662,6 +2662,7 @@ const actions = {
   genPlayer: () => {
     const name = form.name.trim();
     if (!name) { toast('Please enter a player name'); const i = document.querySelector('[data-model="name"]'); if (i) i.focus(); return; }
+    if (!form.youth && !form.college) { toast('Pick a college or a first team'); const c = document.getElementById('cpRoot'); if (c) c.scrollIntoView({ block: 'center' }); return; }
     const age = clamp(parseInt(form.age, 10) || 22, 21, 25), num = parseInt(form.number, 10);
     if (!numberOk(form.pos, num)) { toast(`${form.pos} jersey numbers must be ${numberRule(form.pos)}`); const i = document.querySelector('[data-model="number"]'); if (i) i.focus(); return; }
     form.age = age; rerolls = 3;

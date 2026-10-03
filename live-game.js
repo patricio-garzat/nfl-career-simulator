@@ -239,6 +239,7 @@ function lvFieldSVG(away, home) {
     ${stripes}${ezOf(0, A, -90, 0)}${ezOf(1100, H, 90, 0)}
     <g class="lv-lines">${lines}${hashes}</g>
     <g class="lv-nums" fill="#fff" fill-opacity=".92">${nums}</g>
+    <image href="${logoUrl(home)}" x="${lvX(50) - 90}" y="${cy - 90}" width="180" height="180" opacity=".92" preserveAspectRatio="xMidYMid meet"/>
     ${pylons}${post(4, 1)}${post(1196, -1)}
     <rect id="lvLos" y="${LV_PAD}" width="4" height="${LV_FH}" fill="#4aa8ff" opacity="0"/><rect id="lvFd" y="${LV_PAD}" width="4" height="${LV_FH}" fill="#ffd23d" opacity="0"/>
     <g id="lvActors"></g><g id="lvFx"></g></svg>`;

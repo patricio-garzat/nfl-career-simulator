@@ -105,7 +105,7 @@ function renderCollege() {
         </div></div>
       ${ovrRing(P.ovr, 'big')}
     </header>
-    ${mgBanner}
+    ${mgBanner}${mgWeeklyHTML(CS, 'csWeekly')}
     <div class="dash-grid">
       <div class="col">
         <section class="card">
@@ -225,6 +225,7 @@ Object.assign(actions, {
   csPlayModal: () => { closeModal(); actions.csPlay(); },
   csClose: () => { closeModal(); },
   csMini: () => { closeModal(); mgOpen(csEnv()); },
+  csWeekly: () => { closeModal(); mgStartWeekly(csEnv()); },
   csPlayer: () => { openModal(`<h3 class="modal-h">${esc(CS.P.name)} · ${CS.P.pos} · OVR ${CS.P.ovr}</h3><div class="attr-list">${attrBars(CS.P)}</div><div class="row end"><button class="btn btn-primary" data-act="closeModal">CLOSE</button></div>`); },
   csFinish: () => { closeModal(); csFinishSeason(); },
   csDraft: () => { actions.enterDraft(); CS = null; },

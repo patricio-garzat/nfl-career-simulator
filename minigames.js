@@ -27,6 +27,22 @@ const MG_META = {
   catch: P => ({ icon: '🙌', title: P.pos === 'TE' ? 'CATCH IT · SEAM' : 'CATCH IT · GO ROUTE', how: 'A three-play drive: catch to move the chains, and the last pass is for the touchdown. Run to where the ball will land.', legend: [['⌨️', 'Arrow keys / drag', 'move'], ['⭕', 'Ring', 'be there first']] }),
   kick: P => ({ icon: '🥅', title: 'KICK IT', how: 'Aim into the wind, stop the bar in the green.', legend: [['💨', 'Wind pushes', 'AIM AGAINST'], ['⏹', 'Power', 'GREEN']] }),
 };
+/* weekly training: the camp mini game opens the season; after that, every week you can play it again from a button. Playing lifts your next game
+   (a bigger lift for a better score, plus a small streak bonus for training week after week); skipping the week just means no lift. */
+const MG_WEEK_PERF = [0.01, 0.01, 0.015, 0.03, 0.045, 0.06];
+const mgGamesIn = se => (se && se.games ? se.games.length : 0);
+const mgCanTrain = (se, pos) => !!(se && !se.mg && !se.done && (se.status == null || se.status === 'regular') && MG_KIND[pos || (se.P || S.player).pos] && se.mgTrainAt !== mgGamesIn(se) && mgGamesIn(se) < (se.schedule ? se.schedule.length : 99));
+function mgWeeklyHTML(se, act = 'playWeekly') {
+  const pos = (se.P || S.player).pos; if (!MG_KIND[pos] || se.mg || se.done || !(se.status == null || se.status === 'regular')) return '';
+  const n = mgGamesIn(se) + 1, meta = MG_META[MG_KIND[pos]](se.P || S.player);
+  if (se.mgTrainAt === mgGamesIn(se)) return `<div class="banner dec-banner trained"><span>✅ <b>TRAINED FOR WEEK ${n}</b> — your next game gets the boost${se.mgStreak > 1 ? ` · ${se.mgStreak}-week streak` : ''}</span></div>`;
+  const streak = se.mgTrainAt === mgGamesIn(se) - 1 && se.mgStreak ? se.mgStreak : 0;
+  return `<div class="banner dec-banner weekly"><span>🎮 <b>WEEK ${n} TRAINING</b> — ${meta.title} · play it to boost your next game${streak ? ` · ${streak}-week streak` : ''}</span><button class="btn btn-primary btn-sm" data-act="${act}">PLAY</button></div>`;
+}
+function mgStartWeekly(env) {
+  const se = env.se, pos = env.P.pos; if (!mgCanTrain(se, pos)) return false;
+  se.mg = { kind: MG_KIND[pos], wk: mgGamesIn(se), age: 0, weekly: true }; mgOpen(env); return true;
+}
 const mgBannerHTML = se => (se.mg && MG_META[se.mg.kind]) ? `<div class="banner dec-banner"><span>🎮 <b>PRESEASON CAMP</b> — ${MG_META[se.mg.kind](S.player).title}</span><button class="btn btn-primary btn-sm" data-act="playMini">PLAY</button></div>` : '';
 
 /* ---------- shared drawing kit ---------- */
@@ -106,8 +122,8 @@ function mgField(ctx, w, h, id, yRef, Aref, opt = {}) {
 
 /* ---------- overlay + runner ---------- */
 // the NFL season's environment; the college season (college.js) passes its own: { se, P, t, o, number, theme, save, onDone, jersey }
-function mgEnvNFL() {
-  const se = curSeason(); if (!se || !se.mg || !MG_META[se.mg.kind]) return null;
+function mgEnvNFL(force) {
+  const se = curSeason(); if (!se || (!force && (!se.mg || !MG_META[se.mg.kind]))) return null;
   let opp; try { opp = nextGameInfo(se).opp; } catch (e) { opp = null; } opp = opp || TEAM_LIST.find(x => x.id !== S.teamId);
   const P = S.player, tid = S.teamId;
   return { se, P, t: { ...TEAM[tid], logo: logoUrl(tid) }, o: { ...opp, logo: logoUrl(opp.id) }, number: playerNumber(), theme: themeVars(tid), save: true, nfl: true, onDone: () => renderDashboard(),
@@ -120,7 +136,7 @@ function mgOpen(env) {
   const P = env.P, kind = se.mg.kind, t = env.t, opp = env.o, meta = MG_META[kind](P);
   const ov = document.createElement('div'); ov.className = 'mg-overlay'; ov.style.cssText = env.theme;
   ov.innerHTML = `<div class="mg-wrap">
-    <div class="mg-top"><span class="mg-tag">🎮 PRESEASON CAMP</span><button class="mini mg-skip" data-mg="skip">SKIP</button></div>
+    <div class="mg-top"><span class="mg-tag">🎮 ${se.mg.weekly ? `WEEK ${mgGamesIn(se) + 1} TRAINING` : 'PRESEASON CAMP'}</span><button class="mini mg-skip" data-mg="skip">SKIP</button></div>
     <div class="mg-board"><img src="${t.logo}" alt=""><div class="mg-bt"><b>${esc(meta.title)}</b><span>${esc(P.name)} · ${P.pos} · #${env.number}</span></div><img src="${opp.logo}" alt=""></div>
     <div class="mg-pips">${[0, 1, 2].map(i => `<span data-p="${i}">${mgFootball()}</span>`).join('')}<em id="mgScore">0/3</em><b class="mg-combo" id="mgCombo" hidden></b></div>
     <div class="mg-stage" id="mgStage"></div><div class="mg-msg" id="mgMsg"></div><div class="mg-ctrl" id="mgCtrl"></div></div>`;
@@ -130,7 +146,7 @@ function mgOpen(env) {
   MGX = ctx;
   stage.innerHTML = `<div class="mg-intro" style="background-image:radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, ${t.c1} 40%, transparent), transparent)">
     <div class="mg-jersey-big">${env.jersey ? env.jersey('front') : ''}</div><div class="mg-bigicon">${meta.icon}</div><h2>${esc(meta.title)}</h2><p>${esc(meta.how)}</p>
-    <div class="mg-legend">${meta.legend.map(([i, a, b]) => `<span>${i} ${a}${b ? ` <b>→ ${b}</b>` : ''}</span>`).join('')}</div><p class="mg-sub">3 levels · your grade sets the whole season</p></div>`;
+    <div class="mg-legend">${meta.legend.map(([i, a, b]) => `<span>${i} ${a}${b ? ` <b>→ ${b}</b>` : ''}</span>`).join('')}</div><p class="mg-sub">3 levels · your grade sets ${MGX && MGX.env.se.mg && MGX.env.se.mg.weekly ? 'your next game' : 'the whole season'}</p></div>`;
   ctrl.innerHTML = `<button class="btn btn-primary btn-xl" data-mg="start">START</button>`;
   Snd.play('mgCrowd', 0.05);
 }
@@ -155,17 +171,19 @@ function mgFlash(ctx, good) { const s = ctx.stage; s.classList.remove('mg-good',
 function mgFinish(ctx) {
   const se = ctx.env.se, raw = ctx.results.filter(Boolean).length, sc = MG_SC[raw], g = MG_GRADES[sc], good = sc >= 3;
   const extra = good ? Math.min(0.04, ctx.perfects * 0.01) : 0, perf = Math.min(0.12, g.perf + extra);
-  const fx = `${perf > 0 ? '+' : '−'}${Math.abs(Math.round(perf * 100))}% performance all season · moves your rating`;
+  const weekly = !!(se.mg && se.mg.weekly), gi = mgGamesIn(se), streak = weekly ? (se.mgTrainAt === gi - 1 && se.mgStreak ? se.mgStreak + 1 : 1) : 0;
+  const wPerf = weekly ? MG_WEEK_PERF[sc] + Math.min(0.03, 0.005 * (streak - 1)) : 0;
+  const fx = weekly ? `+${(wPerf * 100).toFixed(1).replace(/\.0$/, '')}% performance in your next game${streak > 1 ? ` · ${streak}-week training streak` : ''}` : `${perf > 0 ? '+' : '−'}${Math.abs(Math.round(perf * 100))}% performance all season · moves your rating`;
   ctx.stage.innerHTML = `<div class="mg-res ${good ? 'good' : 'bad'}" style="background-image:radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, ${ctx.t.c1} 38%, transparent), transparent)">
     <div class="mg-jersey-big small">${ctx.env.jersey ? ctx.env.jersey('back') : ''}</div>
     <div class="mg-grade">${g.n}</div><div class="mg-big">${raw}<small>/3</small></div>
     <div class="mg-stars">${[0, 1, 2].map(i => `<span class="${i < raw ? 'on' : ''}">★</span>`).join('')}</div>
     ${ctx.perfects ? `<div class="mg-perf">✨ ${ctx.perfects} perfect play${ctx.perfects > 1 ? 's' : ''}</div>` : ''}
-    <div class="mg-bonus ${good ? 'good' : 'bad'}">${good ? '⚡' : '⚠️'} ${fx}</div></div>`;
+    <div class="mg-bonus ${good || weekly ? 'good' : 'bad'}">${good || weekly ? '⚡' : '⚠️'} ${fx}</div></div>`;
   ctx.say(''); ctx.ctrl.innerHTML = `<button class="btn btn-primary btn-xl" data-mg="done">CONTINUE</button>`;
-  se.buffs.push({ left: 99, perf, label: 'Camp ' + g.n.toLowerCase() });
-  if (sc >= 4) se.train.ment = Math.min(1.5, (se.train.ment || 0) + 0.25);
-  se.mgLog.push({ kind: ctx.kind, score: sc, wk: se.mg ? se.mg.wk : 0 }); se.mg = null; se.mgSince = 0; se.mgIn = randInt(3, 5);
+  if (weekly) { se.buffs.push({ left: 1, perf: wPerf, label: 'Week ' + (gi + 1) + ' training' }); se.mgTrainAt = gi; se.mgStreak = streak; }
+  else { se.buffs.push({ left: 99, perf, label: 'Camp ' + g.n.toLowerCase() }); if (sc >= 4) se.train.ment = Math.min(1.5, (se.train.ment || 0) + 0.25); }
+  se.mgLog.push({ kind: ctx.kind, score: sc, wk: se.mg ? se.mg.wk : 0, weekly }); se.mg = null; se.mgSince = 0; se.mgIn = randInt(3, 5);
   if (ctx.env.save) saveGame();
   Snd.play(sc >= 4 ? 'bigFanfare' : good ? 'win' : 'lose', 0.1);
   if (sc >= 4) burst(ctx.stage, sc === 5 ? 70 : 40);

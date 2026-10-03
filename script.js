@@ -2265,7 +2265,7 @@ function renderDashboard() {
         </div></div>
       ${ovrRing(P.ovr, 'big')}
     </header>
-    ${inj}${tradeBanner}${mgBannerHTML(se)}
+    ${inj}${tradeBanner}${mgBannerHTML(se)}${mgWeeklyHTML(se)}
     <div class="dash-grid">
       <div class="col">
         <section class="card">
@@ -2905,6 +2905,7 @@ const actions = {
 
   /* dashboard */
   playMini: () => { closeModal(); mgOpen(); },
+  playWeekly: () => { closeModal(); const env = mgEnvNFL(true); if (env) mgStartWeekly(env); },
   simNext: async () => {
     const se = curSeason(); if (se.status === 'done') return actions.seasonSummary();
     if (se.mg) return mgOpen();

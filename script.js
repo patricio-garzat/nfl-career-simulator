@@ -2118,7 +2118,7 @@ function renderDashboard() {
           <div class="card-h"><h3>CURRENT SEASON</h3><span class="rec">${rec.w}–${rec.l}${se.status === 'playoffs' ? ' · PLAYOFFS' : ''}</span></div>
           <div class="tiles">${tile('GP', T.gp)}${sum.map(s => tile(s.l, s.v)).join('')}${tile('FANTASY PPG', fmt1(T.ppg), 'hl')}</div>
           <div class="fp-row"><div><span class="muted">Fantasy Total</span> <b>${fmt1(T.fp)} PTS</b></div><div class="muted small st-line">${divLine}</div><div class="muted small st-line">${dlText}</div></div>
-          ${lastCard}${sparkBars(se)}
+          ${lastCard}${sparkBars(se)}${typeof ffDashLine === 'function' ? ffDashLine(se, T) : ''}
         </section>
         ${nextCard}
         <div class="actions">
@@ -2496,6 +2496,7 @@ function renderSummary() {
       <div class="ppg-big">${fmt1(T.ppg)} <small>PPR PPG</small></div>
       <div class="muted center">${T.gp} games played · ${fmt1(T.fp)} fantasy points${se.missed ? ` · missed ${se.missed} game${se.missed > 1 ? 's' : ''} (injury)` : ''}</div>
       ${se.careerBest ? '<div class="career-best">🔥 Career Best</div>' : ''}</section>
+    ${typeof ffSummaryHTML === 'function' ? ffSummaryHTML(se, T) : ''}
     <section class="card"><div class="eyebrow">AWARDS</div><div class="award-list">${se.awards.length ? se.awards.map((a, i) => `<div class="award big" style="animation-delay:${0.25 + i * 0.22}s">${a.icon} ${esc(a.label)}</div>`).join('') : '<div class="muted">No awards this season.</div>'}</div></section>
     <div class="two">${poHTML}<div class="po-box"><div class="eyebrow">${TEAM[se.teamId].conf} ${TEAM[se.teamId].div} STANDINGS</div>${standings}</div></div>
     <section class="card next-card"><div class="eyebrow">NEXT SEASON</div>
@@ -2603,6 +2604,7 @@ async function startNextSeason() {
   evolveRatings(); startSeason(); S.phase = 'season'; S.fa = null;
   saveGame(); Snd.play('whistle', 0.5);
   await splash(`${S.year} SEASON`, `${TEAM[S.teamId].name} · Age ${S.player.age}`, 1600);
+  if (typeof ffPreseason === 'function') await ffPreseason(curSeason());   // fantasy draft day
   renderDashboard();
   if (curSeason().mg) setTimeout(() => mgOpen(), 450);   // preseason camp mini game
 }
@@ -2703,6 +2705,7 @@ const actions = {
     try {
       S.year = START_YEAR; startSeason(); S.phase = 'season'; saveGame(); Snd.play('whistle', 0.5);
       await splash(`${S.year} SEASON`, `${TEAM[S.teamId].name} · Rookie Season`, 1700);
+      if (typeof ffPreseason === 'function') await ffPreseason(curSeason());   // fantasy draft day
       renderDashboard();
       if (curSeason().mg) setTimeout(() => mgOpen(), 450);   // preseason camp mini game
     } finally { busy = false; }

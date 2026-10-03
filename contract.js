@@ -60,7 +60,6 @@ function contractPaper(o) {
       <linearGradient id="${id}fo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset=".45" stop-color="#000" stop-opacity=".07"/><stop offset=".55" stop-color="#fff" stop-opacity=".4"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
       <linearGradient id="${id}sh" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".6"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
       <clipPath id="${id}cl"><rect width="608" height="786" rx="6"/></clipPath>
-      <mask id="${id}k" maskUnits="userSpaceOnUse" x="0" y="0" width="500" height="300">${SIGN_STROKES.map((s, i) => `<path class="sg-mask" data-i="${i}" d="M${s.map(p => p.join(' ')).join('L')}" fill="none" stroke="#fff" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</mask>
     </defs>
     <rect x="6" y="8" width="608" height="786" rx="6" fill="rgba(0,0,0,.28)"/>
     <rect x="0" y="0" width="608" height="786" rx="6" fill="url(#${id}p)" stroke="#d8cfb8"/>
@@ -84,7 +83,6 @@ function contractPaper(o) {
       <rect x="400" y="${sigY}" width="168" height="1.4" fill="#2b2b2b"/><text x="400" y="${sigY + 17}" class="sg-small" fill="#6b665a">DATE</text>
       <text x="408" y="${sigY - 8}" class="sg-date">${esc(date)}</text>
     </g>
-    <g mask="url(#${id}k)" transform="translate(${SG.x} ${SG.y}) scale(${SG.k})"><image href="assets/signature.png" x="0" y="0" width="500" height="300"/></g>
     <g clip-path="url(#${id}cl)"><rect id="sgShine" class="sg-shine" x="-260" y="-40" width="220" height="900" fill="url(#${id}sh)" transform="skewX(-18)" opacity="0"/></g>
     <circle id="sgRing" class="sg-ring" cx="470" cy="590" r="30" fill="none" stroke="${bright}" stroke-width="5" opacity="0"/>
     <g transform="translate(470 590) rotate(-12)"><g id="sgStamp" class="sg-stamp" opacity="0"><rect x="-70" y="-26" width="140" height="52" rx="6" fill="none" stroke="${mixHex(bright, '#000000', 0.2)}" stroke-width="4"/><rect x="-64" y="-20" width="128" height="40" rx="3" fill="none" stroke="${mixHex(bright, '#000000', 0.2)}" stroke-width="1.4"/><text y="9" text-anchor="middle" class="sg-stampt" fill="${mixHex(bright, '#000000', 0.2)}">SIGNED</text></g></g>
@@ -114,8 +112,15 @@ async function contractSign(o) {
       <div class="sg-desk">${contractPaper(o)}</div>
       <div class="sg-actions"><button class="btn btn-primary btn-xl" id="sgGo" hidden>CONTINUE ▸</button></div>`;
     document.body.appendChild(ov);
-    const pen = ov.querySelector('#sgPen'), stamp = ov.querySelector('#sgStamp'), masks = [...ov.querySelectorAll('.sg-mask')], strokes = SIGN_STROKES;
-    const lens = masks.map(m => { const l = m.getTotalLength(); m.style.strokeDasharray = l + ' ' + l; m.style.strokeDashoffset = l; return l; });
+    const pen = ov.querySelector('#sgPen'), stamp = ov.querySelector('#sgStamp'), strokes = SIGN_STROKES;
+    // the signature is painted on a canvas as the pen goes: a white trail is laid along the pen's path and the real signature image shows only where that trail is
+    const desk = ov.querySelector('.sg-desk'), cv = document.createElement('canvas'), mc = document.createElement('canvas'), vx = cv.getContext('2d'), mx = mc.getContext('2d'), sigImg = new Image(), IK = 2;
+    cv.width = mc.width = 500 * IK; cv.height = mc.height = 300 * IK; cv.className = 'sg-ink';
+    cv.style.cssText = `left:${SG.x / 620 * 100}%;top:${SG.y / 800 * 100}%;width:${500 * SG.k / 620 * 100}%`;
+    desk.appendChild(cv); sigImg.src = 'assets/signature.png';
+    mx.strokeStyle = '#fff'; mx.lineWidth = 11 * IK; mx.lineCap = 'round'; mx.lineJoin = 'round';
+    const drawInk = () => { vx.globalCompositeOperation = 'copy'; vx.drawImage(mc, 0, 0); vx.globalCompositeOperation = 'source-in'; vx.drawImage(sigImg, 0, 0, 500 * IK, 300 * IK); vx.globalCompositeOperation = 'source-over'; };
+    let inkAt = null;
     let alive = true, finished = false;
     const place = (x, y, lift = 0, tilt = 0) => { pen.setAttribute('transform', `translate(${x.toFixed(1)} ${(y - lift).toFixed(1)}) rotate(${tilt})`); pen.classList.toggle('lift', lift > 2); };
     const ease = k => 1 - Math.pow(1 - k, 3), eio = k => (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2);
@@ -123,7 +128,7 @@ async function contractSign(o) {
     const done = () => {
       if (finished) return; finished = true;
       ov.classList.add('sg-done');                                      // every line of the contract is on the page, whatever its animation delay
-      masks.forEach((m, i) => { m.style.strokeDashoffset = 0; });
+      vx.clearRect(0, 0, cv.width, cv.height); vx.drawImage(sigImg, 0, 0, 500 * IK, 300 * IK);   // the whole signature, in case the pen was skipped
       pen.style.opacity = 0; stamp.setAttribute('opacity', '.9'); stamp.classList.add('on');
       ['#sgRing', '#sgShine'].forEach(q => ov.querySelector(q).classList.add('on')); const desk = ov.querySelector('.sg-desk'); desk.classList.remove('shake'); void desk.offsetWidth; desk.classList.add('shake');
       const nums = { total: o.total, guar: o.guaranteed }; Object.entries(nums).forEach(([k2, v]) => { const el = ov.querySelector(`[data-k="${k2}"]`); if (el) el.textContent = money(v); });
@@ -146,6 +151,7 @@ async function contractSign(o) {
       const SPEED = 0.9;                                                 // image px per ms
       let tick = 0;
       for (let si = 0; si < strokes.length && alive; si++) {
+        let lastJ = 1; inkAt = null;
         const S0 = strokes[si], seg = [0]; for (let i = 1; i < S0.length; i++) seg.push(seg[i - 1] + sgDist(S0[i - 1], S0[i]));
         const total = seg[seg.length - 1] || 1, dur = Math.max(60, total / SPEED);
         if (si > 0) {                                                     // pen lifts and moves to the next stroke
@@ -157,11 +163,13 @@ async function contractSign(o) {
           const d = (0.72 * k + 0.28 * eio(k)) * total; let j = 1; while (j < seg.length - 1 && seg[j] < d) j++;
           const f = (d - seg[j - 1]) / ((seg[j] - seg[j - 1]) || 1), pa = S0[j - 1], pb = S0[j] || pa;
           const px = pa[0] + (pb[0] - pa[0]) * f, py = pa[1] + (pb[1] - pa[1]) * f, [X, Y] = sgPt([px, py]);
-          masks[si].style.strokeDashoffset = lens[si] * (1 - d / total);
+          mx.beginPath(); if (!inkAt) inkAt = [S0[0][0], S0[0][1]]; mx.moveTo(inkAt[0] * IK, inkAt[1] * IK);
+          for (let q = lastJ; q < j; q++) mx.lineTo(S0[q][0] * IK, S0[q][1] * IK);      // every point the pen has passed since the last frame
+          mx.lineTo(px * IK, py * IK); mx.stroke(); inkAt = [px, py]; lastJ = j; drawInk();
           place(X + Math.sin(performance.now() / 23) * 0.35, Y + Math.cos(performance.now() / 29) * 0.35, 0, 0);
           if (performance.now() - tick > 85) { tick = performance.now(); Snd.play('penScratch', 0); }
         });
-        masks[si].style.strokeDashoffset = 0;
+        mx.beginPath(); mx.moveTo(inkAt[0] * IK, inkAt[1] * IK); mx.lineTo(S0[S0.length - 1][0] * IK, S0[S0.length - 1][1] * IK); mx.stroke(); drawInk();
       }
       if (!alive) return;
       const last = sgPt(strokes[strokes.length - 1][strokes[strokes.length - 1].length - 1]);

@@ -1411,7 +1411,7 @@ function normJersey(c) {
   o.torsoLogo = !!o.torsoLogo; o.logoX = clamp(Number(o.logoX) || 150, 8, 292); o.logoY = clamp(Number(o.logoY) || 112, 8, 337); o.logoSize = clamp(Number(o.logoSize) || 100, 40, 220);
   o.sleeveStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.sleeveStyle) ? o.sleeveStyle : 'even'; o.sleeveThick = clamp(Number(o.sleeveThick) || 100, 60, 200); o.sleeveNumY = clamp(Number(o.sleeveNumY) || 0, -50, 40);
   o.zp = jcNormZones(o.zp);
-  o.shCount = clamp(Math.round(Number(o.shCount) || 0), 0, 3); o.shStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.shStyle) ? o.shStyle : 'even'; o.shThick = clamp(Number(o.shThick) || 100, 60, 200);
+  o.shCount = clamp(Math.round(Number(o.shCount) || 0), 0, 3); o.shStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.shStyle) ? o.shStyle : 'even'; o.shThick = clamp(Number(o.shThick) || 100, 60, 200); o.shPos = clamp(Number(o.shPos) || 0, -8, 72); o.sleevePos = clamp(Number(o.sleevePos) || 0, -8, 60);
   o.showWord = o.showWord !== false; o.swoosh = !!o.swoosh; o.sleeveLogo = !!o.sleeveLogo; o.sleeveLogoFlipL = !!o.sleeveLogoFlipL; o.sleeveLogoFlipR = !!o.sleeveLogoFlipR; o.sleeveLogoSize = clamp(Number(o.sleeveLogoSize) || 100, 40, 160); o.noSideNums = !!o.noSideNums; o.sleeveNums = !!o.sleeveNums && !o.noSideNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
   const hx = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d; o.primary = hx(o.primary, '#FFFFFF'); o.secondary = hx(o.secondary, '#111418'); o.accent = hx(o.accent, '#FFFFFF');
   o.numSize = clamp(Number(o.numSize) || 100, 50, 150); o.nameSize = clamp(Number(o.nameSize) || 100, 50, 150); o.numY = clamp(Number(o.numY) || 0, -60, 70); o.numYFront = clamp(o.numYFront !== undefined && o.numYFront !== null && Number.isFinite(Number(o.numYFront)) ? Number(o.numYFront) : o.numY, -60, 70);   // number height: the front and the back are independent
@@ -1446,13 +1446,13 @@ function randomJersey(teamId, current) {
 // sleeve lines: each style gives the width of every line (x thickness) and the gap between them (x spacing), counting from the cuff towards the shoulder
 const JC_SLEEVE_STYLES = [['even', 'Even', [1, 1, 1], 1], ['thick', 'Thick + thin', [1.9, 0.6, 0.6], 0.8], ['taper', 'Tapered', [0.7, 1.1, 1.6], 1], ['wide', 'Wide', [1.7, 1.7, 1.7], 1], ['spaced', 'Spaced', [1, 1, 1], 2.4], ['tri', '3 together', [1, 1, 1], 0]];
 function jcStripeBands(c) {
-  const st = JC_SLEEVE_STYLES.find(x => x[0] === c.sleeveStyle) || JC_SLEEVE_STYLES[0], n = jcSleeveCount(c) && st[0] === 'tri' ? 3 : jcSleeveCount(c), k = c.sleeveThick / 100, T = 7 * k, out = []; let pos = 10;
+  const st = JC_SLEEVE_STYLES.find(x => x[0] === c.sleeveStyle) || JC_SLEEVE_STYLES[0], n = jcSleeveCount(c) && st[0] === 'tri' ? 3 : jcSleeveCount(c), k = c.sleeveThick / 100, T = 7 * k, out = []; let pos = 10 + (c.sleevePos || 0);
   for (let i = 0; i < n; i++) { const w = T * st[2][i]; out.push([pos, pos + w, i]); pos += w + 4.5 * k * st[3]; }
   return out;
 }
 // vertical lines on the shoulders, pushed towards the outside (the arm seam): x ranges measured from the outer edge of the shoulder inwards
 function jcShoulderBands(c) {
-  const st = JC_SLEEVE_STYLES.find(x => x[0] === c.shStyle) || JC_SLEEVE_STYLES[0], n = (c.shCount || 0) && st[0] === 'tri' ? 3 : (c.shCount || 0), k = (c.shThick || 100) / 100, T = 5.2 * k, out = []; let pos = 7;
+  const st = JC_SLEEVE_STYLES.find(x => x[0] === c.shStyle) || JC_SLEEVE_STYLES[0], n = (c.shCount || 0) && st[0] === 'tri' ? 3 : (c.shCount || 0), k = (c.shThick || 100) / 100, T = 5.2 * k, out = []; let pos = 7 + (c.shPos || 0);
   for (let i = 0; i < n; i++) { const w = T * st[2][i]; out.push([pos, pos + w, i]); pos += w + 3.4 * k * st[3]; }
   return out;
 }
@@ -2349,8 +2349,8 @@ function renderLocker(keepScroll) {
   const dets = JC_DETAILS.map(([k, l]) => `<button class="tog ${cfg[k] ? 'on' : ''}" data-act="jcToggle" data-k="${k}"><i></i>${l}</button>`).join('');
   const parts = JC_PARTS.map(([k, l]) => `<div class="jc-part">${colorRow(l, 'parts.' + k, C[k], cfg.parts[k] ? `<button class="mini" data-act="jcPartAuto" data-k="${k}">Auto</button>` : '<span class="hint">auto</span>')}</div>`).join('');
   const nStr = jcSleeveCount(cfg);
-  const sleeveSel = `<div class="minis big sl-sel">${[0, 1, 2, 3].map(n => chip('jcSleeve', n, n ? String(n) : 'None', nStr === n)).join('')}</div>${nStr ? `<div class="minis sl-styles">${JC_SLEEVE_STYLES.map(x => chip('jcSleeveStyle', x[0], x[1], cfg.sleeveStyle === x[0])).join('')}</div>${range('Line thickness', 'sleeveThick', 60, 200, 5, cfg.sleeveThick, '%')}${colorRow(cfg.sleeveStyle === 'tri' ? 'Outer lines color' : 'Line color', 'parts.decor', C.decor)}${cfg.sleeveStyle === 'tri' ? colorRow('Middle line color', 'parts.decorMid', C.decorMid) : ''}` : ''}`;
-  const shoulderSel = `<div class="minis big sl-sel">${[0, 1, 2, 3].map(n => chip('jcShoulder', n, n ? String(n) : 'None', (cfg.shCount || 0) === n)).join('')}</div>${cfg.shCount ? `<div class="minis sl-styles">${JC_SLEEVE_STYLES.map(x => chip('jcShStyle', x[0], x[1], cfg.shStyle === x[0])).join('')}</div>${range('Line thickness', 'shThick', 60, 200, 5, cfg.shThick, '%')}${colorRow(cfg.shStyle === 'tri' ? 'Outer lines color' : 'Line color', 'parts.shStripe', C.shStripe)}${cfg.shStyle === 'tri' ? colorRow('Middle line color', 'parts.shStripeMid', C.shStripeMid) : ''}` : ''}`;
+  const sleeveSel = `<div class="minis big sl-sel">${[0, 1, 2, 3].map(n => chip('jcSleeve', n, n ? String(n) : 'None', nStr === n)).join('')}</div>${nStr ? `<div class="minis sl-styles">${JC_SLEEVE_STYLES.map(x => chip('jcSleeveStyle', x[0], x[1], cfg.sleeveStyle === x[0])).join('')}</div>${range('Line thickness', 'sleeveThick', 60, 200, 5, cfg.sleeveThick, '%')}${range('Position · cuff ↔ shoulder', 'sleevePos', -8, 60, 1, Math.round(cfg.sleevePos || 0))}${colorRow(cfg.sleeveStyle === 'tri' ? 'Outer lines color' : 'Line color', 'parts.decor', C.decor)}${cfg.sleeveStyle === 'tri' ? colorRow('Middle line color', 'parts.decorMid', C.decorMid) : ''}` : ''}`;
+  const shoulderSel = `<div class="minis big sl-sel">${[0, 1, 2, 3].map(n => chip('jcShoulder', n, n ? String(n) : 'None', (cfg.shCount || 0) === n)).join('')}</div>${cfg.shCount ? `<div class="minis sl-styles">${JC_SLEEVE_STYLES.map(x => chip('jcShStyle', x[0], x[1], cfg.shStyle === x[0])).join('')}</div>${range('Line thickness', 'shThick', 60, 200, 5, cfg.shThick, '%')}${range('Position · outside ↔ neck', 'shPos', -8, 72, 1, Math.round(cfg.shPos || 0))}${colorRow(cfg.shStyle === 'tri' ? 'Outer lines color' : 'Line color', 'parts.shStripe', C.shStripe)}${cfg.shStyle === 'tri' ? colorRow('Middle line color', 'parts.shStripeMid', C.shStripeMid) : ''}` : ''}`;
   setScreen(`<div class="wrap jc-wrap" style="${themeVars(id)}">
     <div class="topbar"><button class="btn btn-ghost" data-act="goHome">◂ BACK</button><span class="eyebrow">JERSEY CREATOR</span></div>
     <h2 class="h-xl title-logo">${badge(id, 'lg')}<span>NFL JERSEY CREATOR</span></h2>

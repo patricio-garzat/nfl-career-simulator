@@ -16,7 +16,7 @@ const rcLabel = l => l < 0.3 ? 'Low' : l < 0.55 ? 'Growing' : l < 0.8 ? 'High' :
 const csColors = info => ({ c1: info.c1 || '#1b3a6b', c2: info.c2 || '#ffffff' });
 const csTheme = info => { const c = csColors(info), tb = brightOf(c); return `--t1:${c.c1};--t2:${c.c2};--ta:${accentOf(c)};--tb:${tb};--tx:${textOn(tb)}`; };
 const csBadge = (info, size = '') => { const c = csColors(info); return `<span class="team-badge logo ${size}" style="--t1:${c.c1};--t2:${c.c2};color:${textOn(c.c1)}"><img src="${collegeLogo(info.id, 120)}" alt="" onerror="this.style.visibility='hidden'"></span>`; };
-const csPack = (name, info) => { const c = csColors(info); return { id: info.id, name, nick: name, c1: c.c1, c2: c.c2, logo: collegeLogo(info.id, 120) }; };
+const csPack = (name, info) => { const c = csColors(info); return { id: info.id, name, nick: name, c1: c.c1, c2: c.c2, logo: collegeLogo(info.id, 120, c.c1) }; };
 
 function csStart(kind) {
   const P = preview, youth = kind === 'youth';
@@ -76,7 +76,7 @@ function csPlayGame() {
 function csEnv() {
   const opp = CS.schedule[Math.min(CS.idx, CS.G - 1)], oi = csInfoOf(opp.name);
   return { se: CS, P: CS.P, t: csPack(CS.name, CS.info), o: csPack(opp.name, oi), number: CS.num, theme: csTheme(CS.info), save: false, onDone: () => renderCollege(),
-    jersey: view => csYouth() ? youthJerseySVG(CS.name, view, CS.num, jName(CS.P)) : jerseySVG(collegeJersey(CS.name), jName(CS.P), CS.num, { view, noShield: true, word: CS.name.toUpperCase(), backLogo: collegeLogo(CS.info.id, 80) }) };
+    jersey: view => csYouth() ? youthJerseySVG(CS.name, view, CS.num, jName(CS.P)) : jerseySVG(collegeJersey(CS.name), jName(CS.P), CS.num, { view, noShield: true, word: CS.name.toUpperCase(), backLogo: collegeLogo(CS.info.id, 80, collegeJersey(CS.name).p) }) };
 }
 // same as seasonTotals(), but for the college season (there is no career save yet, so S is null)
 function csTotals() {

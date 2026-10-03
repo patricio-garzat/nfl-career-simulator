@@ -1366,7 +1366,52 @@ const collegeJersey = name => (typeof S !== 'undefined' && S && S.jerseys && S.j
 const youthJersey = name => (typeof S !== 'undefined' && S && S.jerseys && S.jerseys['y:' + name]) ? normJersey(S.jerseys['y:' + name]) : youthJerseyBase(name);
 const youthJerseySVG = (name, view, num, shown) => jerseySVG(youthJersey(name), shown || '', num, { view, noShield: true, word: String(name).toUpperCase(), backLogo: MFL_INFO[name] ? mflLogo(MFL_INFO[name].slug) : '' });
 const neutralJersey = () => newJersey({ p: '#E9EDF4', s: '#2B3A55', a: '#8B97AD' }, 'solid');
-const defaultJersey = key => jcIsAlt(key) ? (key[0] === 'c' ? collegeJerseyBase(key.slice(2)) : youthJerseyBase(key.slice(2))) : newJersey(jcPalettes(key)[0], 'solid');
+// default HOME jersey of each team, as close to the real one as the creator allows: colors, number color + outline, and the sleeve lines
+// p/s/a = body / secondary / accent, n = number color, o = number outline ('' = none), l = sleeve lines [count, style, outer color, middle color]
+const JC_REAL = {
+  ARI: { p: '#97233F', s: '#000000', a: '#FFFFFF', n: '#FFFFFF', o: '#000000', l: [3, 'tri', '#000000', '#FFFFFF'] },
+  ATL: { p: '#000000', s: '#A71930', a: '#FFFFFF', n: '#FFFFFF', o: '#A71930', l: [3, 'tri', '#A71930', '#FFFFFF'] },
+  BAL: { p: '#241773', s: '#000000', a: '#9E7C0C', n: '#FFFFFF', o: '#000000', l: [3, 'tri', '#000000', '#9E7C0C'] },
+  BUF: { p: '#00338D', s: '#C60C30', a: '#FFFFFF', n: '#FFFFFF', o: '#C60C30', l: [3, 'tri', '#C60C30', '#FFFFFF'] },
+  CAR: { p: '#0085CA', s: '#000000', a: '#BFC0BF', n: '#000000', o: '#FFFFFF', l: [3, 'tri', '#000000', '#BFC0BF'] },
+  CHI: { p: '#0B162A', s: '#C83803', a: '#FFFFFF', n: '#C83803', o: '#FFFFFF', l: [3, 'tri', '#C83803', '#FFFFFF'] },
+  CIN: { p: '#000000', s: '#FB4F14', a: '#FFFFFF', n: '#FB4F14', o: '#FFFFFF', l: [2, 'even', '#FB4F14', '#FB4F14'] },
+  CLE: { p: '#311D00', s: '#FF3C00', a: '#FFFFFF', n: '#FF3C00', o: '#FFFFFF', l: [3, 'tri', '#FF3C00', '#FFFFFF'] },
+  DAL: { p: '#FFFFFF', s: '#003594', a: '#869397', n: '#003594', o: '#869397', l: [3, 'tri', '#003594', '#869397'], cc: true },
+  DEN: { p: '#FB4F14', s: '#002244', a: '#FFFFFF', n: '#FFFFFF', o: '#002244', l: [3, 'tri', '#002244', '#FFFFFF'] },
+  DET: { p: '#0076B6', s: '#B0B7BC', a: '#FFFFFF', n: '#FFFFFF', o: '#B0B7BC', l: [2, 'even', '#B0B7BC', '#B0B7BC'] },
+  GB: { p: '#203731', s: '#FFB612', a: '#FFFFFF', n: '#FFFFFF', o: '#FFB612', l: [2, 'even', '#FFB612', '#FFB612'] },
+  HOU: { p: '#03202F', s: '#A71930', a: '#FFFFFF', n: '#FFFFFF', o: '#A71930', l: [3, 'tri', '#A71930', '#FFFFFF'] },
+  IND: { p: '#002C5F', s: '#A2AAAD', a: '#FFFFFF', n: '#FFFFFF', o: '', l: [2, 'even', '#FFFFFF', '#FFFFFF'] },
+  JAX: { p: '#000000', s: '#006778', a: '#D7A22A', n: '#FFFFFF', o: '#006778', l: [3, 'tri', '#006778', '#D7A22A'] },
+  KC: { p: '#E31837', s: '#FFB81C', a: '#FFFFFF', n: '#FFFFFF', o: '#FFB81C', l: [3, 'tri', '#FFFFFF', '#FFB81C'] },
+  LV: { p: '#000000', s: '#A5ACAF', a: '#FFFFFF', n: '#FFFFFF', o: '#A5ACAF', l: [2, 'even', '#A5ACAF', '#A5ACAF'] },
+  LAC: { p: '#0080C6', s: '#FFC20E', a: '#FFFFFF', n: '#FFFFFF', o: '#FFC20E', l: [3, 'tri', '#FFC20E', '#FFFFFF'] },
+  LAR: { p: '#003594', s: '#FFD100', a: '#FFFFFF', n: '#FFD100', o: '#FFFFFF', l: [2, 'even', '#FFD100', '#FFD100'] },
+  MIA: { p: '#008E97', s: '#FC4C02', a: '#FFFFFF', n: '#FFFFFF', o: '#FC4C02', l: [3, 'tri', '#FC4C02', '#FFFFFF'] },
+  MIN: { p: '#4F2683', s: '#FFC62F', a: '#FFFFFF', n: '#FFFFFF', o: '#FFC62F', l: [3, 'tri', '#FFC62F', '#FFFFFF'] },
+  NE: { p: '#002244', s: '#C60C30', a: '#B0B7BC', n: '#FFFFFF', o: '#C60C30', l: [3, 'tri', '#C60C30', '#B0B7BC'] },
+  NO: { p: '#101820', s: '#D3BC8D', a: '#FFFFFF', n: '#D3BC8D', o: '#FFFFFF', l: [3, 'tri', '#D3BC8D', '#FFFFFF'] },
+  NYG: { p: '#0B2265', s: '#A71930', a: '#FFFFFF', n: '#FFFFFF', o: '#A71930', l: [3, 'tri', '#A71930', '#FFFFFF'] },
+  NYJ: { p: '#125740', s: '#000000', a: '#FFFFFF', n: '#FFFFFF', o: '', l: [2, 'even', '#FFFFFF', '#FFFFFF'] },
+  PHI: { p: '#004C54', s: '#A5ACAF', a: '#FFFFFF', n: '#FFFFFF', o: '#000000', l: [3, 'tri', '#A5ACAF', '#FFFFFF'] },
+  PIT: { p: '#101820', s: '#FFB612', a: '#FFFFFF', n: '#FFB612', o: '', l: [3, 'tri', '#FFB612', '#FFFFFF'] },
+  SF: { p: '#AA0000', s: '#B3995D', a: '#FFFFFF', n: '#B3995D', o: '', l: [2, 'even', '#B3995D', '#B3995D'], font: 't_sf' },
+  SEA: { p: '#002244', s: '#69BE28', a: '#A5ACAF', n: '#FFFFFF', o: '#69BE28', l: [3, 'tri', '#A5ACAF', '#69BE28'] },
+  TB: { p: '#D50A0A', s: '#34302B', a: '#B1BABF', n: '#B1BABF', o: '#000000', l: [3, 'tri', '#000000', '#FF7900'] },
+  TEN: { p: '#0C2340', s: '#4B92DB', a: '#C8102E', n: '#FFFFFF', o: '#4B92DB', l: [3, 'tri', '#C8102E', '#4B92DB'] },
+  WAS: { p: '#5A1414', s: '#FFB612', a: '#FFFFFF', n: '#FFB612', o: '#FFFFFF', l: [2, 'even', '#FFB612', '#FFB612'] },
+};
+const defaultJersey = key => {
+  if (jcIsAlt(key)) return key[0] === 'c' ? collegeJerseyBase(key.slice(2)) : youthJerseyBase(key.slice(2));
+  const d = JC_REAL[key]; if (!d) return newJersey(jcPalettes(key)[0], 'solid');
+  const c = newJersey({ p: d.p, s: d.s, a: d.a }, 'solid');
+  c.numColor = c.nameColor = d.n; c.numOutline = c.nameOutline = d.o || d.n; c.numOutlineW = d.o ? 2.4 : 0; c.nameOutlineW = 0; c.textCustom = true;
+  c.collarContrast = !!d.cc;                       // the collar matches the body on nearly every real jersey (the Cowboys' white jersey has a navy one)
+  if (d.font) c.numFont = c.nameFont = d.font;
+  c.sleeveCount = d.l[0]; c.sleeveStripes = true; c.sleeveStyle = d.l[1]; c.parts = { ...(c.parts || {}), decor: d.l[2], decorMid: d.l[3] };
+  return c;
+};
 // upgrades designs saved by the older creators
 function migrateJersey(o) {
   const c = newJersey({ p: o.body || '#FFFFFF', s: o.trim || o.cap || '#111418', a: o.outline || '#FFFFFF' }, 'solid');

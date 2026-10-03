@@ -138,7 +138,7 @@ const LV_EZ = {
   PHI: { bg: '#040E0F', ends: [[{ l: { k: 'img', src: 'assets/nfl/eagles-wordmark.png', x: 0, y: 0, w: 400, h: 71 } }]] },   // white EAGLES with an Eagles-green outline, on a soft near-black tinted with the team green
   WAS: { bg: '#5A1414', ends: [[{ l: { k: 'img', src: 'assets/nfl/commanders-wordmark.png', x: 0, y: 0, w: 370, h: 90 } }]] },   // gold COMMANDERS between two gold bars (supplied wordmark) on burgundy
   CHI: { bg: '#0B162A', ends: [[{ l: { k: 'img', src: 'assets/nfl/bears-wordmark.png', x: 0, y: 0, w: 340, h: 49 } }]] },   // orange BEARS wordmark, big and centered, on Bears navy
-  DET: { bg: '#0076B6', ends: [[{ t: { s: 'LIONS', f: 'none', o: '#FFFFFF', w: 3, ff: 'Russo One', h: 66, n: 330 } }]] },
+  DET: { bg: '#0076B6', ends: [[{ l: { k: 'img', src: 'assets/nfl/lions-wordmark.png', x: 0, y: 0, w: 330, h: 95 } }]] },   // LIONS in Lions blue with a silver and then a white outline, on the same blue (supplied wordmark)
   GB: { bg: '#203731', ends: [[{ l: { k: 'img', src: 'assets/nfl/packers-wordmark.png', x: 0, y: 0, w: 330, h: 101 } }]] },   // white PACKERS with a gold border (supplied wordmark) on Packers green
   MIN: { bg: '#4F2683', ends: [[{ l: { k: 'img', src: 'assets/nfl/vikings-wordmark-white.png', x: 0, y: 0, w: 230, h: 73 } }]] },   // white VIKINGS wordmark, big and centered with margin, on the team's purple
   ATL: { bg: null, ends: [[{ l: { k: 'img', src: 'assets/nfl/falcons-atl.png', x: 0, y: 0, w: 240, h: 92 } }]] },   // the ATL logo on bare turf

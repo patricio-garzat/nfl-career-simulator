@@ -1320,6 +1320,19 @@ function collegeJersey(name) {
   const acc = Math.abs(lum(sec) - lum(p)) > 0.3 ? contrastOn(sec) : contrastOn(p);
   return (_cj[name] = newJersey({ p, s: sec, a: acc }, 'solid'));
 }
+// the kid's first jersey: the MFL team's colors (taken from its logo), built the same way as a college jersey
+const _yj = {};
+function youthJersey(name) {
+  if (_yj[name]) return _yj[name];
+  const info = MFL_INFO[name] || {}, ok = h => /^#[0-9A-F]{6}$/i.test(h || '');
+  let p = ok(info.c1) ? info.c1 : '#E9EDF4', sec = ok(info.c2) ? info.c2 : '#2B3A55';
+  if (lum(p) > 0.88 && lum(sec) < 0.88) [p, sec] = [sec, p];
+  const near = (a, b) => [1, 3, 5].reduce((t, i) => t + Math.abs(parseInt(a.slice(i, i + 2), 16) - parseInt(b.slice(i, i + 2), 16)), 0) < 70;
+  if (near(p, sec)) sec = lum(p) > 0.5 ? '#111418' : '#FFFFFF';
+  const acc = Math.abs(lum(sec) - lum(p)) > 0.3 ? contrastOn(sec) : contrastOn(p);
+  return (_yj[name] = newJersey({ p, s: sec, a: acc }, 'solid'));
+}
+const youthJerseySVG = (name, view, num, shown) => jerseySVG(youthJersey(name), shown || '', num, { view, noShield: true, word: String(name).toUpperCase(), backLogo: MFL_INFO[name] ? mflLogo(MFL_INFO[name].slug) : '' });
 const neutralJersey = () => newJersey({ p: '#E9EDF4', s: '#2B3A55', a: '#8B97AD' }, 'solid');
 const defaultJersey = teamId => newJersey(jcPalettes(teamId)[0], 'solid');
 // upgrades designs saved by the older creators
@@ -1669,6 +1682,8 @@ function updateCreateJersey() {
   const n = parseInt(form.number, 10), ok = numberOk(form.pos, n);
   const shown = cleanJerseyName(form.jerseyName) || cleanJerseyName(surname(form.name)) || 'YOUR NAME';
   el.innerHTML = jerseySVG(collegeJersey(form.college), shown, Number.isInteger(n) ? clamp(n, 0, 99) : '?', { view: 'both', noShield: true, word: String(form.college || 'ROOKIE').toUpperCase(), backLogo: COLLEGE_INFO[form.college] ? collegeLogo(COLLEGE_INFO[form.college].id, 80) : '' });
+  const yp = document.getElementById('createYouth');
+  if (yp) yp.innerHTML = form.youth && MFL_INFO[form.youth] ? `<div class="eyebrow">YOUR FIRST JERSEY · ${esc(form.youth).toUpperCase()} (MFL)</div><div class="stage-jersey">${youthJerseySVG(form.youth, 'both', Number.isInteger(n) ? clamp(n, 0, 99) : '?', shown)}</div>` : '';
   const cc = document.getElementById('createCollege'); if (cc) cc.innerHTML = `${collegeImg(form.college, 80, 'col-logo')}<b>${esc(form.college)}</b>`;
   if (updateCreateJersey.last !== form.college) { updateCreateJersey.last = form.college; el.classList.remove('jswap'); void el.offsetWidth; el.classList.add('jswap'); }
   const hint = document.getElementById('numHint');
@@ -1845,9 +1860,14 @@ let form = { name: '', pos: 'WR', college: 'Alabama', age: 22, number: NUM_DEFAU
 let preview = null, rerolls = 3;
 // first team: the MFL (Monterrey Football League) youth club where you started as a kid (optional, just for the story)
 const youthChip = name => { const i = MFL_INFO[name]; return i ? `<span class="chip chip-col youth-chip" style="--yc:${i.c1}"><img class="col-logo xs" src="${mflLogo(i.slug)}" alt="">${esc(name)} <small>MFL</small></span>` : ''; };
+// the jersey shown while you browse the MFL teams (your name and number on it)
+function youthPrevHTML() {
+  const i = MFL_INFO[form.youth], n = parseInt(form.number, 10), shown = cleanJerseyName(form.jerseyName) || cleanJerseyName(surname(form.name)) || 'YOUR NAME';
+  return i ? `<div class="yp-jersey">${youthJerseySVG(form.youth, 'both', Number.isInteger(n) ? n : '', shown)}</div><div class="yp-name"><img src="${mflLogo(i.slug)}" alt=""><b>${esc(form.youth)}</b><small>MFL</small></div>` : '<div class="yp-empty">Tap a team to see its jersey</div>';
+}
 function youthRowHTML() {
   const i = MFL_INFO[form.youth];
-  return i ? `<button type="button" class="youth-btn on" data-act="pickYouth" style="--yc:${i.c1};--yc2:${i.c2}"><img src="${mflLogo(i.slug)}" alt=""><div><b>${esc(form.youth)}</b><span>MFL · your first team</span></div><em>CHANGE</em></button><button type="button" class="mini youth-x" data-act="youthNone" title="Remove">✕</button>`
+  return i ? `<button type="button" class="youth-btn on" data-act="pickYouth" style="--yc:${i.c1};--yc2:${i.c2}"><span class="youth-jy">${youthJerseySVG(form.youth, 'front', Number.isInteger(parseInt(form.number, 10)) ? parseInt(form.number, 10) : '', '')}</span><div><b>${esc(form.youth)}</b><span>MFL · your first team</span></div><em>CHANGE</em></button><button type="button" class="mini youth-x" data-act="youthNone" title="Remove">✕</button>`
     : `<button type="button" class="youth-btn" data-act="pickYouth"><span class="youth-ph">🧒</span><div><b>Choose your first team</b><span>MFL youth league · optional</span></div><em>PICK</em></button>`;
 }
 function renderCreate() {
@@ -1873,7 +1893,7 @@ function renderCreate() {
       <input class="input" data-model="jerseyName" maxlength="12" placeholder="Defaults to your last name" value="${esc(form.jerseyName || '')}" autocomplete="off">
       <div class="row end"><button class="btn btn-ghost" data-act="toTitle">BACK</button><button class="btn btn-primary" data-act="genPlayer">GENERATE PLAYER</button></div>
     </div>
-    <div class="card jersey-stage"><div class="eyebrow">YOUR COLLEGE JERSEY</div><div id="createCollege" class="create-college"></div><div id="createJersey" class="stage-jersey"></div>
+    <div class="card jersey-stage"><div class="eyebrow">YOUR COLLEGE JERSEY</div><div id="createCollege" class="create-college"></div><div id="createJersey" class="stage-jersey"></div><div id="createYouth" class="create-youth"></div>
       <div class="muted small">The colors follow the college you pick. Name and number update as you type. You'll get your team's colors after the draft — and can design it freely in the Jersey Creator (Locker Room).</div></div>
     </div></div>`);
   updateCreateJersey();
@@ -2504,10 +2524,16 @@ const actions = {
   closeModal: () => closeModal(),
   pickYouth: () => {
     openModal(`<h3 class="modal-h">YOUR FIRST TEAM</h3><p class="modal-p">Where did you play as a kid? <b>MFL</b> = Monterrey Football League.</p>
+      <div class="youth-prev" id="youthPrev" style="--yc:${(MFL_INFO[form.youth] || {}).c1 || '#4a5a7a'}">${youthPrevHTML()}</div>
       <div class="cp-grid youth-grid">${MFL_TEAMS.map(([slug, name, c1]) => `<button type="button" class="cp-tile ${name === form.youth ? 'on' : ''}" data-act="youthPick" data-n="${esc(name)}" style="--yc:${'#' + c1}"><img src="${mflLogo(slug)}" alt=""><span>${esc(name)}</span></button>`).join('')}</div>
       <div class="row end"><button class="btn btn-ghost" data-act="youthNone">NO YOUTH TEAM</button><button class="btn btn-primary" data-act="closeModal">DONE</button></div>`, 'youth');
   },
-  youthPick: (d) => { form.youth = d.n; const r = document.getElementById('youthRow'); if (r) r.innerHTML = youthRowHTML(); closeModal(); Snd.play('chime', 0.02); },
+  youthPick: (d) => {
+    form.youth = d.n; const r = document.getElementById('youthRow'); if (r) r.innerHTML = youthRowHTML(); updateCreateJersey();
+    document.querySelectorAll('.youth-grid .cp-tile').forEach(t => t.classList.toggle('on', t.dataset.n === d.n));
+    const pv = document.getElementById('youthPrev'); if (pv) { pv.style.setProperty('--yc', MFL_INFO[d.n].c1); pv.innerHTML = youthPrevHTML(); pv.classList.remove('jswap'); void pv.offsetWidth; pv.classList.add('jswap'); }
+    Snd.play('mgGood', 0, 0);
+  },
   youthNone: () => { form.youth = ''; const r = document.getElementById('youthRow'); if (r) r.innerHTML = youthRowHTML(); closeModal(); },
   confirmYes: () => { const f = pendingConfirm; pendingConfirm = null; closeModal(); if (f) f(); },
 

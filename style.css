@@ -710,6 +710,16 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
   .mg-svg { max-height: calc(100dvh - 330px); } .mg-svg.tall { max-height: calc(100dvh - 318px); } .mg-msg { min-height: 42px; font-size: 13.5px; } .mg-msg.go { font-size: 15px; } .mg-ctrl { min-height: 58px; }
   .mg-b { font-size: 19px; padding: 11px 4px; } .mg-b.big { font-size: 22px; padding: 12px; } .mg-btns.five .mg-b { font-size: 15px; padding: 10px 0; } .mg-intro, .mg-res { padding: 10px 10px; gap: 4px; } .mg-intro h2 { font-size: 26px; } .mg-bigicon { font-size: 26px; } .mg-grade { font-size: 34px; } .mg-big { font-size: 56px; } .mg-jersey-big { width: 86px; } .mg-jersey-big.small { width: 70px; }
 }
+/* league picker (base styles) */
+.cp-leagues { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .cp-league { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 14px 8px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--w60); color: var(--text); cursor: pointer; text-align: center; transition: transform .15s, border-color .15s, background .15s; } .cp-league:hover { transform: translateY(-2px); border-color: var(--lime); background: color-mix(in srgb, var(--lime) 10%, var(--w60)); }
+.cp-league img { height: 62px; width: auto; max-width: 100%; object-fit: contain; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .35)); } .cp-league b { font-family: var(--head); font-size: 24px; letter-spacing: .08em; line-height: 1; } .cp-league span { font-size: 11px; color: var(--mut); letter-spacing: .06em; } .cp-league em { font-style: normal; font-size: 11px; color: var(--lime); letter-spacing: .1em; text-transform: uppercase; }
+.cp-leagues[hidden], .cp-subs[hidden], .cp-back[hidden], .cp-grid[hidden] { display: none; } .cp-back { flex: none; white-space: nowrap; } .cp-subs { align-self: flex-start; }
+.cp-league > div { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+@media (max-width: 720px) {
+  .wrap.create .cp-leagues { flex: 1; min-height: 100px; gap: 8px; grid-auto-rows: 1fr; } .wrap.create .cp-league { flex-direction: row; justify-content: flex-start; text-align: left; gap: 8px; padding: 4px 8px; min-height: 0; overflow: hidden; }
+  .wrap.create .cp-league img { height: 34px; width: 38px; flex: none; } .wrap.create .cp-league > div { align-items: flex-start; gap: 1px; } .wrap.create .cp-league b { font-size: 17px; } .wrap.create .cp-league span { font-size: 9.5px; line-height: 1.15; } .wrap.create .cp-league em { font-size: 9.5px; }
+  .wrap.create .cp-tools { flex-wrap: nowrap; } .wrap.create .cp-search { flex: 1 1 auto; }
+}
 /* college season */
 .cs-sum { display: flex; align-items: center; gap: 12px; text-align: left; margin-bottom: 6px; } .cs-sum b { display: block; font-family: var(--head); font-size: 24px; letter-spacing: .05em; text-transform: uppercase; } .cs-sum span { color: var(--mut); font-size: 12px; letter-spacing: .08em; }
 .cs-stock { margin-top: 12px; text-align: center; }
@@ -724,3 +734,10 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 @media (max-width: 720px) { .wrap.create .youth-btn { padding: 4px 10px; gap: 8px; border-radius: 12px; } .wrap.create .youth-btn img, .wrap.create .youth-ph { width: 28px; height: 28px; font-size: 20px; } .wrap.create .youth-btn b { font-size: 15px; } .wrap.create .youth-btn span { font-size: 10px; } }
 
 @media (max-width: 720px) { .wrap.create .lbl-m { display: none; } .wrap.create .cp-leagues { min-height: 76px; } .wrap.create .cp-league { padding: 2px 6px; } .wrap.create .cp-league img { height: 28px; width: 32px; } .wrap.create .cp-league b { font-size: 15px; } .wrap.create .cp-league span { font-size: 9px; } .wrap.create .cp-league em { display: none; } }
+
+/* youth jersey */
+.youth-jy { width: 34px; flex: none; display: block; } .youth-jy svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .45)); }
+.youth-prev { display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 120px; padding: 8px; margin: 4px 0 8px; border-radius: 14px; background: radial-gradient(90% 90% at 50% 0%, color-mix(in srgb, var(--yc, #4a5a7a) 30%, transparent), rgba(255, 255, 255, .03)); border: 1px solid var(--line); text-align: left; }
+.yp-jersey { width: 170px; flex: none; } .yp-jersey svg, .yp-jersey .jersey-pair { width: 100%; } .yp-name { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; } .yp-name img { width: 44px; height: 44px; object-fit: contain; } .yp-name b { font-family: var(--head); font-size: 20px; letter-spacing: .05em; text-transform: uppercase; } .yp-name small { color: var(--mut); letter-spacing: .14em; font-size: 10px; } .yp-empty { color: var(--mut); font-size: 13px; letter-spacing: .06em; padding: 30px 0; }
+.create-youth:not(:empty) { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); text-align: center; } .create-youth .stage-jersey { margin-top: 6px; }
+@media (max-width: 720px) { .modal-card.youth .youth-grid { max-height: 34vh; } .yp-jersey { width: 130px; } .youth-prev { min-height: 100px; gap: 8px; } .wrap.create .youth-jy { width: 26px; } }

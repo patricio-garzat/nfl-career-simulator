@@ -555,6 +555,7 @@ function startSeason() {
   S.egg = false;
   if (S.carryInjury) { season.injury = S.carryInjury; S.carryInjury = null; }
   season.aiRes = genAiResults(S.teamId);
+  if (typeof calGenLeague === 'function') { const lg = calGenLeague(season, 1, null); season.league = lg.league; season.aiRes = lg.aiRes; }   // real calendar: dates, windows and every team's games
   season.style = Math.exp(gauss(0, 0.07)); // pass-heavy or run-heavy scheme this year
   mgInitSeason(season);
   S.seasons.push(season);
@@ -572,18 +573,21 @@ function genAiResults(userId) {
   return res;
 }
 // Wins of all 32 teams after k games (the user's team uses its real results)
+function leagueGP(season, k) {                                   // games each team has played once the user has played k (teams on a bye have one less)
+  const g = {}; TEAM_LIST.forEach(t => { g[t.id] = season.league && typeof calPlayedBy === 'function' ? calPlayedBy(season, t.id, k) : k; }); return g;
+}
 function leagueWins(season, k) {
   if (!season.aiRes) season.aiRes = genAiResults(season.teamId); // old saves
-  const w = {};
+  const w = {}, gp = leagueGP(season, k);
   TEAM_LIST.forEach(t => {
-    w[t.id] = season.aiRes[t.id] ? season.aiRes[t.id].slice(0, k).split('').filter(x => x === '1').length : season.games.slice(0, k).filter(g => g.w).length;
+    w[t.id] = season.aiRes[t.id] ? season.aiRes[t.id].slice(0, gp[t.id]).split('').filter(x => x === '1').length : season.games.slice(0, k).filter(g => g.w).length;
   });
   return w;
 }
 function standingsData(season) {
-  if (season.wins) return { wins: season.wins, k: 17 };
+  if (season.wins) return { wins: season.wins, k: 17, gp: leagueGP(season, 17) };
   const k = season.games.length;
-  return { wins: leagueWins(season, k), k };
+  return { wins: leagueWins(season, k), k, gp: leagueGP(season, k) };
 }
 // "2nd" / "T-2nd" within the user's division
 function divisionLine(season) {
@@ -770,6 +774,7 @@ function executeTrade(o) {
   const ns = buildSchedule(to); // the new team's remaining opponents replace the old ones
   for (let j = p; j < se.schedule.length; j++) { se.schedule[j].oppId = ns[j].oppId; se.schedule[j].home = ns[j].home; }
   se.teamId = to; S.teamId = to; S.contract.teamId = to; S.contract.bias = o.bias;
+  if (typeof calRebuildAfterTrade === 'function') calRebuildAfterTrade(se, p);   // the rest of the league's calendar is rebuilt around the new team's games
   se.trade = { from, to, after: p, pkg: o.pkg }; se.traded = true; se.tradeOffers = []; se.depth = buildDepth(to); se.role = curRoleKey(se);
   S.trades = (S.trades || []).concat({ year: se.year, from, to, after: p, pkg: o.pkg });
   S.contracts.push({ ...S.contract, type: 'Trade', startYear: S.year });
@@ -847,8 +852,10 @@ function playGame(season) {
   if (season.rigged && !win && (kind === 'PO' || season.games.filter(g => !g.w).length >= (season.riggedCap = season.riggedCap || randInt(2, 4)))) { [my, op] = [op, my]; win = true; }
 
   const game = { k: kind, wk, round: mInfo ? mInfo.name : null, opp: oppId, home, my, op, w: win, tm: season.teamId, st, dnp, slot, inj: injNote, hurt, s, fp, rate, td };
+  if (kind === 'PO' && typeof calPlayoffWhen === 'function') { const pw = calPlayoffWhen(season, wk); game.date = pw.date.toISOString().slice(0, 10); game.time = pw.time; game.slotName = pw.name; }
   if (kind === 'REG') {
     recordUserRes(season, season.idx, win);
+    if (typeof calAfterUserGame === 'function') calAfterUserGame(season, season.idx, game);
     season.games.push(game); season.idx++;
     if (season.idx >= season.schedule.length) finalizeRegular(season, notes);
     else { tradeTick(season, notes); evalDepth(season, notes); }
@@ -998,7 +1005,7 @@ function finishSeason() {
   if (season.complete) return;
   const T = seasonTotals(season);
   if (!season.record) { const r = recOf(season); season.record = r; }
-  season.complete = true;
+  season.complete = true; season.league = null;   // the calendar of a finished season is no longer kept (saves stay small)
   season.awards = computeAwards(season, T);
   const prevBest = Math.max(0, ...S.seasons.slice(0, -1).filter(s => !s.partial).map(s => { const t = seasonTotals(s); return t.gp >= 8 ? t.ppg : 0; }));
   season.careerBest = S.seasons.length > 1 && T.gp >= 8 && T.ppg > prevBest;
@@ -2186,11 +2193,11 @@ async function renderDraft() {
 /* --- Dashboard ---------------------------------------------------------------- */
 function nextGameInfo(season) {
   if (season.status === 'regular') {
-    const g = season.schedule[season.idx], t = TEAM[g.oppId];
-    return { title: `WEEK ${g.week}`, opp: t, ha: g.home ? 'vs' : '@' };
+    const g = season.schedule[season.idx], t = TEAM[g.oppId], w = typeof calWhenOfUser === 'function' ? calWhenOfUser(season, season.idx) : null;
+    return { title: `WEEK ${g.week}`, opp: t, ha: g.home ? 'vs' : '@', when: w ? `${calShort(w.date)} · ${w.time} ET · ${w.name}` : '' };
   }
-  const m = poMatchup(season), t = TEAM[m.oppId];
-  return { title: m.name.toUpperCase(), opp: t, ha: m.short === 'SB' ? 'vs' : (season.po.mySeed < m.oppSeed ? 'vs' : '@') };
+  const m = poMatchup(season), t = TEAM[m.oppId], w = typeof calPlayoffWhen === 'function' ? calPlayoffWhen(season, m.short) : null;
+  return { title: m.name.toUpperCase(), opp: t, ha: m.short === 'SB' ? 'vs' : (season.po.mySeed < m.oppSeed ? 'vs' : '@'), when: w ? `${calShort(w.date)} · ${w.time} ET · ${w.name}` : '' };
 }
 function sparkBars(season) {
   const g = season.games.concat(season.playoffGames).slice(-8);
@@ -2206,7 +2213,7 @@ function renderDashboard() {
   const last = se.games.concat(se.playoffGames).slice(-1)[0];
   let nextCard = '';
   if (done) nextCard = `<div class="next-card done"><div class="eyebrow">SEASON COMPLETE</div><div class="nc-big">${se.po && se.po.champion ? '🏆 SUPER BOWL CHAMPIONS' : 'The season has ended'}</div><div class="muted">View your season summary to see awards and player development.</div></div>`;
-  else { const n = nextGameInfo(se); nextCard = `<div class="next-card ${se.status === 'playoffs' ? 'po' : ''}" style="--o1:${n.opp.c1};--o2:${n.opp.c2}"><img class="nc-ghost" src="${logoUrl(n.opp.id)}" alt=""><div class="eyebrow">${n.title}${se.status === 'playoffs' ? ' · PLAYOFFS' : ''}</div><div class="nc-row">${badge(n.opp.id, 'lg')}<div><div class="nc-big">${n.ha} ${n.opp.name}</div><div class="muted">${n.opp.conf} ${n.opp.div} · Team strength ${Math.round(S.teamRatings[n.opp.id])}</div></div></div></div>`; }
+  else { const n = nextGameInfo(se); nextCard = `<div class="next-card ${se.status === 'playoffs' ? 'po' : ''}" style="--o1:${n.opp.c1};--o2:${n.opp.c2}"><img class="nc-ghost" src="${logoUrl(n.opp.id)}" alt=""><div class="eyebrow">${n.title}${se.status === 'playoffs' ? ' · PLAYOFFS' : ''}</div><div class="nc-row">${badge(n.opp.id, 'lg')}<div><div class="nc-big">${n.ha} ${n.opp.name}</div><div class="muted">${n.opp.conf} ${n.opp.div} · Team strength ${Math.round(S.teamRatings[n.opp.id])}</div></div></div>${n.when ? `<div class="nc-when">🗓️ ${n.when}</div>` : ''}</div>`; }
   const inj = se.injury ? `<div class="banner warn">⚠️ <b>INJURY</b> — ${esc(se.injury.name)} · Expected recovery: ${se.injury.weeksLeft} week${se.injury.weeksLeft > 1 ? 's' : ''}</div>` : '';
   const sum = cfg.summary(T), car = cfg.career(C), divLine = divisionLine(se);
   const pend = offersOf(se).length, dlText = deadlineText(se);
@@ -2236,6 +2243,7 @@ function renderDashboard() {
           ${done ? '<button class="btn btn-primary btn-xl" data-act="seasonSummary">SEASON SUMMARY ▸</button>' : '<button class="btn btn-primary btn-xl" data-act="simNext">SIMULATE NEXT GAME</button><button class="btn btn-live btn-xl" data-act="watchLive">▶ WATCH LIVE</button><button class="btn btn-secondary" data-act="simSeason">SIMULATE SEASON</button>'}
           <button class="btn btn-ghost" data-act="viewStats">VIEW STATS</button>
           <button class="btn btn-ghost" data-act="viewStandings">STANDINGS</button>
+          <button class="btn btn-ghost" data-act="viewCalendar">CALENDAR</button>
           <button class="btn btn-ghost" data-act="viewCareer">CAREER</button>
           <button class="btn btn-ghost" data-act="viewContract">CONTRACT</button>
           <button class="btn btn-ghost" data-act="viewTrades">TRADES${pend ? ' (' + pend + ')' : ''}</button>
@@ -2260,6 +2268,7 @@ function renderDashboard() {
 function showGameModal(game, notes, season) {
   const cfg = cfgOf(), opp = TEAM[game.opp];
   const label = game.k === 'PO' ? ROUND_NAME[game.wk].toUpperCase() : `WEEK ${game.wk}`;
+  const whenTxt = game.date && typeof calShort === 'function' ? ` · ${calShort(new Date(game.date + 'T00:00:00Z'))}` : '';
   let body;
   if (game.st === 'OUT') {
     body = game.dnp ? `<div class="banner big">📋 <b>DNP — COACH'S DECISION</b><br>You were not active this week (${depthText(season)}).</div>` : `<div class="banner warn big">⚠️ <b>INJURY — INACTIVE</b><br>${esc(game.inj)}</div>`;
@@ -2273,7 +2282,7 @@ function showGameModal(game, notes, season) {
   if (game.hurt) body += `<div class="banner warn big">⚠️ <b>INJURY</b><br><span class="inj-name">${esc(game.hurt.name)}</span><br>Expected Recovery: <b>${game.hurt.weeks} week${game.hurt.weeks > 1 ? 's' : ''}</b></div>`;
   const nt = notes.map(n => `<div class="note">${n}</div>`).join('');
   const next = season.status !== 'done';
-  openModal(`<div class="gm-head"><div class="eyebrow">${label} · ${game.home ? 'vs' : '@'} ${opp.name}</div>
+  openModal(`<div class="gm-head"><div class="eyebrow">${label}${whenTxt} · ${game.home ? 'vs' : '@'} ${opp.name}</div>
     <div class="gm-res ${game.w ? 'w' : 'l'}">${game.w ? 'W' : 'L'} ${game.my}–${game.op}</div></div>${body}${nt}
     <div class="row end"><button class="btn btn-ghost" data-act="closeModal">CLOSE</button>${offersOf(season).length && season.status === 'regular' ? '<button class="btn btn-secondary" data-act="viewTrades">TRADE CENTER</button>' : ''}${next && season.mg ? '<button class="btn btn-primary" data-act="playMini">🎮 PLAY MINI GAME ▸</button>' : next ? '<button class="btn btn-primary" data-act="simNextModal">NEXT GAME ▸</button>' : '<button class="btn btn-primary" data-act="seasonSummary">SEASON SUMMARY ▸</button>'}</div>`, 'game');
   Snd.play('whistle');
@@ -2354,11 +2363,11 @@ let stIdx = 0, stConf = null, stView = 'div';
 function renderStandings(idx) {
   const se = S.seasons[idx]; stIdx = idx;
   if (!stConf) stConf = TEAM[se.teamId].conf;
-  const { wins, k } = standingsData(se);
+  const { wins, k, gp } = standingsData(se);
   const cmp = (a, b) => (wins[b] - wins[a]) || (S.teamRatings[b] - S.teamRatings[a]);
-  const pct = id => (k ? (wins[id] / k).toFixed(3).replace(/^0/, '') : '.000');
+  const pct = id => (gp[id] ? (wins[id] / gp[id]).toFixed(3).replace(/^0/, '') : '.000');
   const head = first => `<thead><tr><th>${first}</th><th class="tm">TEAM</th><th>W</th><th>L</th><th>PCT</th></tr></thead>`;
-  const row = (id, lead) => `<tr class="${id === se.teamId ? 'me' : ''}"><td class="rk">${lead}</td><td class="tm">${badge(id)}<span>${TEAM[id].name}</span></td><td>${wins[id]}</td><td>${k - wins[id]}</td><td>${pct(id)}</td></tr>`;
+  const row = (id, lead) => `<tr class="${id === se.teamId ? 'me' : ''}"><td class="rk">${lead}</td><td class="tm">${badge(id)}<span>${TEAM[id].name}</span></td><td>${wins[id]}</td><td>${gp[id] - wins[id]}</td><td>${pct(id)}</td></tr>`;
   const confTeams = TEAM_LIST.filter(t => t.conf === stConf);
   let body;
   if (stView === 'div') {
@@ -2377,7 +2386,7 @@ function renderStandings(idx) {
     <div class="topbar"><button class="btn btn-ghost" data-act="goHome">◂ BACK</button><select class="input sel-season" data-change="selStandSeason">${options}</select></div>
     <div class="eyebrow">${se.year} · ${k >= 17 ? 'FINAL STANDINGS' : k ? 'THROUGH ' + k + ' GAME' + (k > 1 ? 'S' : '') : 'PRESEASON'}</div>
     <h2 class="h-xl title-logo">${nflLogo('inline')}STANDINGS</h2>
-    <div class="st-me card">${badge(se.teamId, 'lg')}<div><b>${mine.name}</b><div class="muted">${wins[se.teamId]}–${k - wins[se.teamId]} · ${divisionLine(se)}${mySeed ? ' · #' + mySeed + ' seed' : (k >= 17 ? ' · missed the playoffs' : '')}</div></div></div>
+    <div class="st-me card">${badge(se.teamId, 'lg')}<div><b>${mine.name}</b><div class="muted">${wins[se.teamId]}–${gp[se.teamId] - wins[se.teamId]} · ${divisionLine(se)}${mySeed ? ' · #' + mySeed + ' seed' : (k >= 17 ? ' · missed the playoffs' : '')}</div></div></div>
     <div class="tabs">
       <button class="tab ${stConf === 'AFC' ? 'on' : ''}" data-act="standConf" data-c="AFC">AFC</button><button class="tab ${stConf === 'NFC' ? 'on' : ''}" data-act="standConf" data-c="NFC">NFC</button>
       <span class="tab-gap"></span>

@@ -4,6 +4,7 @@
    believable script of plays and animates each one. Whatever happens on the field always adds up to the real box score.
    ===================================================================== */
 const LV = { speed: 1, run: 0 };
+const LV_PACE = 0.65;                                        // plays unfold at this fraction of their scripted speed (smaller = slower, more like watching a real snap)
 const LV_FW = 1200, LV_FH = 533, LV_PAD = 10;               // field drawing: 120 yards x 53.3 yards, 10 px per yard (endzones included)
 const lvX = abs => 100 + abs * 10;                          // yards from the left goal line -> px
 const lvY = v => LV_PAD + LV_FH / 2 + v * 10;               // lateral yards from the middle of the field -> px
@@ -524,7 +525,7 @@ async function openLiveGame(game, notes, season) {
       const frame = ts => {
         if (!alive()) return resolve();
         if (start === null) { start = ts; last = ts; }
-        const t = ((ts - start) / 1000) * L.speed; T.render(t); { const nx = script[si + 1], [cq, cc] = clockOf(Math.min(e.t + Math.min(t, res.dur), nx ? nx.t - 0.5 : e.q * 900)); if (!L.frozen) setClock(cq, cc); }
+        const real = ((ts - start) / 1000) * L.speed, t = real * LV_PACE; T.render(t); { const nx = script[si + 1], [cq, cc] = clockOf(Math.min(e.t + Math.min(real, res.dur / LV_PACE), nx ? nx.t - 0.5 : e.q * 900)); if (!L.frozen) setClock(cq, cc); }
         while (pending.length && pending[0].t <= t) { const f = pending.shift(); const el = document.createElementNS('http://www.w3.org/2000/svg', 'text'); el.setAttribute('class', `lv-pop ${f.cls}${f.sticky ? ' sticky' : ''}`); el.setAttribute('x', Math.min(1090, Math.max(110, f.p.x))); el.setAttribute('y', Math.max(60, f.p.y - 28)); el.setAttribute('text-anchor', 'middle'); el.textContent = f.text; fxLayer.appendChild(el); Snd.play(f.cls === 'td' ? 'roar' : (f.cls === 'good' ? 'pick' : 'click')); }
         if (t >= res.dur) return resolve();
         raf = requestAnimationFrame(frame);

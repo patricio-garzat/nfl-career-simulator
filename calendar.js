@@ -62,6 +62,19 @@ function calRealSchedule(teamId, year) {
   const out = []; real.forEach((games, i) => games.forEach(([a, h]) => { if (a === teamId) out.push({ week: i + 1, oppId: h, home: false }); else if (h === teamId) out.push({ week: i + 1, oppId: a, home: true }); }));
   out.real = true; return out;
 }
+// A trade must not make the player face a team twice (only division rivals meet twice), and the season must stay at 17 games:
+// true when joining team `id` after any of the games p0..p1 would break either rule
+function calTradeConflict(se, id, p0, p1) {
+  const rs = calRealSchedule(id, se.year); if (!rs) return false;
+  const div = x => TEAM[x].conf + TEAM[x].div;
+  for (let q = Math.max(p0, 1); q <= Math.min(p1, 16); q++) {
+    const lw = se.schedule[q - 1].week, rest = rs.filter(x => x.week > lw), n = {};
+    if (q + rest.length !== 17) return true;
+    se.schedule.slice(0, q).concat(rest).forEach(x => { n[x.oppId] = (n[x.oppId] || 0) + 1; });
+    if (Object.keys(n).some(o => n[o] > (div(o) === div(id) ? 2 : 1))) return true;
+  }
+  return false;
+}
 // playoff dates: Wild Card weekend (Sat-Mon), Divisional (Sat-Sun), Conference Championships (Sun), Super Bowl (two Sundays later)
 function calPlayoffWhen(season, short) {
   const y = season.year, po = season.po || {}, afc = po.conf === 'AFC', seed = po.mySeed || 4;
@@ -169,7 +182,7 @@ function calFormulaSeason(year) {
 }
 
 /* ---------- building the league's season ---------- */
-function calGenLeague(season, fromWeek, prev) {
+function calGenLeagueOnce(season, fromWeek, prev) {
   const ids = TEAM_LIST.map(t => t.id), rt = id => S.teamRatings[id], dv = id => TEAM[id].conf + TEAM[id].div, U = season.teamId;
   const weeks = prev ? prev.weeks.slice(0, fromWeek - 1).map(w => w.map(g => ({ ...g }))) : [];
   const played = {}, homes = {}, meets = {}; ids.forEach(i => { played[i] = 0; homes[i] = 0; });
@@ -212,7 +225,7 @@ function calGenLeague(season, fromWeek, prev) {
   }
   const skipGen = real || formNew || formPrev;
   const BYE_T = [2, 2, 4, 4, 4, 4, 4, 4, 2, 2];                           // byes in weeks 5..14
-  let genPrev = new Set();
+  let genPrev = new Set(), dirty = 0;
   const prime = {}; ids.forEach(i => { prime[i] = 0; });
   weeks.forEach(wk => wk.forEach(g => { if (['TNF', 'SNF', 'MNF', 'MNE'].includes(g.s)) { prime[g.a]++; prime[g.h]++; } }));
   let prevThu = new Set(prev && weeks.length ? weeks[weeks.length - 1].filter(g => g.s === 'TNF').flatMap(g => [g.a, g.h]) : []);
@@ -240,7 +253,8 @@ function calGenLeague(season, fromWeek, prev) {
     while (free.length > 1) {
       const a = free.pop();
       let best = null, bs = 1e9;
-      free.forEach(b => { const m = meets[mk(a, b)] || 0, sd = dv(a) === dv(b); const sc = (sd && m < 2 ? 0 : m === 0 ? 1.2 : m < 2 ? 3 : 6) + Math.random() * 1.6; if (sc < bs) { bs = sc; best = b; } });
+      free.forEach(b => { const m = meets[mk(a, b)] || 0, sd = dv(a) === dv(b); const sc = (sd ? (m < 2 ? 0 : 1000) : m === 0 ? 1.2 : 1000) + Math.random() * 1.6; if (sc < bs) { bs = sc; best = b; } });   // a pair meets twice only inside a division (once at each home), never more
+      if (bs >= 1000) dirty++;
       free.splice(free.indexOf(best), 1);
       const homeA = homes[a] < homes[best] ? true : homes[a] > homes[best] ? false : rnd() < 0.5;
       games.push(mkGame(homeA ? best : a, homeA ? a : best));
@@ -255,6 +269,8 @@ function calGenLeague(season, fromWeek, prev) {
     games.forEach(g => { if (['TNF', 'SNF', 'MNF', 'MNE'].includes(g.s)) { prime[g.a]++; prime[g.h]++; } });
     weeks.push(games);
   }
+  { const cnt = {}; weeks.forEach(w => w.forEach(g => { const k = mk(g.a, g.h); cnt[k] = (cnt[k] || 0) + 1; }));
+    ids.forEach(a => ids.forEach(b => { if (a < b) { const m = cnt[mk(a, b)] || 0; if (dv(a) === dv(b) ? m !== 2 : m > 1) dirty++; } })); }
   // per-team lists: week of each game, game numbers, and the string of results
   const tw = {}, aiRes = {}; ids.forEach(i => { tw[i] = []; aiRes[i] = ''; });
   weeks.forEach((games, wi) => games.forEach(g => {
@@ -262,7 +278,13 @@ function calGenLeague(season, fromWeek, prev) {
     const res = g.w || g.pw;
     aiRes[g.a] += res === g.a ? '1' : '0'; aiRes[g.h] += res === g.h ? '1' : '0';
   }));
-  return { league: { weeks, tw, ...((formNew || formPrev) ? { formula: true } : {}) }, aiRes };
+  return { league: { weeks, tw, ...((formNew || formPrev) ? { formula: true } : {}) }, aiRes, dirty, fixed: skipGen };
+}
+// the random generator is retried until nobody meets a non-division team twice (or a division team more than twice)
+function calGenLeague(season, fromWeek, prev) {
+  let best = null;
+  for (let t = 0; t < 300; t++) { const r = calGenLeagueOnce(season, fromWeek, prev); if (!best || r.dirty < best.dirty) best = r; if (!r.dirty || r.fixed) break; }
+  return best;
 }
 // give every game of a week its window: primetime slots go to the juiciest games, Sunday is split into early and late, Thursday teams cannot have played on Monday night
 function calAssign(gs, wk, year, ctx, rt, U) {

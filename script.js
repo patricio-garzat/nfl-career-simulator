@@ -749,13 +749,13 @@ function mkTradeOffer(teamId, until) {
 }
 function genTradeOffers(se, n, until) {
   const P = S.player, taken = offersOf(se).map(o => o.teamId);
-  const ids = TEAM_LIST.map(t => t.id).filter(id => id !== se.teamId && !taken.includes(id));
+  const p0 = se.games.length, ids = TEAM_LIST.map(t => t.id).filter(id => id !== se.teamId && !taken.includes(id) && !(typeof calTradeConflict === 'function' && calTradeConflict(se, id, p0, until)));   // never a team that would make you face someone twice
   // stars attract contenders; low-rated players mostly get calls from weaker teams
   return pickWeighted(ids, n, id => Math.pow(S.teamRatings[id] / 72, P.ovr >= 78 ? 6 : P.ovr <= 66 ? -3 : 1.5)).map(id => mkTradeOffer(id, until));
 }
 // Runs after every regular-season game: expire offers, deadline messages, new incoming offers
 function tradeTick(se, notes) {
-  const p = se.games.length, offers = offersOf(se), live = offers.filter(o => o.until >= p);
+  const p = se.games.length, offers = offersOf(se), live = offers.filter(o => o.until >= p && !(typeof calTradeConflict === 'function' && calTradeConflict(se, o.teamId, p, p)));
   if (live.length < offers.length) notes.push('⌛ A trade offer expired.');
   se.tradeOffers = live;
   if (se.traded) return;

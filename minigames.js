@@ -23,7 +23,7 @@ function mgMods(se) { let perf = 1; (se.buffs || []).forEach(b => { if (b.left >
 function mgAfterGame(se, game, notes) { mgEnsure(se); se.buffs.forEach(b => { b.left--; }); se.buffs = se.buffs.filter(b => b.left > 0); }
 const MG_META = {
   qb: P => ({ icon: '🏈', title: 'FIND THE OPEN MAN', how: 'A defender sticks to one receiver. Throw to the other one.', legend: [['🔴', 'Defender on him', 'covered'], ['🟢', 'Nobody close', 'THROW HERE']] }),
-  rb: P => ({ icon: '🏃', title: 'BREAK AWAY', how: 'Dodge the defenders and outrun the tackler.', legend: [['⌨️', '← → keys', 'dodge'], ['🏃', 'Tackler behind you', 'don\'t stumble']] }),
+  rb: P => ({ icon: '🏃', title: 'RUSH FOR THE TD', how: 'Reach the end zone for a touchdown. Dodge the defenders and outrun the tackler.', legend: [['⌨️', '← → keys', 'dodge'], ['🏃', 'Tackler behind you', 'don\'t stumble'], ['🏈', 'End zone', 'TOUCHDOWN']] }),
   catch: P => ({ icon: '🙌', title: P.pos === 'TE' ? 'CATCH IT · SEAM' : 'CATCH IT · GO ROUTE', how: 'Run to where the ball will land.', legend: [['⌨️', 'Arrow keys / drag', 'move'], ['⭕', 'Ring', 'be there first']] }),
   kick: P => ({ icon: '🥅', title: 'KICK IT', how: 'Aim into the wind, stop the bar in the green.', legend: [['💨', 'Wind pushes', 'AIM AGAINST'], ['⏹', 'Power', 'GREEN']] }),
 };
@@ -271,7 +271,7 @@ function mgInput(ctx) {
 const mgHoldBtn = (key, label) => `<button class="mg-b mg-hold" data-hold="${key}" style="--c:#35e0ff">${label}</button>`;
 
 /* =====================================================================
-   RB — BREAK AWAY
+   RB — RUSH FOR THE TD
    Top-down. You carry the ball up the field; defenders are scattered ahead, a tackler chases you. Dodge left/right and reach the line before he catches you.
    Hitting a defender makes you stumble (you slow down and the chaser gains). Later runs are longer, with defenders that slide and that track you.
    ===================================================================== */
@@ -299,11 +299,11 @@ function mgRB(ctx, i, st) {
     <defs><pattern id="mgStripe" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="14" fill="#fff"/></pattern></defs>
     <g id="mgChaser" class="mg-chaser"><circle r="17" fill="rgba(255,60,60,.16)" class="mg-you" style="stroke:#ff5d5d;stroke-width:2"/>${mgGuy(0, 0, O1, O2, { s: 1.6 })}</g>
     <g id="mgMe">${mgGuy(0, 0, T1, T2, { s: 1.6, you: true })}${mgBall(0, -2, 0.6, 90)}</g>
-    <g id="mgHud"><rect x="104" y="20" width="132" height="30" rx="15" fill="rgba(5,8,16,.7)" stroke="rgba(255,255,255,.2)"/><text id="mgYd" x="170" y="41" text-anchor="middle" font-size="20" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif">0 / ${yds} YDS</text>
+    <g id="mgHud"><rect x="104" y="20" width="132" height="30" rx="15" fill="rgba(5,8,16,.7)" stroke="rgba(255,255,255,.2)"/><text id="mgYd" x="170" y="41" text-anchor="middle" font-size="20" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif">${yds} YDS TO TD</text>
       <rect x="10" y="60" width="10" height="130" rx="5" fill="rgba(255,255,255,.12)"/><rect id="mgGap" x="10" y="190" width="10" height="130" rx="5" fill="#6dffbb" style="transform-origin:15px 190px;transform:scaleY(-1)"/><text x="15" y="204" text-anchor="middle" font-size="8" fill="#fff" fill-opacity=".7" font-family="Barlow Condensed, sans-serif" letter-spacing=".1em">GAP</text></g>
-    <g id="mgFx"></g></svg><div class="mg-call">BREAK AWAY · ${yds} yds · ${MG_LV.indexOf(i) + 1}/3</div>`;
+    <g id="mgFx"></g></svg><div class="mg-call">RUSH FOR THE TD · ${yds} yds out · ${MG_LV.indexOf(i) + 1}/3</div>`;
   ctx.ctrl.innerHTML = `<div class="mg-btns two">${mgHoldBtn('l', '◀ LEFT')}${mgHoldBtn('r', 'RIGHT ▶')}</div>`;
-  ctx.say('<b>← →</b> dodge the defenders · outrun the tackler');
+  ctx.say('<b>← →</b> dodge the defenders · get to the <b>END ZONE</b>');
   return new Promise(async res => {
     await sleep(500); if (!ctx.alive()) return res(false);
     const inp = mgInput(ctx);
@@ -315,11 +315,11 @@ function mgRB(ctx, i, st) {
       const got = Math.max(0, Math.min(yds, Math.round(R.w / 10)));
       if (win) {
         const perfect = stumbles === 0; if (perfect) ctx.perfects++;
-        mgPop(ctx, 170, 100, perfect ? 'CLEAN RUN!' : 'FIRST DOWN!', 'good'); Snd.play('td', 0.05); mgShake(ctx);
-        ctx.say(`✅ ${perfect ? '✨ Untouched! ' : 'Made it! '}${mgYardsStr(yds)}${stumbles ? ` · ${stumbles} stumble${stumbles > 1 ? 's' : ''}` : ''}`, 'good'); res(true);
+        mgPop(ctx, 170, 100, perfect ? 'UNTOUCHED TD!' : 'TOUCHDOWN!', 'good'); Snd.play('td', 0.05); mgShake(ctx);
+        ctx.say(`🏈 <b>TOUCHDOWN!</b> ${yds}-yard run${perfect ? ' · ✨ untouched' : stumbles ? ` · ${stumbles} stumble${stumbles > 1 ? 's' : ''}` : ''}`, 'good'); res(true);
       } else {
-        mgPop(ctx, 170, 120, 'TACKLED!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx);
-        ctx.say(`❌ Tackled after ${mgYardsStr(got)}<span class="mg-tip">Dodge the defenders — every hit lets the tackler catch up.</span>`, 'bad'); res(false);
+        mgPop(ctx, 170, 120, 'STOPPED SHORT!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx);
+        ctx.say(`❌ Tackled just ${Math.max(1, yds - got)} yard${yds - got === 1 ? '' : 's'} short of the end zone<span class="mg-tip">Dodge the defenders — every hit lets the tackler catch up.</span>`, 'bad'); res(false);
       }
     };
     const frame = now => {
@@ -339,7 +339,7 @@ function mgRB(ctx, i, st) {
       els.forEach((e, k) => { const d = defs[k]; e.style.transform = `translate(${d.x}px,${-d.w}px) rotate(${d.hit ? 90 : 0}deg)`; e.style.opacity = d.hit ? 0.55 : 1; });
       me.style.transform = `translate(${R.x}px,${RY}px) rotate(${lean * 0.9}deg)`; ch.style.transform = `translate(${C.x}px,${RY + (R.w - C.w)}px)`;
       const gap = R.w - C.w; gapB.style.transform = `scaleY(${-clamp(gap / 90, 0.03, 1)})`; gapB.setAttribute('fill', gap < 28 ? '#ff5d5d' : gap < 55 ? '#ffd23d' : '#6dffbb');
-      ydT.textContent = `${Math.min(yds, Math.max(0, Math.floor(R.w / 10)))} / ${yds} YDS`;
+      ydT.textContent = `${Math.max(0, yds - Math.floor(R.w / 10))} YDS TO TD`;
       if (R.w >= GOAL) return end(true);
       if (C.w >= R.w - 14 && Math.abs(C.x - R.x) < 20) return end(false);
       raf = requestAnimationFrame(frame);

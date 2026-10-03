@@ -2300,6 +2300,17 @@ function renderDashboard() {
     </div></div>`, 'dash');
 }
 
+/* --- Game result card: both teams (logo, colors, score), the result and the player's line. Shared by the NFL and the college / youth game windows --- */
+const gmPack = id => { const t = TEAM[id]; return { id, name: t.name, nick: t.nick, c1: t.c1, c2: t.c2, logo: logoUrl(id) }; };
+function gmBoard(me, op, game, o = {}) {
+  const home = !!game.home, away = home ? op : me, hm = home ? me : op, aS = home ? game.op : game.my, hS = home ? game.my : game.op, won = !!game.w;
+  const side = (t, score, tag, win, mine) => `<div class="gm-side ${win ? 'win' : 'lose'}${mine ? ' mine' : ''}" style="--c1:${t.c1};--c2:${t.c2}"><span class="gm-plate"><img src="${t.logo}" alt="" onerror="this.style.visibility='hidden'"></span><div class="gm-tn"><small>${tag}${mine ? ' · YOU' : ''}</small><b>${esc(t.nick || t.name)}</b></div><div class="gm-sc">${score}</div></div>`;
+  const bright = brightOf(me), pl = o.player;
+  return `<div class="gm" style="--gc:${bright};--gt:${textOn(bright)}">
+    <div class="gm-board">${side(away, aS, 'AWAY', aS > hS, !home)}<div class="gm-mid"><span class="gm-final">FINAL</span><span class="gm-pill ${won ? 'w' : 'l'}">${won ? 'VICTORY' : 'DEFEAT'}</span></div>${side(hm, hS, 'HOME', hS > aS, home)}</div>
+    ${pl ? `<div class="gm-player"><span class="gm-num">#${esc(String(pl.num))}</span><b>${esc(pl.name)}</b><small>${esc(pl.pos)}</small></div>` : ''}</div>`;
+}
+
 /* --- Game result modal ---------------------------------------------------------- */
 function showGameModal(game, notes, season) {
   const cfg = cfgOf(), opp = TEAM[game.opp];
@@ -2318,8 +2329,7 @@ function showGameModal(game, notes, season) {
   if (game.hurt) body += `<div class="banner warn big">⚠️ <b>INJURY</b><br><span class="inj-name">${esc(game.hurt.name)}</span><br>Expected Recovery: <b>${game.hurt.weeks} week${game.hurt.weeks > 1 ? 's' : ''}</b></div>`;
   const nt = notes.map(n => `<div class="note">${n}</div>`).join('');
   const next = season.status !== 'done';
-  openModal(`<div class="gm-head"><div class="eyebrow">${label}${whenTxt} · ${game.home ? 'vs' : '@'} ${opp.name}</div>
-    <div class="gm-res ${game.w ? 'w' : 'l'}">${game.w ? 'W' : 'L'} ${game.my}–${game.op}</div></div>${body}${nt}
+  openModal(`<div class="gm-head"><div class="eyebrow">${label}${whenTxt} · ${game.home ? 'vs' : '@'} ${opp.name}</div></div>${gmBoard(gmPack(game.tm && TEAM[game.tm] ? game.tm : season.teamId), gmPack(game.opp), game, { player: { name: S.player.name, pos: S.player.pos, num: playerNumber() } })}<div class="gm-body" style="--gc:${brightOf(TEAM[game.tm && TEAM[game.tm] ? game.tm : season.teamId])}">${body}${nt}</div>
     <div class="row end"><button class="btn btn-ghost" data-act="closeModal">CLOSE</button>${offersOf(season).length && season.status === 'regular' ? '<button class="btn btn-secondary" data-act="viewTrades">TRADE CENTER</button>' : ''}${next && season.mg ? '<button class="btn btn-primary" data-act="playMini">🎮 PLAY MINI GAME ▸</button>' : next ? '<button class="btn btn-primary" data-act="simNextModal">NEXT GAME ▸</button>' : '<button class="btn btn-primary" data-act="seasonSummary">SEASON SUMMARY ▸</button>'}</div>`, 'game');
   Snd.play('whistle');
   if (notes.some(n => n.includes('TRADE OFFER'))) Snd.play('phone', 1.1);

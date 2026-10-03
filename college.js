@@ -132,7 +132,8 @@ function csGameModal(game) {
     <div class="mini-tiles">${cfg.cols.map(c => `<div><b>${c.g(game)}</b><span>${c.h}</span></div>`).join('')}</div>`;
   if (game.td > 0) body += `<div class="td-flash">🏈 TOUCHDOWN${game.td > 1 ? ' ×' + game.td : ''}!</div>`;
   if (CS.mg) body += `<div class="note">🎮 A mini game is ready.</div>`;
-  openModal(`<div class="gm-head"><div class="eyebrow">GAME ${game.wk} · ${game.home ? 'vs' : '@'} ${esc(game.opp)}</div><div class="gm-res ${game.w ? 'w' : 'l'}">${game.w ? 'W' : 'L'} ${game.my}–${game.op}</div></div>${body}
+  const meT = csPack(CS.name, CS.info), opT = csPack(game.opp, csInfoOf(game.opp) || { id: 0 });
+  openModal(`<div class="gm-head"><div class="eyebrow">GAME ${game.wk} · ${game.home ? 'vs' : '@'} ${esc(game.opp)}</div></div>${gmBoard({ ...meT, nick: CS.name }, { ...opT, nick: game.opp }, game, { player: { name: CS.P.name, pos: CS.P.pos, num: CS.num } })}<div class="gm-body" style="--gc:${brightOf(meT)}">${body}</div>
     <div class="row end"><button class="btn btn-ghost" data-act="csClose">CLOSE</button>${CS.mg ? '<button class="btn btn-primary" data-act="csMini">🎮 PLAY MINI GAME ▸</button>' : CS.done ? `<button class="btn btn-primary" data-act="csFinish">${csYouth() ? 'SEE MY OFFERS ▸' : 'SEE MY DRAFT STOCK ▸'}</button>` : '<button class="btn btn-primary" data-act="csPlayModal">NEXT GAME ▸</button>'}</div>`, 'game');
   Snd.play('whistle'); Snd.play(game.w ? 'win' : 'lose', 0.5);
   if (game.rate >= 5) Snd.play('cheer', 0.7); if (game.td > 0) { Snd.play('td', 0.6); burst(modalRoot.querySelector('.modal-card'), 30); }

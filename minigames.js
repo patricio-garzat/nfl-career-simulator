@@ -355,7 +355,7 @@ function mgRB(ctx, i, st) {
    ===================================================================== */
 function mgCatch(ctx, i, st) {
   const P = ctx.P, T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2, te = P.pos === 'TE', lv = MG_LV.indexOf(i), ppy = 10, yRef = 230;
-  const T = [2.5, 2.3, 2.1, 1.95, 1.8][i], VR = 122, Q = { x: 170, y: yRef + 36 }, dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const T = [2.5, 2.3, 2.1, 1.95, 1.8][i], VR = 122, Q = { x: 170, y: yRef + 36 }, B0 = { x: Q.x, y: Q.y - 11 }, dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   // the drive: three plays from the same series. The ball starts around midfield, every catch moves it up the field (you see the lines move), the third pass is for the touchdown
   if (st.A == null) { st.A = Math.round(rr(56, 66)); st.down = 1; st.toGo = 10; }
   let note = '';
@@ -377,12 +377,12 @@ function mgCatch(ctx, i, st) {
   ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><rect width="340" height="300" rx="14" fill="#2b7d47"/><g id="mgWorld" style="transform:translateY(0px)">${mgField(ctx, 340, 300, 'mgC', yRef, A, { crowd: false })}
     ${yOfA(100) > 0 ? mgEndZone(ctx, 14, Math.max(-60, ezTop), 312, yOfA(100) - Math.max(-60, ezTop), 0.6) + `<line x1="14" x2="326" y1="${yOfA(100)}" y2="${yOfA(100)}" stroke="#fff" stroke-width="3.4"/>${ezTop > 0 ? `<rect x="0" y="0" width="340" height="${ezTop}" fill="#f6f7f4"/>` : ''}${mgPylon(14, yOfA(100))}${mgPylon(326, yOfA(100))}` : ''}
     <line x1="14" x2="326" y1="${yRef}" y2="${yRef}" stroke="#4aa8ff" stroke-width="2.8" stroke-opacity=".9"/>${fdY != null && fdY > 24 ? `<line x1="14" x2="326" y1="${fdY}" y2="${fdY}" stroke="#ffd23d" stroke-width="2.8" stroke-opacity=".95"/>` : ''}</g>
-    <path id="mgPath" d="M${Q.x} ${Q.y} L${L.x} ${L.y}" stroke="#fff" stroke-opacity=".85" stroke-width="2.6" stroke-dasharray="4 6" stroke-linecap="round" fill="none"/>
+    <path id="mgPath" d="M${B0.x} ${B0.y} L${L.x} ${L.y}" stroke="#fff" stroke-opacity=".85" stroke-width="2.6" stroke-dasharray="4 6" stroke-linecap="round" fill="none"/>
     <g id="mgLand" style="transform:translate(${L.x}px,${L.y}px)"><circle r="20" fill="${td ? '#ffd23d' : T2}" fill-opacity=".2" stroke="${td ? '#ffd23d' : '#c5ff3a'}" stroke-width="3" class="mg-landring"/><circle r="7" fill="none" stroke="#fff" stroke-opacity=".8" stroke-dasharray="2 3"/>${td ? '<text y="4" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke">TD</text>' : ''}</g>
     ${D ? mgGuy(0, 0, O1, O2, { s: 1.5, down: true, cls: 'mg-defn', attrs: 'id="mgDefn"' }) : ''}
     ${mgGuy(Q.x, Q.y, T1, T2, { s: 1.5 })}
     <g id="mgMe" style="transform:translate(${R.x}px,${R.y}px)">${mgGuy(0, 0, T1, T2, { s: 1.6, you: true })}<text y="-18" text-anchor="middle" font-size="9" font-weight="800" fill="#ffd23d" font-family="Barlow Condensed, sans-serif" letter-spacing=".12em" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke">YOU</text></g>
-    <ellipse id="mgShadow" rx="7" ry="4" fill="#000" opacity=".35" cx="${Q.x}" cy="${Q.y}"/><g id="mgBallG">${mgBall(Q.x, Q.y, 1, 0, 'mgBallEl')}</g>
+    <ellipse id="mgShadow" rx="7" ry="4" fill="#000" opacity=".35" cx="${B0.x}" cy="${B0.y}"/><g id="mgBallG">${mgBall(B0.x, B0.y, 1, 0, 'mgBallEl')}</g>
     <g id="mgHud"><rect x="60" y="6" width="220" height="28" rx="14" fill="rgba(5,8,16,.74)" stroke="rgba(255,255,255,.22)"/><text x="170" y="26" text-anchor="middle" font-size="18" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" letter-spacing=".05em">${board}</text></g>
     <g id="mgFx"></g></svg><div class="mg-call">${te ? 'TE' : 'WR'} · <b>${route}</b> · ${lv + 1}/3</div>`;
   ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns four">${mgHoldBtn('l', '◀')}${mgHoldBtn('u', '▲')}${mgHoldBtn('d', '▼')}${mgHoldBtn('r', '▶')}</div>`;
@@ -392,7 +392,7 @@ function mgCatch(ctx, i, st) {
     const inp = mgInput(ctx);
     const bar = ctx.ctrl.querySelector('.mg-timer i'); if (bar) { bar.style.transition = 'none'; bar.style.width = '100%'; void bar.offsetWidth; bar.style.transition = `width ${T}s linear`; bar.style.width = '0%'; }
     ctx.say('<b>BALL IS UP!</b> Run to the ring', 'go'); Snd.play('mgThrow', 0.02);
-    const me = ctx.stage.querySelector('#mgMe'), landG = ctx.stage.querySelector('#mgLand'), pathEl = ctx.stage.querySelector('#mgPath'), ball = ctx.stage.querySelector('#mgBallEl'), shadow = ctx.stage.querySelector('#mgShadow'), dEl = ctx.stage.querySelector('#mgDefn'), world = ctx.stage.querySelector('#mgWorld');
+    const me = ctx.stage.querySelector('#mgMe'), landG = ctx.stage.querySelector('#mgLand'), pathEl = ctx.stage.querySelector('#mgPath'), ball = ctx.stage.querySelector('#mgBallEl'), shadow = ctx.stage.querySelector('#mgShadow'), dEl = ctx.stage.querySelector('#mgDefn');
     let cur = { ...L }, Dp = D ? { ...D } : null, t0 = performance.now(), last = t0, raf = 0, ended = false, adjusted = false, P1 = null;
     const finish = async () => {
       ended = true; cancelAnimationFrame(raf); inp.dispose(); ctx.ctrl.innerHTML = '';
@@ -404,7 +404,6 @@ function mgCatch(ctx, i, st) {
         if (perfect) ctx.perfects++;
         st.A = na; if (first) { st.down = 1; st.toGo = Math.min(10, 100 - na); } else { st.down = down + 1; st.toGo = Math.max(1, toGo - gain); }
         mgPop(ctx, R.x, R.y - 26, scored ? 'TOUCHDOWN!' : perfect ? 'PERFECT!' : 'CAUGHT!', 'good'); Snd.play(scored ? 'td' : 'mgPat', scored ? 0.05 : 0); mgShake(ctx);
-        if (world && !scored) world.style.transition = 'transform .9s cubic-bezier(.3,.7,.3,1)', world.style.transform = `translateY(${gain * ppy}px)`;      // the field moves: the ball is now further up
         ctx.say(scored ? `🏈 <b>TOUCHDOWN!</b> ${mgYardsStr(gain)} in the end zone` : `✅ ${perfect ? '✨ Dead center! ' : 'Caught it! '}${mgYardsStr(gain)}${first ? ' · <b>1ST DOWN</b>' : ''} · ball on the ${spot(na)}`, 'good'); res(true);
       } else {
         st.down = down + 1;
@@ -420,10 +419,10 @@ function mgCatch(ctx, i, st) {
       const m = Math.hypot(vx, vy); if (m > 0) { R.x = clamp(R.x + vx / m * VR * dt, 16, 324); R.y = clamp(R.y + vy / m * VR * dt, 34, 286); }
       me.style.transform = `translate(${R.x}px,${R.y}px)`;
       // the wind nudges the ball mid-air
-      if (adj && !adjusted && u >= adj.ta) { adjusted = true; P1 = { x: Q.x + (L.x - Q.x) * adj.ta, y: Q.y + (L.y - Q.y) * adj.ta }; cur = { ...L2 }; mgPop(ctx, cur.x, cur.y - 30, '💨 WIND!', 'bad'); Snd.play('mgSwish', 0); }
-      const bp = adjusted ? { x: P1.x + (cur.x - P1.x) * ((u - adj.ta) / (1 - adj.ta)), y: P1.y + (cur.y - P1.y) * ((u - adj.ta) / (1 - adj.ta)) } : { x: Q.x + (L.x - Q.x) * u, y: Q.y + (L.y - Q.y) * u };
+      if (adj && !adjusted && u >= adj.ta) { adjusted = true; P1 = { x: B0.x + (L.x - B0.x) * adj.ta, y: B0.y + (L.y - B0.y) * adj.ta }; cur = { ...L2 }; mgPop(ctx, cur.x, cur.y - 30, '💨 WIND!', 'bad'); Snd.play('mgSwish', 0); }
+      const bp = adjusted ? { x: P1.x + (cur.x - P1.x) * ((u - adj.ta) / (1 - adj.ta)), y: P1.y + (cur.y - P1.y) * ((u - adj.ta) / (1 - adj.ta)) } : { x: B0.x + (L.x - B0.x) * u, y: B0.y + (L.y - B0.y) * u };
       const h = Math.sin(Math.PI * u) * 22; ball.setAttribute('transform', `translate(${bp.x.toFixed(1)} ${(bp.y - h).toFixed(1)}) rotate(${(u * 720).toFixed(0)}) scale(${(1 + h / 70).toFixed(2)})`); shadow.setAttribute('cx', bp.x.toFixed(1)); shadow.setAttribute('cy', bp.y.toFixed(1)); shadow.setAttribute('rx', (7 - h / 14).toFixed(1));
-      landG.style.transform = `translate(${cur.x}px,${cur.y}px)`; pathEl.setAttribute('d', adjusted ? `M${P1.x} ${P1.y} L${cur.x} ${cur.y}` : `M${Q.x} ${Q.y} L${L.x} ${L.y}`);
+      landG.style.transform = `translate(${cur.x}px,${cur.y}px)`; pathEl.setAttribute('d', adjusted ? `M${P1.x} ${P1.y} L${cur.x} ${cur.y}` : `M${B0.x} ${B0.y} L${L.x} ${L.y}`);
       // the defender races to the same spot
       if (Dp) { const dx = cur.x - Dp.x, dy = cur.y - Dp.y, dm = Math.hypot(dx, dy); if (dm > 12) { Dp.x += dx / dm * VD * dt; Dp.y += dy / dm * VD * dt; } dEl.style.transform = `translate(${Dp.x}px,${Dp.y}px)`; }
       if (u >= 1) return finish();

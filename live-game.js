@@ -440,8 +440,9 @@ function lvStatLine(T) { const cfg = POS[S.player.pos], lines = cfg.line(T); ret
 
 function lvScoreboardHTML(L) {
   const a = TEAM[L.away], h = TEAM[L.home];
-  const tm = (t, side) => `<div class="lv-team ${side}" data-side="${side}"><img src="${logoUrl(t.id)}" alt=""><div><b>${t.id}</b><small>${esc(t.nick)}</small></div><div class="lv-score" id="lvScore_${side}">0</div><i class="lv-poss" id="lvPoss_${side}">🏈</i></div>`;
-  return `<div class="lv-board">${tm(a, 'away')}<div class="lv-mid"><div class="lv-q" id="lvQ">1ST</div><div class="lv-clock" id="lvClock">15:00</div></div>${tm(h, 'home')}</div>`;
+  // broadcast-style score bug: a silver frame, a team window with a possession dot over a black score bar on each side, and the down & distance / quarter + clock block in the middle
+  const side = (t, s) => `<div class="bug-side ${s}"><div class="bug-logo"><img src="${logoUrl(t.id)}" alt=""><i class="lv-poss" id="lvPoss_${s}"></i></div><div class="bug-score"><b>${t.id}</b><span class="lv-score" id="lvScore_${s}">0</span></div></div>`;
+  return `<div class="lv-bug" id="lvBug">${side(a, 'away')}<div class="bug-mid"><div class="bug-dd" id="lvBugDD">KICKOFF</div><div class="bug-brand"><img src="${NFL_LOGO}" alt="NFL"></div><div class="bug-clock"><span id="lvQ">1st Q</span><b id="lvClock">15:00</b></div></div>${side(h, 'home')}</div>`;
 }
 
 async function openLiveGame(game, notes, season) {
@@ -462,7 +463,19 @@ async function openLiveGame(game, notes, season) {
     </div></div>`;
   document.body.appendChild(ov);
   const $ = id => document.getElementById(id), setScore = () => { $('lvScore_away').textContent = L.score.away; $('lvScore_home').textContent = L.score.home; };
-  const setClock = (q, clock) => { $('lvQ').textContent = ['1ST', '2ND', '3RD', '4TH'][q - 1]; $('lvClock').textContent = clock; };
+  const setClock = (q, clock) => { $('lvQ').textContent = ['1st', '2nd', '3rd', '4th'][q - 1] + ' Q'; $('lvClock').textContent = clock; };
+  const setBugDD = txt => { const el = $('lvBugDD'); if (el) el.textContent = txt; };
+  // the clock keeps running between plays: it counts down towards the next play's time at the pace the game is being watched
+  const clockOf = gt => { const q = Math.min(4, Math.floor(gt / 900) + 1), left = Math.max(0, 900 - (gt - (q - 1) * 900)); return [q, `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`]; };
+  L.gt = 0; L.gtTarget = 0; L.gtRate = 0; L.avg = 6; L.lastEv = 0; L.frozen = false;
+  const tickFrom = (e, next) => {
+    const now = performance.now(); if (L.lastEv) L.avg = L.avg * 0.6 + Math.max(2, (now - L.lastEv) / 1000 * L.speed) * 0.4; L.lastEv = now;
+    L.gt = e.t; L.gtTarget = Math.max(e.t, Math.min(next ? next.t : 3600, e.q * 900) - 0.5); L.gtRate = (L.gtTarget - L.gt) / L.avg;
+  };
+  L.tick = setInterval(() => {
+    if (L.frozen || !document.getElementById('lvOverlay')) return;
+    if (L.gt < L.gtTarget) { L.gt = Math.min(L.gtTarget, L.gt + L.gtRate * 0.1 * L.speed); const [q, c] = clockOf(L.gt); setClock(q, c); }
+  }, 100);
   const sleep = ms => new Promise(r => { const t = setTimeout(r, ms / L.speed); L.waits = L.waits || []; L.waits.push(() => { clearTimeout(t); r(); }); });
   const alive = () => LV.run === L.token && document.getElementById('lvOverlay') && !L.skipped;
   const log = (q, clock, text, cls = '') => { const el = $('lvLog'); if (!el) return; el.insertAdjacentHTML('afterbegin', `<div class="lv-row ${cls}"><em>Q${q} ${clock}</em><span>${text}</span></div>`); };
@@ -470,7 +483,7 @@ async function openLiveGame(game, notes, season) {
   tiles();
   ov.querySelectorAll('[data-lv-speed]').forEach(b => b.addEventListener('click', () => { L.speed = Number(b.dataset.lvSpeed); LV.speed = L.speed; ov.querySelectorAll('[data-lv-speed]').forEach(x => x.classList.toggle('on', x === b)); }));
   const finish = () => {
-    if (L.finished) return; L.finished = true; L.skipped = true; (L.waits || []).splice(0).forEach(f => f()); if (L.cancelAnim) L.cancelAnim();
+    if (L.finished) return; L.finished = true; L.skipped = true; clearInterval(L.tick); (L.waits || []).splice(0).forEach(f => f()); if (L.cancelAnim) L.cancelAnim();
     const el = document.getElementById('lvOverlay'); if (el) el.remove();
     if (game.st !== 'OUT') { /* the box score is the truth */ }
     LV.done && LV.done();
@@ -483,7 +496,7 @@ async function openLiveGame(game, notes, season) {
   const finalScreen = (skipped) => {
     L.score = { away: game.home ? game.op : game.my, home: game.home ? game.my : game.op }; setScore();
     const el = document.getElementById('lvOverlay'); if (!el) return finish();
-    const win = game.w; POS[P.pos].stats.forEach(x => { L.T[x.k] = (game.s || {})[x.k] || 0; }); tiles(); setClock(4, '0:00');
+    const win = game.w; POS[P.pos].stats.forEach(x => { L.T[x.k] = (game.s || {})[x.k] || 0; }); tiles(); L.frozen = true; setClock(4, '0:00'); setBugDD('FINAL');
     const b = $('lvBanner'); if (b) { b.className = `lv-banner show final ${win ? 'good' : 'bad'}`; b.innerHTML = `<small>FINAL</small>${win ? 'VICTORY' : 'DEFEAT'}<span>${TEAM[away].id} ${L.score.away} — ${L.score.home} ${TEAM[home].id}</span><button class="btn btn-primary" id="lvDone">CONTINUE ▸</button>`; const d = $('lvDone'); if (d) d.addEventListener('click', finish); }
     const sk = $('lvSkip'); if (sk) sk.style.display = 'none'; Snd.play(win ? 'fanfare' : 'down');
     if (win) { const st = el.querySelector('.lv-stage') || el; burst(st, 70); setTimeout(() => burst(st, 50), 450); }   // team-colored confetti
@@ -491,13 +504,14 @@ async function openLiveGame(game, notes, season) {
   /* ---- play the script ---- */
   await sleep(700);
   const script = lvBuild(game);
-  for (const e of script) {
+  for (let si = 0; si < script.length; si++) {
+    const e = script[si];
     if (!alive()) break;
-    setClock(e.q, e.clock);
+    setClock(e.q, e.clock); tickFrom(e, script[si + 1]);
     if (e.type === 'score') {
       const side = sideOf(e.side); poss(side); L.score[side] += e.pts; setScore(); bumpScore(side);
       const t = TEAM[e.side === 'me' ? myId : oppId];
-      log(e.q, e.clock, `${t.id} — ${e.label} (+${e.pts})`, e.side === 'me' ? 'good' : 'bad'); $('lvText').textContent = `${t.name}: ${e.label}`; $('lvDD').textContent = `${TEAM[away].id} ${L.score.away} – ${L.score.home} ${TEAM[home].id}`;
+      log(e.q, e.clock, `${t.id} — ${e.label} (+${e.pts})`, e.side === 'me' ? 'good' : 'bad'); $('lvText').textContent = `${t.name}: ${e.label}`; $('lvDD').textContent = `${TEAM[away].id} ${L.score.away} – ${L.score.home} ${TEAM[home].id}`; setBugDD(String(e.label || 'SCORE').toUpperCase());
       Snd.play(e.side === 'me' ? 'cheer' : 'down'); await banner(`${t.id} ${e.label}`, e.side === 'me' ? 'good' : 'bad', 1300); await sleep(300);
       continue;
     }
@@ -505,7 +519,7 @@ async function openLiveGame(game, notes, season) {
     poss(sideOf(p.off));
     const dd = p.kind === 'xp' ? 'Extra point' : p.kind === 'fg' ? `Field goal · ${p.yards} yds` : `${['', '1st', '2nd', '3rd', '4th'][p.down]} & ${p.dist}`;
     const spot = p.los < 50 ? `${TEAM[p.off === 'me' ? myId : oppId].id} ${p.los}` : (p.los === 50 ? 'Midfield' : `${TEAM[p.off === 'me' ? oppId : myId].id} ${100 - p.los}`);
-    $('lvDD').textContent = `${dd} · ball on ${spot}`; $('lvText').textContent = '…';
+    $('lvDD').textContent = `${dd} · ball on ${spot}`; setBugDD(p.kind === 'xp' ? 'Extra Point' : p.kind === 'fg' ? `FG ${p.yards} yds` : `${['', '1st', '2nd', '3rd', '4th'][p.down]} & ${p.dist}`); $('lvText').textContent = '…';
     const A = lvMakeActors(sc, p), T = lvTimeline(A), res = lvPlayScript(p, sc, A, T);
     const los = $('lvLos'), fd = $('lvFd'), losX = lvX(sc.los) - 2;
     if (los) { los.setAttribute('x', lvX(sc.los) - 2); los.setAttribute('opacity', .9); }

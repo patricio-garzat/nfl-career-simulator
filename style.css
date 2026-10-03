@@ -1022,3 +1022,8 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .sg-actions [hidden], .sg-sign[hidden] { display: none !important; }
 
 .jc-target .mini { display: inline-flex; align-items: center; gap: 8px; } .jc-target .mini .col-logo { width: 22px; height: 22px; flex: none; object-fit: contain; }
+
+.sw-custom { position: relative; overflow: hidden; background: conic-gradient(#ff3b3b, #ffd23d, #6dff6d, #35e0ff, #4d6bff, #d94dff, #ff3b3b); }
+.sw-custom input { position: absolute; inset: -6px; width: 150%; height: 150%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+.sw-custom::after { content: '+'; position: absolute; inset: 0; display: grid; place-items: center; font: 800 20px/1 var(--head, sans-serif); color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .7); pointer-events: none; }
+.sw-custom.on::after { content: ''; inset: 8px; border-radius: 50%; background: var(--cc); box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(0, 0, 0, .5); }

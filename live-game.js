@@ -139,7 +139,7 @@ const LV_EZ = {
   DET: { bg: '#0076B6', ends: [[{ t: { s: 'LIONS', f: 'none', o: '#FFFFFF', w: 3, ff: 'Russo One', h: 66, n: 330 } }]] },
   GB: { bg: '#2E6B2E', op: 0.9, ends: [[{ t: { s: 'PACKERS', f: '#FFB612', o: '#FFFFFF', w: 3, ff: 'Alfa Slab One', h: 66, n: 340 } }], [{ t: { s: 'GREEN BAY', f: '#FFB612', o: '#FFFFFF', w: 3, ff: 'Alfa Slab One', h: 66, n: 410 } }]] },
   MIN: { bg: '#4F2683', ends: [[{ t: { s: 'VIKINGS', f: '#F4F1EA', ff: 'Cinzel', fw: 900, h: 64, n: 400, cap: 0.7 } }]] },
-  ATL: { bg: null, ends: [[{ t: { s: 'ATLANTA', f: '#FFFFFF', o: '#000000', w: 1.5, ff: 'Archivo Black', h: 56, n: 168, x: -172 } }, { l: { k: 'team', x: 0, y: 0, w: 130 } }, { t: { s: 'FALCONS', f: '#FFFFFF', o: '#000000', w: 1.5, ff: 'Archivo Black', h: 56, n: 168, x: 172 } }]] },
+  ATL: { bg: null, ends: [[{ l: { k: 'img', src: 'assets/nfl/falcons-atl.png', x: 0, y: 0, w: 240, h: 92 } }]] },   // the ATL logo on bare turf
   CAR: { bg: null, ends: [[{ t: { s: 'PANTHERS', f: '#000000', o: '#0085CA', w: 5, ff: 'Russo One', h: 48, n: 420, it: 1 } }]] },
   NO: { bg: null, deco: 'sband', ends: [[{ t: { s: 'SAINTS', f: '#000000', o: '#D3BC8D', w: 2.5, ff: 'Alfa Slab One', h: 58, n: 330 } }]] },
   TB: { bg: null, ends: [[{ t: { s: 'BUCCANEERS', f: '#D50A0A', o: '#FFFFFF', w: 1.5, ff: 'Alfa Slab One', h: 42, n: 400, sh: ['#111111', 4, 4] } }]] },

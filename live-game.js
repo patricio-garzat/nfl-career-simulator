@@ -116,7 +116,7 @@ function lvBuild(game) {
    t = wordmark {s text, f fill, o outline, w outline width, ff font, h cap height px, n length px, x, y, it italic, sh [color, dx, dy] 3D shadow}
    l = logo {k team|nfl|afc|nfc, x, y, w, g grayscale}; x = special {bolt, spark, rule, band} */
 const LV_EZ = {
-  BUF: { bg: '#00338D', ends: [[{ t: { s: 'BILLS', f: '#F5F5F5', o: '#C60C30', w: 3, ff: 'Alfa Slab One', h: 76, n: 290 } }]] },
+  BUF: { bg: '#00338D', ends: [[{ l: { k: 'img', src: 'assets/nfl/bills-wordmark.png', x: 0, y: 0, w: 261, h: 72 } }]] },   // white BILLS with a thin red and then white outline, on Bills blue
   MIA: { bg: '#008E97', ends: [[{ l: { k: 'team', x: -145, y: 0, w: 88, h: 88 } }, { l: { k: 'img', src: 'assets/nfl/dolphins-wordmark.png', x: 53, y: 0, w: 270, h: 53 } }]] },   // white DOLPHINS wordmark (orange shadow) next to the logo, on aqua
   NE: { bg: '#002244', ends: [[{ l: { k: 'team', x: -136, y: 0, w: 90, h: 90 } }, { l: { k: 'img', src: 'assets/nfl/patriots-wordmark-white.png', x: 55, y: 0, w: 250, h: 58 } }]] },   // white PATRIOTS wordmark + the logo, centered together on the team's navy
   NYJ: { bg: '#125740', ends: [[{ l: { k: 'img', src: 'assets/nfl/jets-white.png', x: 0, y: 0, w: 290, h: 91 } }]] },   // the Jets' own logo in white on green

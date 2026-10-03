@@ -960,3 +960,12 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 @keyframes sgStamp { from { opacity: 0; transform: scale(2.1) rotate(-12deg); } to { opacity: .9; transform: none; } }
 .sg-actions { margin: 12px 0 calc(16px + env(safe-area-inset-bottom)); min-height: 62px; display: flex; justify-content: center; align-items: center; }
 .sg-done .sg-line, .sg-done .sg-pop { animation: none; opacity: 1; transform: none; }
+
+/* first team: league chooser (MFL / US High School) */
+.yp-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 10px; }
+.yp-tab { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--w60); color: var(--text); cursor: pointer; text-align: left; min-width: 0; transition: border-color .15s, background .15s; }
+.yp-tab img { width: 38px; height: 38px; object-fit: contain; flex: none; }
+.yp-tab .yp-hs { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border-radius: 10px; background: linear-gradient(135deg, #1f3a8a, #c8102e); color: #fff; font: normal 800 15px var(--head); letter-spacing: .06em; }
+.yp-tab span { display: flex; flex-direction: column; min-width: 0; } .yp-tab b { font-family: var(--head); font-size: 16px; letter-spacing: .06em; text-transform: uppercase; line-height: 1.1; } .yp-tab small { font-size: 10px; color: var(--mut); letter-spacing: .05em; }
+.yp-tab.on { border-color: var(--lime); background: color-mix(in srgb, var(--lime) 14%, transparent); }
+@media (max-width: 720px) { .yp-tab { padding: 6px 8px; gap: 7px; } .yp-tab img, .yp-tab .yp-hs { width: 30px; height: 30px; } .yp-tab b { font-size: 13px; } .yp-tab small { font-size: 9px; } }

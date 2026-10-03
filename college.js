@@ -22,8 +22,8 @@ function csStart(kind) {
   const P = preview, youth = kind === 'youth';
   let name, info, G, rows, oppInfo = null;
   if (youth) {                                              // the MFL kids' season: 8 games against the other MFL clubs
-    const mi = MFL_INFO[P.youth]; name = P.youth; info = { id: 'mfl-' + mi.slug, div: 'MFL', conf: 'MFL', c1: mi.c1, c2: mi.c2 }; G = 8; oppInfo = {};
-    rows = MFL_TEAMS.filter(r => r[1] !== name).map(r => { oppInfo[r[1]] = { id: 'mfl-' + r[0], div: 'MFL', conf: 'MFL', c1: '#' + r[2], c2: '#' + r[3] }; return [r[0], r[1], 'MFL']; });
+    const mi = MFL_INFO[P.youth]; name = P.youth; const lg = mi.lg; info = { id: 'mfl-' + mi.slug, div: lg, conf: lg, c1: mi.c1, c2: mi.c2 }; G = YOUTH_LG[lg].games; oppInfo = {};
+    rows = Object.entries(MFL_INFO).filter(([n, o]) => o.lg === lg && n !== name).map(([n, o]) => { oppInfo[n] = { id: 'mfl-' + o.slug, div: lg, conf: lg, c1: o.c1, c2: o.c2 }; return [o.slug, n, lg]; });
   } else {
     name = P.college; info = COLLEGE_INFO[name];
     const league = leagueOfDiv(info.div); G = league === 'NCAA' ? 12 : 10;
@@ -200,7 +200,7 @@ function renderOffers() {
   const P = preview; if (!P.offers) P.offers = makeOffers(P);
   const O = P.offers, y = MFL_INFO[P.youth] || { c1: '#4a5a7a' };
   setScreen(`<div class="wrap narrow offers" style="--yc:${y.c1}">
-    <div class="eyebrow">AFTER YOUR ${esc(P.youth || 'MFL').toUpperCase()} SEASON</div><h2 class="h-xl">WHO WANTS YOU?</h2>
+    <div class="eyebrow">AFTER YOUR ${esc(P.youth || 'YOUTH').toUpperCase()} SEASON</div><h2 class="h-xl">WHO WANTS YOU?</h2>
     <div class="muted of-lead">Recruiting interest: <b>${rcLabel(O.lvl)}</b> · OVR ${P.ovr}. A better rating and a better season bring bigger programs. Pick one — you start your next season there.</div>
     <section class="card"><div class="card-h"><h3>COLLEGES</h3><span class="muted small">5 interested · NCAA + ONEFA</span></div><div class="of-grid">${O.hs.map(offerCard).join('')}</div></section>
     <section class="card"><div class="card-h"><h3>PRO PATHWAYS</h3><span class="muted small">1 LFA · 1 UFL</span></div><div class="of-grid">${offerCard(O.lfa)}${offerCard(O.ufl)}</div></section>

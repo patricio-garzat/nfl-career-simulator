@@ -110,7 +110,7 @@ async function contractSign(o) {
     const ov = document.createElement('div'); ov.className = 'sg-overlay'; ov.style.cssText = `${themeVars(o.teamId)};--tb:${bright};--tx:${textOn(bright)}`;
     ov.innerHTML = `<div class="sg-top"><span class="sg-tag">✍️ ${esc(o.kind || 'NEW CONTRACT')}</span><button class="mini" id="sgSkip">SKIP ▸</button></div>
       <div class="sg-desk">${contractPaper(o)}</div>
-      <div class="sg-actions"><button class="btn btn-primary btn-xl" id="sgGo" hidden>CONTINUE ▸</button></div>`;
+      <div class="sg-actions"><button class="btn btn-primary btn-xl sg-sign" id="sgSign" hidden>✍️ SIGN</button><button class="btn btn-primary btn-xl" id="sgGo" hidden>CONTINUE ▸</button></div>`;
     document.body.appendChild(ov);
     const pen = ov.querySelector('#sgPen'), stamp = ov.querySelector('#sgStamp'), strokes = SIGN_STROKES;
     // the signature is painted on a canvas as the pen goes: a white trail is laid along the pen's path and the real signature image shows only where that trail is
@@ -134,7 +134,7 @@ async function contractSign(o) {
       const nums = { total: o.total, guar: o.guaranteed }; Object.entries(nums).forEach(([k2, v]) => { const el = ov.querySelector(`[data-k="${k2}"]`); if (el) el.textContent = money(v); });
       const go = ov.querySelector('#sgGo'); go.hidden = false; ov.querySelector('#sgSkip').hidden = true;
     };
-    ov.querySelector('#sgSkip').addEventListener('click', () => { alive = false; done(); });
+    ov.querySelector('#sgSkip').addEventListener('click', () => { alive = false; ov.querySelector('#sgSign').hidden = true; ov.dispatchEvent(new Event('sg-skip')); done(); });
     ov.querySelector('#sgGo').addEventListener('click', () => { ov.classList.add('out'); setTimeout(() => { ov.remove(); resolve(); }, 300); });
     (async () => {
       Snd.play('whoosh', 0.1);
@@ -142,7 +142,12 @@ async function contractSign(o) {
       const tl = (ms, fn) => new Promise(res => { const t0 = performance.now(); const step = now => { const k = Math.min(1, (now - t0) / ms); fn(k); if (k < 1 && alive) requestAnimationFrame(step); else res(); }; requestAnimationFrame(step); });
       pen.style.opacity = 0; place(700, 930, 0, 0);
       [['total', o.total], ['guar', o.guaranteed]].forEach(([k2, v]) => { const el = ov.querySelector(`[data-k="${k2}"]`); if (el) { el.textContent = money(0); setTimeout(() => tl(650, k => { if (!finished) el.textContent = money(v * ease(k)); }), 950); } });   // the figures count up
-      await wait(1250);                                                   // the contract lands and its lines write themselves in
+      await wait(1100);                                                   // the contract lands and its lines write themselves in
+      if (!alive) return;
+      const signBtn = ov.querySelector('#sgSign'); signBtn.hidden = false; Snd.play('click', 0);        // nothing is signed until the player taps SIGN
+      await new Promise(r => { signBtn.addEventListener('click', () => { signBtn.hidden = true; Snd.play('whoosh', 0); r(); }, { once: true }); ov.addEventListener('sg-skip', r, { once: true }); });
+      if (!alive) return;
+      await wait(120);
       if (!alive) return;
       const start = sgPt(strokes[0][0]); pen.style.opacity = 1;
       const from = [720, 900];

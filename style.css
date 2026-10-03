@@ -1010,3 +1010,5 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .lv-vol input::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 3px solid var(--lime); box-shadow: 0 2px 8px rgba(0,0,0,.5); cursor: pointer; }
 .lv-vol input::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 3px solid var(--lime); box-shadow: 0 2px 8px rgba(0,0,0,.5); cursor: pointer; }
 @media (max-width: 720px) { .lv-vol { margin-right: 6px; font-size: 18px; } .lv-vol input { width: 46vw; max-width: 220px; } }
+
+.sg-sign { animation: sgPulse 1.4s ease-in-out infinite; min-width: 220px; } @keyframes sgPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(197, 255, 58, .5); transform: scale(1); } 50% { box-shadow: 0 0 0 14px rgba(197, 255, 58, 0); transform: scale(1.04); } }

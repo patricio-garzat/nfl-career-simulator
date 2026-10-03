@@ -50,14 +50,55 @@ const mgBall = (x, y, s = 1, rot = 0, id = '') => `<g ${id ? `id="${id}"` : ''} 
 const mgFootball = cls => `<svg viewBox="0 0 24 14" class="mg-fb ${cls || ''}"><ellipse cx="12" cy="7" rx="11" ry="6.2"/><path d="M8 7h8M10 5.2v3.6M12 5.2v3.6M14 5.2v3.6" /></svg>`;
 const mgShuffleNoRepeat = (keys, n) => { const out = shuffle(keys.slice()).slice(0, n); while (out.length < n) { let k; do { k = pick(keys); } while (k === out[out.length - 1]); out.push(k); } return out; };
 const mgYardsStr = y => `${y >= 0 ? '+' : '−'}${Math.abs(y)} YDS`;
-// top-down field with your logo at midfield
-function mgTopField(ctx, w = 340, h = 260, id = 'mgG') {
-  const t = ctx.t, o = ctx.o;
-  return `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d6c3d"/><stop offset="1" stop-color="#12502b"/></linearGradient></defs>
-    <rect width="${w}" height="${h}" rx="14" fill="url(#${id})"/>${[0, 1, 2, 3, 4, 5].map(i => `<rect x="0" y="${i * 44 + 10}" width="${w}" height="22" fill="#fff" opacity=".035"/>`).join('')}
-    ${[40, 90, 140, 190, 240].map(y => `<line x1="0" x2="${w}" y1="${y}" y2="${y}" stroke="#fff" stroke-opacity=".16" stroke-width="2"/>`).join('')}
-    <image href="${t.logo}" x="${w / 2 - 58}" y="${h / 2 - 20}" width="116" height="116" opacity=".1" preserveAspectRatio="xMidYMid meet"/>
-    <image href="${o.logo}" x="${w / 2 - 36}" y="8" width="72" height="72" opacity=".08" preserveAspectRatio="xMidYMid meet"/>
+/* ---------- the live-game field in miniature (same turf, mowing stripes, grass blades, white lines, hash marks, slab yard numbers and end zones) ---------- */
+function mgGrassPat(id) {
+  let sd = 7; const R = () => (sd = (sd * 16807) % 2147483647) / 2147483647; let b = '';
+  for (let i = 0; i < 46; i++) { const x = R() * 44, y = 6 + R() * 38, len = 3 + R() * 5, dx = (R() - 0.5) * 3, dark = R() < 0.55; b += `<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x + dx).toFixed(1)}" y2="${(y - len).toFixed(1)}" stroke="${dark ? '#06240f' : '#c9f59a'}" stroke-opacity="${dark ? (0.10 + R() * 0.08).toFixed(2) : (0.06 + R() * 0.07).toFixed(2)}" stroke-width="${(0.7 + R() * 0.6).toFixed(1)}"/>`; }
+  return `<pattern id="${id}" width="44" height="44" patternUnits="userSpaceOnUse">${b}</pattern>`;
+}
+// o: { id, w, sl (sideline x), band (white band width outside it), y0, y1 (drawn range), yRef/Aref (screen y of a yard line, upfield = up), ppy (px per yard), Amin, Amax, numL, numR, hashes }
+function mgFieldInner(o) {
+  const { w, sl, y0, y1, yRef, Aref, ppy } = o, yOf = A => yRef - (A - Aref) * ppy, Amin = Math.max(0, o.Amin), Amax = Math.min(100, o.Amax), cx = w / 2;
+  let out = `<rect x="0" y="${y0}" width="${w}" height="${y1 - y0}" fill="#2b7d47"/>`;
+  for (let A = Math.floor(Amin / 5) * 5; A < Amax; A += 5) if ((A / 5) % 2) out += `<rect x="${sl}" y="${yOf(A + 5)}" width="${w - sl * 2}" height="${5 * ppy}" fill="#fff" opacity=".04"/>`;     // mowing stripes
+  const bw = o.band == null ? sl : o.band;
+  out += `<rect x="${sl - bw}" y="${y0}" width="${bw}" height="${y1 - y0}" fill="#f6f7f4"/><rect x="${w - sl}" y="${y0}" width="${bw}" height="${y1 - y0}" fill="#f6f7f4"/>`;
+  out += `<rect x="0" y="${y0}" width="${w}" height="${y1 - y0}" fill="url(#${o.id})" pointer-events="none"/>`;
+  for (let A = Math.ceil(Amin / 5) * 5; A <= Amax; A += 5) { const y = yOf(A); out += `<line x1="${sl}" x2="${w - sl}" y1="${y}" y2="${y}" stroke="#fff" stroke-opacity=".95" stroke-width="${(A === 0 || A === 100 ? 3.2 : 2) * Math.max(0.7, ppy / 10)}"/>`; }
+  if (o.hashes !== false) for (let A = Math.ceil(Amin); A <= Amax; A++) { if (A % 5 === 0) continue; const y = yOf(A), l = Math.max(2.6, ppy * 0.7), c = 3.08 * ppy; out += `<g stroke="#fff" stroke-opacity=".85" stroke-width="${Math.max(1, ppy * 0.18)}"><line x1="${cx - c}" x2="${cx - c}" y1="${y - l / 2}" y2="${y + l / 2}"/><line x1="${cx + c}" x2="${cx + c}" y1="${y - l / 2}" y2="${y + l / 2}"/><line x1="${sl}" x2="${sl + l}" y1="${y}" y2="${y}"/><line x1="${w - sl - l}" x2="${w - sl}" y1="${y}" y2="${y}"/></g>`; }
+  out += `<line x1="${sl}" x2="${sl}" y1="${y0}" y2="${y1}" stroke="#fff" stroke-width="3"/><line x1="${w - sl}" x2="${w - sl}" y1="${y0}" y2="${y1}" stroke="#fff" stroke-width="3"/>`;
+  // slab-style yard numbers, tops pointing to the middle of the field, with an arrow towards the nearest goal line
+  const nh = 2.2 * ppy, num = (x, y, rot, v) => {
+    const s = String(v), fs = nh / 0.72, tl = (s.length === 1 ? 0.9 : 2.1) * nh;
+    return `<text transform="translate(${x} ${y}) rotate(${rot})" y="${nh / 2}" text-anchor="middle" font-family="'Bevan','Alfa Slab One',serif" font-size="${fs.toFixed(1)}" textLength="${tl.toFixed(1)}" lengthAdjust="spacingAndGlyphs" fill="#fff" fill-opacity="${o.numOp || 0.5}">${s}</text>`;
+  };
+  const arrow = (x, y, up) => `<polygon points="${x - nh * 0.34},${y + (up ? 0.3 : -0.3) * nh} ${x + nh * 0.34},${y + (up ? 0.3 : -0.3) * nh} ${x},${y + (up ? -0.35 : 0.35) * nh}" fill="#fff" fill-opacity="${o.numOp || 0.5}"/>`;
+  for (let A = Math.ceil(Math.max(10, Amin) / 10) * 10; A <= Math.min(90, Amax); A += 10) {
+    const v = A <= 50 ? A : 100 - A, y = yOf(A), up = A > 50;
+    out += num(o.numL, y, 90, v) + num(o.numR, y, -90, v);
+    if (v !== 50) { const ay = y + (up ? -1 : 1) * (nh * 1.45 + 2); out += arrow(o.numL, ay, up) + arrow(o.numR, ay, up); }
+  }
+  return out;
+}
+// an end zone strip [x, y, w, h]: the opponent's real design in the NFL (same art as the live game, scaled to fit); other teams keep their color, stripes and logo
+function mgEndZone(ctx, x, y, w, h, k) {
+  const team = ctx.o, d = ctx.env.nfl && typeof LV_EZ !== 'undefined' ? LV_EZ[team.id] : null, cid = 'mgEz' + Math.random().toString(36).slice(2, 7), cx = x + w / 2, cy = y + h / 2;
+  if (!d) {
+    const n = w > 240 ? 3 : 1, lg = Math.min(h * 0.62, 56);
+    return `<g><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${team.c1}"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#mgStripe)" opacity=".2"/>${Array.from({ length: n }, (_, i) => `<image href="${team.logo}" x="${cx + (i - (n - 1) / 2) * w * 0.3 - lg / 2}" y="${cy - lg / 2}" width="${lg}" height="${lg}" opacity=".92" preserveAspectRatio="xMidYMid meet"/>`).join('')}</g>`;
+  }
+  const items = d.ends[0], local = (d.deco === 'tiger' ? lvTiger() : '') + (d.deco === 'band' ? '<rect x="-270" y="-50" width="540" height="7" fill="#fff" opacity=".85"/>' : '')
+    + (d.deco === 'sband' ? '<rect x="-270" y="-50" width="540" height="9" fill="#101010" opacity=".92"/><rect x="-270" y="-39" width="540" height="2" fill="#D3BC8D"/>' : '') + lvEzItems(items, team);
+  return `<defs><clipPath id="${cid}"><rect x="${x}" y="${y}" width="${w}" height="${h}"/></clipPath></defs><g clip-path="url(#${cid})"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#2d8647"/>${d.bg ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${d.bg}" opacity="${d.op || 0.94}"/>` : ''}<g transform="translate(${cx} ${cy}) scale(${k})">${local}</g></g>`;
+}
+const mgPylon = (x, y, s = 1) => `<rect x="${x - 4 * s}" y="${y - 4 * s}" width="${8 * s}" height="${8 * s}" fill="#ff6a13" stroke="#fff" stroke-width="1"/>`;
+// the stand-alone field used by the QB and WR/TE games: LOS at screen y = yRef on yard line Aref (10 px per yard), your logo at midfield if it is in view, crowd strips top and bottom
+function mgField(ctx, w, h, id, yRef, Aref) {
+  const t = ctx.t, o = ctx.o, ppy = 10, yOf = A => yRef - (A - Aref) * ppy;
+  const inner = mgFieldInner({ id: id + 'g', w, sl: 14, y0: 0, y1: h, yRef, Aref, ppy, Amin: Aref - (h - yRef) / ppy - 1, Amax: Aref + yRef / ppy + 1, numL: 50, numR: w - 50 });
+  const mid = yOf(50);
+  return `<defs>${mgGrassPat(id + 'g')}</defs><rect width="${w}" height="${h}" rx="14" fill="#1d6c3d"/>${inner}
+    ${mid > 20 && mid < h - 20 ? `<image href="${t.logo}" x="${w / 2 - 44}" y="${mid - 44}" width="88" height="88" opacity=".88" preserveAspectRatio="xMidYMid meet"/>` : ''}
     <rect width="${w}" height="16" rx="8" fill="#050810" opacity=".75"/><rect y="${h - 14}" width="${w}" height="14" rx="7" fill="#050810" opacity=".75"/>
     <g class="mg-crowd">${mgCrowd(0, 4, w, 2, t.c1, o.c1)}</g><g class="mg-crowd">${mgCrowd(0, h - 11, w, 2, t.c1, t.c2)}</g>`;
 }
@@ -68,7 +109,7 @@ function mgEnvNFL() {
   const se = curSeason(); if (!se || !se.mg || !MG_META[se.mg.kind]) return null;
   let opp; try { opp = nextGameInfo(se).opp; } catch (e) { opp = null; } opp = opp || TEAM_LIST.find(x => x.id !== S.teamId);
   const P = S.player, tid = S.teamId;
-  return { se, P, t: { ...TEAM[tid], logo: logoUrl(tid) }, o: { ...opp, logo: logoUrl(opp.id) }, number: playerNumber(), theme: themeVars(tid), save: true, onDone: () => renderDashboard(),
+  return { se, P, t: { ...TEAM[tid], logo: logoUrl(tid) }, o: { ...opp, logo: logoUrl(opp.id) }, number: playerNumber(), theme: themeVars(tid), save: true, nfl: true, onDone: () => renderDashboard(),
     jersey: view => jerseySVG(jerseyFor(tid), jName(P), playerNumber(), { view, teamId: tid, word: TEAM[tid].nick }) };
 }
 let MGX = null;
@@ -175,7 +216,7 @@ function mgQB(ctx, i, st) {
   const tgs = Object.entries(QB_R).map(([k, g]) => { const x = mx(g.x), y = g.y; return `<g class="mg-tg" data-pick="${k}" style="cursor:pointer"><circle cx="${x}" cy="${y}" r="26" fill="transparent"/>${mgGuy(x, y, T1, T2, { s: 1.5 })}<text x="${x}" y="${y + 25}" text-anchor="middle" font-size="12" font-weight="800" fill="${g.c}" font-family="Barlow Condensed, sans-serif" letter-spacing=".08em" stroke="rgba(0,0,0,.6)" stroke-width="2.6" paint-order="stroke">${g.l}</text></g>`; }).join('');
   const ringAt = (p, c) => `<circle cx="${mx(p[0])}" cy="${p[1]}" r="20" fill="none" stroke="${c}" stroke-width="3.2" stroke-dasharray="5 4"/>`;
   const rings = `<g id="mgRings" opacity="0" style="transition:opacity .35s">${ringAt([QB_R[open].x, QB_R[open].y], '#6dffbb')}${ringAt(QB_COVER[shut], '#ff5d5d')}</g>`;
-  ctx.stage.innerHTML = `<svg class="mg-svg" viewBox="0 0 340 250">${mgTopField(ctx)}<defs>${marker('#ffd23d')}${marker('#c5ff3a')}</defs>
+  ctx.stage.innerHTML = `<svg class="mg-svg" viewBox="0 0 340 250">${mgField(ctx, 340, 250, 'mgQ', 132, 33)}<defs>${marker('#ffd23d')}${marker('#c5ff3a')}</defs>
     <line x1="0" x2="340" y1="132" y2="132" stroke="#4aa8ff" stroke-width="2.5" stroke-opacity=".85"/>${routes}${dl}${defs}${ol}${tgs}${rings}${mgGuy(170, 168, T1, T2, { s: 1.5, you: true, cls: 'mg-qb' })}
     <g id="mgBallG">${mgBall(170, 168, 0.85, 0, 'mgBallEl')}</g><g id="mgFx"></g></svg><div class="mg-call">FIND THE OPEN MAN · ${lv + 1}/3</div>`;
   ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns two">${Object.entries(QB_R).map(([k, g]) => `<button class="mg-b" data-pick="${k}" style="--c:${g.c}">${g.l}</button>`).join('')}</div>`;
@@ -243,23 +284,18 @@ function mgRB(ctx, i, st) {
     w += 28 + rnd() * 14; const n = 1 + (rnd() < 0.42 + i * 0.1 ? 1 : 0) + (i >= 2 && rnd() < 0.22 ? 1 : 0), xs = [];
     for (let k = 0; k < n; k++) { let x, tries = 0; do { x = rr(XMIN + 8, XMAX - 8); tries++; } while (xs.some(q => Math.abs(q - x) < 64) && tries < 20); xs.push(x); defs.push({ w, x, bx: x, type: i >= 1 && rnd() < 0.28 + 0.08 * i ? 'slide' : (i >= 2 && rnd() < 0.22 ? 'track' : 'stand'), ph: rnd() * 6.28, hit: false }); }
   }
-  // real yard lines: every 5 yards (numbers every 10, counting down to the goal line). You start on the opponent's (yds)-yard line.
-  const start = 100 - yds, yardNum = A => (A <= 50 ? A : 100 - A), absLines = [];
-  for (let A = Math.ceil(start / 5) * 5; A <= 100; A += 5) absLines.push(A);
-  const numTxt = (x, y, rot, v) => `<text transform="translate(${x} ${y}) rotate(${rot})" text-anchor="middle" fill="#fff" fill-opacity=".42" font-size="24" font-weight="800" font-family="Barlow Condensed, sans-serif" letter-spacing=".08em">${v}</text>`;
-  const lineSVG = absLines.map(A => { const wv = (A - start) * 10, major = A % 10 === 0 && A < 100; return `<line x1="0" x2="340" y1="${-wv}" y2="${-wv}" stroke="#fff" stroke-opacity="${wv === 0 ? 0 : major ? 0.4 : 0.2}" stroke-width="${major ? 2.6 : 1.6}"/>${major ? numTxt(44, -wv + 8, -90, yardNum(A)) + numTxt(296, -wv - 8, 90, yardNum(A)) : ''}`; }).join('')
-    + Array.from({ length: Math.floor(GOAL / 10) }, (_, k) => { const wv = (k + 1) * 10; return `<g stroke="#fff" stroke-opacity=".22" stroke-width="1.2"><line x1="150" x2="150" y1="${-wv}" y2="${-wv - 4}"/><line x1="190" x2="190" y1="${-wv}" y2="${-wv - 4}"/><line x1="6" x2="14" y1="${-wv}" y2="${-wv}"/><line x1="326" x2="334" y1="${-wv}" y2="${-wv}"/></g>`; }).join('');
-  // mowing stripes every 10 yards (they also run across the end zone paint, so the paint looks like it is ON the grass)
-  const stripes = Array.from({ length: Math.floor(yds / 10) + 5 }, (_, k) => { const A0 = Math.floor(start / 10) * 10 + k * 10; return (A0 / 10) % 2 ? `<rect x="0" y="${-(A0 + 10 - start) * 10}" width="340" height="100" fill="#fff" opacity=".045"/>` : ''; }).join('');
+  const start = 100 - yds, yOfA = A => -(A - start) * 10;   // you start on the opponent's (yds)-yard line; 10 px per yard, upfield = up
   const dsvg = defs.map((d, k) => mgGuy(0, 0, O1, O2, { s: 1.45, down: true, cls: 'mg-rbd', attrs: `data-k="${k}"` })).join('');
-  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><defs><linearGradient id="mgRG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d6c3d"/><stop offset="1" stop-color="#12502b"/></linearGradient>${mgLights('mgRL', T1)}</defs>
+  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><defs>${mgGrassPat('mgRGp')}<linearGradient id="mgRG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d6c3d"/><stop offset="1" stop-color="#12502b"/></linearGradient>${mgLights('mgRL', T1)}</defs>
     <rect width="340" height="300" rx="14" fill="url(#mgRG)"/>
     <g id="mgRW" style="transform:translate(0px,${RY}px)">
-      <clipPath id="mgRbClip"><rect x="0" y="${-GOAL - 120}" width="340" height="120"/></clipPath>
-      <rect x="0" y="${-GOAL - 120}" width="340" height="120" fill="${O1}"/><rect x="0" y="${-GOAL - 120}" width="340" height="120" fill="url(#mgStripe)" opacity=".2"/>
-      <g clip-path="url(#mgRbClip)" opacity=".92"><image href="${ctx.o.logo}" x="125" y="${-GOAL - 100}" width="90" height="80" preserveAspectRatio="xMidYMid meet"/></g>
-      ${stripes}${lineSVG}<line x1="0" x2="340" y1="0" y2="0" stroke="#4aa8ff" stroke-width="3" stroke-opacity=".85"/><line x1="0" x2="340" y1="${-GOAL}" y2="${-GOAL}" stroke="#fff" stroke-width="5"/>
-      <line x1="2" x2="2" y1="${-GOAL - 120}" y2="0" stroke="#fff" stroke-opacity=".7" stroke-width="3"/><line x1="338" x2="338" y1="${-GOAL - 120}" y2="0" stroke="#fff" stroke-opacity=".7" stroke-width="3"/>${dsvg}</g>
+      ${mgFieldInner({ id: 'mgRGp', w: 340, sl: 14, y0: -GOAL - 100, y1: 110, yRef: 0, Aref: start, ppy: 10, Amin: start - 12, Amax: 100, numL: 50, numR: 290 })}
+      ${yOfA(50) < 100 && yOfA(50) > -GOAL - 100 ? `<image href="${ctx.t.logo}" x="126" y="${yOfA(50) - 44}" width="88" height="88" opacity=".88" preserveAspectRatio="xMidYMid meet"/>` : ''}
+      ${mgEndZone(ctx, 14, -GOAL - 100, 312, 100, 0.6)}<rect x="14" y="${-GOAL - 100}" width="312" height="100" fill="url(#mgRGp)" pointer-events="none"/>
+      <line x1="14" x2="326" y1="${-GOAL}" y2="${-GOAL}" stroke="#fff" stroke-width="3.4"/><line x1="14" x2="326" y1="${-GOAL - 100}" y2="${-GOAL - 100}" stroke="#fff" stroke-width="3.4"/>
+      <rect x="0" y="${-GOAL - 122}" width="340" height="22" fill="#f6f7f4"/><g stroke="#ffd23d" stroke-width="3.4" stroke-linecap="round" fill="none"><line x1="158" x2="182" y1="${-GOAL - 114}" y2="${-GOAL - 114}"/><line x1="170" x2="170" y1="${-GOAL - 100}" y2="${-GOAL - 114}"/><circle cx="158" cy="${-GOAL - 114}" r="2.2"/><circle cx="182" cy="${-GOAL - 114}" r="2.2"/></g>
+      ${mgPylon(14, -GOAL)}${mgPylon(326, -GOAL)}${mgPylon(14, -GOAL - 100)}${mgPylon(326, -GOAL - 100)}
+      <line x1="14" x2="326" y1="0" y2="0" stroke="#4aa8ff" stroke-width="3" stroke-opacity=".85"/>${dsvg}</g>
     <defs><pattern id="mgStripe" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="14" fill="#fff"/></pattern></defs>
     <g id="mgChaser" class="mg-chaser"><circle r="17" fill="rgba(255,60,60,.16)" class="mg-you" style="stroke:#ff5d5d;stroke-width:2"/>${mgGuy(0, 0, O1, O2, { s: 1.6 })}</g>
     <g id="mgMe">${mgGuy(0, 0, T1, T2, { s: 1.6, you: true })}${mgBall(0, -2, 0.6, 90)}</g>
@@ -327,7 +363,7 @@ function mgCatch(ctx, i, st) {
   if (adj && dist(R, L2) > VR * T * 0.86) { L2.x = (L2.x + L.x) / 2; L2.y = (L2.y + L.y) / 2; }
   const D = i >= 1 ? { x: pick([30, 310]), y: rr(48, 130) } : null, VD = 64 + 9 * i;
   const route = (te ? ['SEAM', 'DRAG', 'CORNER', 'OVER', 'POST'] : ['GO', 'POST', 'FADE', 'OUT', 'DEEP'])[i];
-  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300">${mgTopField(ctx, 340, 300, 'mgCG')}
+  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300">${mgField(ctx, 340, 300, 'mgC', 230, 33)}
     <line x1="0" x2="340" y1="230" y2="230" stroke="#4aa8ff" stroke-width="2.5" stroke-opacity=".6"/>
     <path id="mgPath" d="M${Q.x} ${Q.y} L${L.x} ${L.y}" stroke="#fff" stroke-opacity=".35" stroke-width="2" stroke-dasharray="3 6" fill="none"/>
     <g id="mgLand" style="transform:translate(${L.x}px,${L.y}px)"><circle r="20" fill="${T2}" fill-opacity=".15" stroke="#c5ff3a" stroke-width="3" class="mg-landring"/><circle r="7" fill="none" stroke="#fff" stroke-opacity=".8" stroke-dasharray="2 3"/></g>
@@ -395,62 +431,49 @@ const KICK_SCN = {
   dome: { name: 'DOME · LONG', dist: 53, mph: [0, 0], wx: 'dome', zone: 0.15 },
   gale: { name: 'BIG WIND', dist: 50, mph: [14, 20], wx: 'clear', zone: 0.15 },
 };
-// ball animation through a list of timed points
-function mgFly(ctx, ball, pts, dur, spin = 540) {
+// ball flight seen from above: ground track (x, y) + height h (the ball is drawn h px up the screen and grows, its shadow stays on the grass)
+function mgFly(ctx, ball, shadow, pts, dur) {
   return new Promise(r => { const f0 = performance.now(); const step = () => {
     if (!ctx.alive()) return r(); const k = Math.min(1, (performance.now() - f0) / dur); let a = pts[0], b = pts[pts.length - 1];
     for (let j = 0; j < pts.length - 1; j++) if (k >= pts[j].t && k <= pts[j + 1].t) { a = pts[j]; b = pts[j + 1]; break; }
-    const u = b.t === a.t ? 1 : (k - a.t) / (b.t - a.t), x = a.x + (b.x - a.x) * u, y = a.y + (b.y - a.y) * u, s = a.s + (b.s - a.s) * u;
-    ball.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(k * spin).toFixed(0)}) scale(${s.toFixed(2)})`); ball.style.opacity = b.o !== undefined ? (a.o !== undefined ? a.o + (b.o - a.o) * u : b.o) : 1;
+    const u = b.t === a.t ? 1 : (k - a.t) / (b.t - a.t), L = (m, n) => m + (n - m) * u, x = L(a.x, b.x), y = L(a.y, b.y), h = L(a.h, b.h), oa = a.o === undefined ? 1 : a.o, o = oa + ((b.o === undefined ? 1 : b.o) - oa) * u;
+    ball.setAttribute('transform', `translate(${x.toFixed(1)} ${(y - h).toFixed(1)}) rotate(90) scale(${(0.5 + h / 70).toFixed(2)})`); ball.style.opacity = o;
+    shadow.setAttribute('cx', x.toFixed(1)); shadow.setAttribute('cy', y.toFixed(1)); shadow.setAttribute('opacity', (Math.max(0.08, 0.4 - h / 150) * o).toFixed(2));
     if (k < 1) requestAnimationFrame(step); else r(); }; step(); });
 }
 function mgKick(ctx, i, st) {
   if (!st.plan) st.plan = shuffle(Object.keys(KICK_SCN)).slice(0, 5).sort((a, b) => KICK_SCN[a].dist - KICK_SCN[b].dist);
   const sc = KICK_SCN[st.plan[i]], dist = sc.dist, mph = randInt(sc.mph[0], sc.mph[1]), dir = rnd() < 0.5 ? -1 : 1, T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2;
-  const drift = dir * mph * (dist / 40) * 0.07, size = clamp(1.25 - (dist - 28) * 0.018, 0.7, 1.2), hw = 34 * size, pT = clamp(0.5 + (dist - 28) / 24 * 0.35 + (sc.wx === 'rain' ? 0.03 : 0), 0.45, 0.9);
-  const barY = 122, postTop = barY - 74 * size, baseY = 152, flagA = dir * Math.min(35, mph * 2.2), bx = 170 + (sc.hash || 0) * 34;
+  const drift = dir * mph * (dist / 40) * 0.07, pT = clamp(0.5 + (dist - 28) / 24 * 0.35 + (sc.wx === 'rain' ? 0.03 : 0), 0.45, 0.9);
+  // ---- scene: seen from above, the kicker at the bottom, the uprights at the end line (the whole field is drawn to scale: s px per yard) ----
+  const s = 210 / dist, yE = 66, yG = yE + 10 * s, yB = yE + dist * s, hw = clamp(3.08 * s * 1.4, 15, 28), bx = 170 + (sc.hash || 0) * 3.08 * s;
+  const sl = 170 - 26.65 * s, band = Math.min(sl, 2.4 * s), flagA = dir * Math.min(35, mph * 2.2), barH = 9, upH = 26;
   let aim = 0;
-  // ---- scene ----
-  const half = y => 70 + (y - 176), yAt = d => 176 + 92 * Math.pow(1 - d / dist, 1.5);
-  const line = d => { const y = yAt(d), h = half(y); return { y, x1: 170 - h, x2: 170 + h }; };
-  const yl = []; for (let v = 5; v < dist; v += 5) yl.push(dist - v);      // yard lines every 5 yards counted from the goal line
-  const bands = []; const marks = [0, ...yl.slice().reverse().reverse().sort((p, q) => p - q), dist]; for (let k = 0; k < marks.length - 1; k++) { const a = line(marks[k]), b = line(marks[k + 1]); if (k % 2) bands.push(`<polygon points="${a.x1},${a.y} ${a.x2},${a.y} ${b.x2},${b.y} ${b.x1},${b.y}" fill="#fff" opacity=".055"/>`); }
-  const num = (x, y, v, side) => { const f = 0.55 + (y - 176) / 400; return `<text transform="translate(${x} ${y}) scale(1 ${(0.5).toFixed(2)}) skewX(${side * -16})" font-size="${(9 + (y - 176) / 7).toFixed(1)}" fill="#fff" fill-opacity="${(0.55 + f * 0.2).toFixed(2)}" font-weight="800" font-family="Barlow Condensed, sans-serif" text-anchor="middle" letter-spacing=".04em">${v}</text>`; };
-  const yardSVG = yl.map(d => { const l = line(d), val = Math.round(dist - d); return `<line x1="${l.x1}" x2="${l.x2}" y1="${l.y}" y2="${l.y}" stroke="#fff" stroke-opacity=".38" stroke-width="${(1 + (l.y - 176) / 90).toFixed(2)}"/>${val % 10 === 0 ? num(l.x1 + 26 + (l.y - 176) * 0.18, l.y + 6 + (l.y - 176) / 14, val, -1) + num(l.x2 - 26 - (l.y - 176) * 0.18, l.y + 6 + (l.y - 176) / 14, val, 1) : ''}`; }).join('');
-  const hashes = yl.concat([0]).map(d => { const l = line(d || 2.5), y = l.y; return d % 5 === 0 && d ? '' : `<line x1="${170 - 20}" x2="${170 - 20}" y1="${y}" y2="${y + 3}" stroke="#fff" stroke-opacity=".3"/><line x1="${170 + 20}" x2="${170 + 20}" y1="${y}" y2="${y + 3}" stroke="#fff" stroke-opacity=".3"/>`; }).join('');
-  const sky = sc.wx === 'dome' ? ['#10142b', '#1a2040'] : sc.wx === 'snow' ? ['#2b3a55', '#5b6f94'] : sc.wx === 'rain' ? ['#0a1124', '#2a3a5c'] : ['#070d24', '#22407a'];
-  const ads = [[ctx.o.nick, O1], ['NFL CAREER', '#12182b'], [ctx.t.nick, T1], ['NFL CAREER', '#12182b']].map(([n, c], k) => ` <rect x="${k * 85}" y="139" width="85" height="11" fill="${c}"/><text x="${k * 85 + 42.5}" y="147.5" text-anchor="middle" font-size="7.5" font-weight="800" fill="${textOn(c)}" font-family="Barlow Condensed, sans-serif" letter-spacing=".16em">${esc(String(n).toUpperCase())}</text>`).join('');
+  const field = mgFieldInner({ id: 'mgKg', w: 340, sl, band, y0: yE, y1: 300, yRef: yG, Aref: 100, ppy: s, Amin: Math.max(0, 100 - (300 - yG) / s), Amax: 100, numL: sl + 11 * s, numR: 340 - sl - 11 * s, numOp: 0.9 });
+  const rows = mgCrowd(0, 8, 340, 6, T1, O1);
   const weather = sc.wx === 'rain' ? Array.from({ length: 40 }, (_, k) => `<line x1="${(k * 19) % 340}" y1="${(k * 37) % 220 - 20}" x2="${(k * 19) % 340 - 6}" y2="${(k * 37) % 220 + 4}" stroke="#bcd7ff" stroke-opacity=".5" stroke-width="1.2" class="mg-rain" style="animation-delay:${((k * 0.07) % 0.6).toFixed(2)}s"/>`).join('')
     : sc.wx === 'snow' ? Array.from({ length: 34 }, (_, k) => `<circle cx="${(k * 29) % 340}" cy="${(k * 41) % 260}" r="${1.2 + (k % 3) * 0.7}" fill="#fff" opacity=".8" class="mg-snow" style="animation-delay:${((k * 0.13) % 2).toFixed(2)}s"/>`).join('') : '';
-  const streaks = mph >= 6 && sc.wx !== 'dome' ? Array.from({ length: Math.min(8, Math.round(mph / 2)) }, (_, k) => `<line x1="${dir > 0 ? 0 : 340}" y1="${190 + k * 12}" x2="${dir > 0 ? 38 : 302}" y2="${190 + k * 12}" stroke="#fff" stroke-opacity=".22" stroke-width="1.4" stroke-linecap="round" class="mg-streak" style="--dx:${dir * 340}px;animation-duration:${(1.8 - Math.min(1, mph / 22)).toFixed(2)}s;animation-delay:${(k * 0.25).toFixed(2)}s"/>`).join('') : '';
-  const sideline = Array.from({ length: 9 }, (_, k) => `<circle cx="${-2 + k * 4}" cy="${250 + (k % 3) * 5}" r="2.4" fill="${k % 2 ? T1 : T2}" opacity=".8"/><circle cx="${342 - k * 4}" cy="${250 + (k % 3) * 5}" r="2.4" fill="${k % 2 ? O1 : O2}" opacity=".8"/>`).join('');
-  const lamp = (x) => `<g><line x1="${x}" y1="152" x2="${x}" y2="26" stroke="#2a3350" stroke-width="3"/><rect x="${x - 13}" y="14" width="26" height="14" rx="3" fill="#cfd8f5"/>${[0, 1, 2, 3, 4, 5].map(k => `<circle cx="${x - 9 + (k % 3) * 9}" cy="${18 + Math.floor(k / 3) * 7}" r="2.2" fill="#fff"/>`).join('')}<circle cx="${x}" cy="22" r="40" fill="url(#mgKL)" class="mg-flare"/></g>`;
-  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><defs><linearGradient id="mgSky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky[0]}"/><stop offset="1" stop-color="${sky[1]}"/></linearGradient><linearGradient id="mgGrass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sc.wx === 'snow' ? '#9fb9b0' : '#1f7440'}"/><stop offset="1" stop-color="${sc.wx === 'snow' ? '#c9ddd6' : '#12532c'}"/></linearGradient>${mgLights('mgKL', T1)}<linearGradient id="mgStands" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a0f20"/><stop offset="1" stop-color="#1a2342"/></linearGradient>
-      <pattern id="mgEzP" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(30)"><rect width="5" height="10" fill="#fff" opacity=".12"/></pattern></defs>
-    <rect width="340" height="300" rx="14" fill="url(#mgSky2)"/>
-    <rect x="0" y="40" width="340" height="100" fill="url(#mgStands)"/><g class="mg-crowd">${mgCrowd(0, 49, 340, 12, T1, O1)}</g><rect x="0" y="40" width="340" height="100" fill="url(#mgStands)" opacity=".28"/>
-    ${sc.wx === 'dome' ? '<rect x="0" y="0" width="340" height="40" fill="#0b0f22"/>' : lamp(24) + lamp(316)}
-    <g stroke="#fff" stroke-opacity=".1" stroke-width=".8">${Array.from({ length: 9 }, (_, k) => `<line x1="${120 + k * 12.5}" y1="92" x2="${120 + k * 12.5}" y2="139"/>`).join('')}${Array.from({ length: 6 }, (_, k) => `<line x1="120" y1="${92 + k * 11}" x2="220" y2="${92 + k * 11}"/>`).join('')}</g>
-    ${ads}
-    <polygon points="${170 - half(150)},150 ${170 + half(150)},150 ${170 + half(300)},300 ${170 - half(300)},300" fill="url(#mgGrass)"/>${bands.join('')}
-    <clipPath id="mgEzClip"><polygon points="${170 - half(150)},150 ${170 + half(150)},150 ${170 + half(176)},176 ${170 - half(176)},176"/></clipPath>
-    <polygon points="${170 - half(150)},150 ${170 + half(150)},150 ${170 + half(176)},176 ${170 - half(176)},176" fill="${O1}"/><polygon points="${170 - half(150)},150 ${170 + half(150)},150 ${170 + half(176)},176 ${170 - half(176)},176" fill="url(#mgEzP)"/>
-    <g clip-path="url(#mgEzClip)" opacity=".92">
-      <g transform="translate(${170 - 46} 163) scale(1 .5)"><image href="${ctx.o.logo}" x="-17" y="-17" width="34" height="34" preserveAspectRatio="xMidYMid meet"/></g>
-      <g transform="translate(${170 + 46} 163) scale(1 .5)"><image href="${ctx.o.logo}" x="-17" y="-17" width="34" height="34" preserveAspectRatio="xMidYMid meet"/></g>
-      <g transform="translate(170 163) scale(1 .5)"><image href="${ctx.o.logo}" x="-22" y="-22" width="44" height="44" preserveAspectRatio="xMidYMid meet"/></g>
-    </g>
-    <line x1="${170 - half(176)}" x2="${170 + half(176)}" y1="176" y2="176" stroke="#fff" stroke-width="3"/><line x1="${170 - half(150)}" x2="${170 + half(150)}" y1="150" y2="150" stroke="#fff" stroke-width="2" stroke-opacity=".85"/>
-     <polyline points="${170 - half(150)},150 ${170 - half(300)},300" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="2.5"/><polyline points="${170 + half(150)},150 ${170 + half(300)},300" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="2.5"/>
-    ${yardSVG}${hashes}${sideline}
-    <rect x="${170 - 9}" y="${baseY - 3}" width="18" height="6" rx="2" fill="#e6a900" stroke="#7a5a00"/>
-    <g stroke="#ffd23d" stroke-linecap="round" fill="none"><line x1="170" x2="170" y1="${baseY}" y2="${barY}" stroke-width="${3.6 * size}"/><line x1="${170 - hw}" x2="${170 + hw}" y1="${barY}" y2="${barY}" stroke-width="${4.4 * size}"/><line id="mgUL" class="mg-upr" x1="${170 - hw}" x2="${170 - hw}" y1="${barY}" y2="${postTop}" stroke-width="${4.4 * size}"/><line id="mgUR" class="mg-upr" x1="${170 + hw}" x2="${170 + hw}" y1="${barY}" y2="${postTop}" stroke-width="${4.4 * size}"/></g>
-    <g opacity=".95"><line x1="170" y1="${barY - 22 * size}" x2="${170 + drift * hw}" y2="${barY - 22 * size}" stroke="#35e0ff" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 7"/>${mph ? `<path d="M${170 + drift * hw} ${barY - 22 * size} l${-dir * 9} -6 v12z" fill="#35e0ff"/>` : ''}<text x="170" y="${barY - 30 * size}" text-anchor="middle" font-size="10" fill="#35e0ff" font-family="Barlow Condensed, sans-serif" letter-spacing=".1em" stroke="rgba(0,0,0,.5)" stroke-width="2" paint-order="stroke">${mph ? 'WIND PUSH' : 'NO WIND'}</text></g>
-    <g transform="translate(302 60)"><line x1="0" y1="0" x2="0" y2="46" stroke="#ddd" stroke-width="3"/><path class="mg-flag" d="M0 2 L${dir * 28} ${5 + Math.abs(flagA) * 0.05} L0 18 Z" fill="${T2}" stroke="#fff" stroke-width="1"/><text y="62" text-anchor="middle" font-size="12" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" stroke="rgba(0,0,0,.55)" stroke-width="2.4" paint-order="stroke">${mph ? `${dir < 0 ? '◀ ' : ''}${mph} MPH${dir > 0 ? ' ▶' : ''}` : 'DOME'}</text></g>
-    <g><rect x="14" y="62" width="56" height="42" rx="8" fill="rgba(5,8,16,.7)" stroke="rgba(255,255,255,.18)"/><text x="42" y="88" text-anchor="middle" font-size="26" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif">${dist}</text><text x="42" y="99" text-anchor="middle" font-size="8.5" fill="#fff" fill-opacity=".7" letter-spacing=".15em" font-family="Barlow Condensed, sans-serif">YD FG</text></g>
+  const streaks = mph >= 6 && sc.wx !== 'dome' ? Array.from({ length: Math.min(8, Math.round(mph / 2)) }, (_, k) => `<line x1="${dir > 0 ? 0 : 340}" y1="${120 + k * 20}" x2="${dir > 0 ? 38 : 302}" y2="${120 + k * 20}" stroke="#fff" stroke-opacity=".22" stroke-width="1.4" stroke-linecap="round" class="mg-streak" style="--dx:${dir * 340}px;animation-duration:${(1.8 - Math.min(1, mph / 22)).toFixed(2)}s;animation-delay:${(k * 0.25).toFixed(2)}s"/>`).join('') : '';
+  const sideDots = Array.from({ length: 7 }, (_, k) => `<circle cx="${sl - band - 5 - (k % 2) * 4}" cy="${yG + 30 + k * 9}" r="2.2" fill="${k % 2 ? T1 : T2}" opacity=".8"/><circle cx="${340 - sl + band + 5 + (k % 2) * 4}" cy="${yG + 30 + k * 9}" r="2.2" fill="${k % 2 ? O1 : O2}" opacity=".8"/>`).join('');
+  const los = yB - 7 * s, line = (n, y, f, t, down) => Array.from({ length: n }, (_, k) => mgGuy(170 + (k - (n - 1) / 2) * Math.max(8, s * 1.9), y, f, t, { s: 0.62, down })).join('');
+  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><defs>${mgGrassPat('mgKg')}<pattern id="mgStripe" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="14" fill="#fff"/></pattern><linearGradient id="mgStands" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a0f20"/><stop offset="1" stop-color="#1a2342"/></linearGradient></defs>
+    <rect width="340" height="300" rx="14" fill="#1d6c3d"/>${field}
+    <rect width="340" height="${yE - band}" fill="url(#mgStands)"/><g class="mg-crowd">${rows}</g>
+    <rect x="${sl - band}" y="${yE - band}" width="${340 - 2 * (sl - band)}" height="${band}" fill="#f6f7f4"/>
+    ${mgEndZone(ctx, sl, yE, 340 - 2 * sl, 10 * s, s / 10)}<rect x="${sl}" y="${yE}" width="${340 - 2 * sl}" height="${10 * s}" fill="url(#mgKg)" pointer-events="none"/>
+    <line x1="${sl}" x2="${340 - sl}" y1="${yE}" y2="${yE}" stroke="#fff" stroke-width="3"/><line x1="${sl}" x2="${340 - sl}" y1="${yG}" y2="${yG}" stroke="#fff" stroke-width="3.4"/>
+    ${mgPylon(sl, yG, 0.8)}${mgPylon(340 - sl, yG, 0.8)}${mgPylon(sl, yE, 0.8)}${mgPylon(340 - sl, yE, 0.8)}
+    ${sc.wx === 'snow' ? `<rect x="0" y="${yE - band}" width="340" height="300" fill="#e6f2ee" opacity=".38" pointer-events="none"/>` : sc.wx === 'rain' ? `<rect x="0" y="0" width="340" height="300" fill="#0a1124" opacity=".22" pointer-events="none"/>` : sc.wx === 'dome' ? '<rect x="0" y="0" width="340" height="300" fill="#10142b" opacity=".18" pointer-events="none"/>' : ''}
+    <line x1="${sl}" x2="${340 - sl}" y1="${los}" y2="${los}" stroke="#4aa8ff" stroke-width="2" stroke-opacity=".7"/>${line(9, los - 2.4 * s, O1, O2, true)}${line(9, los + 2.2, T1, T2, false)}
+    ${sideDots}
+    <ellipse cx="170" cy="${yE}" rx="4" ry="2.4" fill="#c99700" stroke="#7a5a00"/>
+    <g stroke="#ffd23d" stroke-linecap="round" fill="none"><line x1="170" x2="170" y1="${yE}" y2="${yE - barH}" stroke-width="3"/><line x1="${170 - hw}" x2="${170 + hw}" y1="${yE - barH}" y2="${yE - barH}" stroke-width="4"/><line id="mgUL" class="mg-upr" x1="${170 - hw}" x2="${170 - hw}" y1="${yE - barH}" y2="${yE - barH - upH}" stroke-width="4"/><line id="mgUR" class="mg-upr" x1="${170 + hw}" x2="${170 + hw}" y1="${yE - barH}" y2="${yE - barH - upH}" stroke-width="4"/></g>
+    <g opacity=".95"><rect x="${170 - 56}" y="4" width="112" height="22" rx="11" fill="rgba(5,8,16,.62)"/><line x1="170" y1="19" x2="${170 + drift * hw}" y2="19" stroke="#35e0ff" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 7"/>${mph ? `<path d="M${170 + drift * hw} 19 l${-dir * 8} -5 v10z" fill="#35e0ff"/>` : ''}<text x="170" y="13" text-anchor="middle" font-size="9" fill="#35e0ff" font-family="Barlow Condensed, sans-serif" letter-spacing=".1em">${mph ? 'WIND PUSH' : 'NO WIND'}</text></g>
+    <g transform="translate(250 5)"><rect width="84" height="22" rx="11" fill="rgba(5,8,16,.62)"/><line x1="12" y1="4" x2="12" y2="18" stroke="#ddd" stroke-width="2"/><path class="mg-flag" d="M12 4 L${12 + dir * 13} ${6 + Math.abs(flagA) * 0.04} L12 11 Z" fill="${T2}" stroke="#fff" stroke-width=".8"/><text x="52" y="16" text-anchor="middle" font-size="11.5" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif">${mph ? `${dir < 0 ? '◀ ' : ''}${mph} MPH${dir > 0 ? ' ▶' : ''}` : 'DOME'}</text></g>
+    <g transform="translate(6 272)"><rect width="64" height="22" rx="11" fill="rgba(5,8,16,.62)"/><text x="32" y="16" text-anchor="middle" font-size="13" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif">${dist}<tspan font-size="8.5" fill-opacity=".75" letter-spacing=".12em"> YD FG</tspan></text></g>
     ${streaks}${weather}
-    <g id="mgAim" ${sc.shaky ? 'class="mg-shaky"' : ''}><line id="mgAimL" x1="${bx}" y1="268" x2="170" y2="150" stroke="#ffd23d" stroke-width="2" stroke-dasharray="5 5"/><circle id="mgAimC" cx="170" cy="150" r="7" fill="none" stroke="#ffd23d" stroke-width="2.5"/></g>
-    ${mgGuy(bx + 26, 276, T1, T2, { s: 1.2 })}<g id="mgBallG">${mgBall(bx, 268, 1.5, 0, 'mgBallEl')}</g><g id="mgFx"></g></svg><div class="mg-me kick">${ctx.env.jersey ? ctx.env.jersey('back') : ''}</div><div class="mg-call">${sc.name} · ${MG_LV.indexOf(i) + 1}/3</div>`;
+    <g id="mgAim" ${sc.shaky ? 'class="mg-shaky"' : ''}><line id="mgAimL" x1="${bx}" y1="${yB}" x2="170" y2="${yE}" stroke="#ffd23d" stroke-width="2" stroke-dasharray="5 5"/><circle id="mgAimC" cx="170" cy="${yE - barH - 4}" r="6" fill="none" stroke="#ffd23d" stroke-width="2.5"/></g>
+    ${mgGuy(bx - 15, yB + 12, T1, T2, { s: 1.15, you: true })}${mgGuy(bx + 13, yB + 3, T1, T2, { s: 0.95 })}<ellipse id="mgSh" rx="6" ry="3" fill="#000" opacity=".38" cx="${bx}" cy="${yB}"/><g id="mgBallG">${mgBall(bx, yB - 1, 0.5, 90, 'mgBallEl')}</g><g id="mgFx"></g></svg><div class="mg-call">${sc.name} · ${MG_LV.indexOf(i) + 1}/3</div>`;
   const aimX = a => 170 + a * hw * 2;
   ctx.ctrl.innerHTML = `<div class="mg-aim"><span>AIM</span><input type="range" min="-100" max="100" value="0" id="mgAimIn"></div><div class="mg-btns one"><button class="mg-b big" id="mgKickGo" style="--c:#ffd23d">🦵 KICK</button></div>`;
   ctx.say(sc.shaky ? '<b>Everything on the line…</b> steady your aim' : 'Aim <b>into</b> the wind');
@@ -475,22 +498,24 @@ function mgKick(ctx, i, st) {
         const upright = !short && !over && al > 0.8 && al <= 1.14, wide = !short && !over && al > 1.14, ok = !short && !over && al <= 0.8;
         const perfect = ok && al < 0.3 && perr < z / 2;
         Snd.play('mgKick', 0);
-        const ball = ctx.stage.querySelector('#mgBallEl'), landX = 170 + lateral * hw, sgn = lateral < 0 ? -1 : 1;
-        const main = (n, tEnd, yEnd, sEnd) => Array.from({ length: n + 1 }, (_, k) => { const t = k / n * tEnd; return { t, x: bx + (landX - bx) * t, y: 268 - (268 - yEnd) * t - Math.sin(Math.PI * t) * 46, s: 1.5 - (1.5 - sEnd) * t }; });
+        const ball = ctx.stage.querySelector('#mgBallEl'), shadow = ctx.stage.querySelector('#mgSh'), landX = 170 + lateral * hw, sgn = lateral < 0 ? -1 : 1;
+        const arcPts = (n, tEnd, x1, y1, hf) => Array.from({ length: n + 1 }, (_, k) => { const f = k / n; return { t: f * tEnd, x: bx + (x1 - bx) * f, y: yB + (y1 - yB) * f, h: hf(f) }; });
+        const clear = f => 56 * Math.sin(Math.PI * (0.08 + 0.84 * f));                   // an ordinary kick: peaks mid-way and is a little above the crossbar at the posts
         let frames, dur = 1150;
-        if (short) { frames = main(10, 0.62, barY, 0.35).map((f, k, a) => ({ ...f, t: f.t / 0.62 })); dur = 800; }
-        else if (over) { frames = main(10, 1, 30, 0.22); }
-        else if (ok) { const m = main(10, 0.62, barY, 0.35).map(f => ({ ...f, t: f.t * 0.7 })); frames = m.concat([{ t: 0.85, x: landX, y: barY - 24, s: 0.3, o: 1 }, { t: 1, x: landX, y: barY - 44, s: 0.22, o: 0 }]); }
-        else if (upright) { const m = main(10, 0.62, barY + 2, 0.35).map(f => ({ ...f, t: f.t * 0.6 })); const hx = landX; frames = m.concat([{ t: 0.72, x: hx - sgn * 10, y: barY + 14, s: 0.33 }, { t: 1, x: hx - sgn * 26, y: barY + 66, s: 0.5 }]); }
-        else { frames = main(10, 1, 70, 0.26); }
-        await mgFly(ctx, ball, frames, dur);
+        if (short) { const x1 = bx + (landX - bx) * 0.62, y1 = yB + (yE - yB) * 0.62; frames = arcPts(12, 0.8, x1, y1, f => 200 * f * (1 - f)).concat([{ t: 0.92, x: x1 + (landX - bx) * 0.04, y: y1 - 6, h: 7 }, { t: 1, x: x1 + (landX - bx) * 0.07, y: y1 - 9, h: 0 }]); dur = 900; }
+        else if (over) { frames = arcPts(14, 1, landX, yE - 60, f => 380 * f * (1 - f)).map((f, k, a) => (k === a.length - 1 ? { ...f, o: 0 } : f)); }
+        else if (ok) { frames = arcPts(12, 0.7, landX, yE, clear).concat([{ t: 0.86, x: landX, y: yE - 18, h: 10, o: 1 }, { t: 1, x: landX + (landX - 170) * 0.1, y: yE - 36, h: 4, o: 0 }]); }
+        else if (upright) { frames = arcPts(12, 0.7, landX, yE, clear).concat([{ t: 0.82, x: landX - sgn * 8, y: yE + 10, h: 26 }, { t: 1, x: landX - sgn * 22, y: yE + 34, h: 0 }]); }
+        else { frames = arcPts(14, 1, landX, yE - 50, f => 38 * Math.sin(Math.PI * (0.05 + 0.9 * f))).map((f, k, a) => (k === a.length - 1 ? { ...f, o: 0 } : f)); }
+        await mgFly(ctx, ball, shadow, frames, dur);
         if (!ctx.alive()) return res(false);
         let txt;
-        if (ok) { txt = `${dist}-YARD FIELD GOAL IS GOOD!`; mgPop(ctx, 170, 96, perfect ? 'PERFECT!' : 'GOOD!', 'good'); if (perfect) { ctx.perfects++; txt = '✨ PERFECT KICK! ' + txt; } Snd.play('td', 0.15); mgShake(ctx); }
+        const popY = yG + 22;
+        if (ok) { txt = `${dist}-YARD FIELD GOAL IS GOOD!`; mgPop(ctx, 170, popY, perfect ? 'PERFECT!' : 'GOOD!', 'good'); if (perfect) { ctx.perfects++; txt = '✨ PERFECT KICK! ' + txt; } Snd.play('td', 0.15); mgShake(ctx); }
         else if (upright) {
           const up = ctx.stage.querySelector(lateral < 0 ? '#mgUL' : '#mgUR'); if (up) { up.classList.add('hit'); } Snd.play('mgPost', 0); mgShake(ctx);
-          txt = 'It hit the upright — no good!'; mgPop(ctx, 170, 96, 'OFF THE POST!', 'bad');
-        } else { const why = short ? 'SHORT' : over ? 'TOO HIGH' : (lateral < 0 ? 'WIDE LEFT' : 'WIDE RIGHT'); txt = `No good — ${why.toLowerCase()}`; mgPop(ctx, 170, 96, why, 'bad'); }
+          txt = 'It hit the upright — no good!'; mgPop(ctx, 170, popY, 'OFF THE POST!', 'bad');
+        } else { const why = short ? 'SHORT' : over ? 'TOO HIGH' : (lateral < 0 ? 'WIDE LEFT' : 'WIDE RIGHT'); txt = `No good — ${why.toLowerCase()}`; mgPop(ctx, 170, popY, why, 'bad'); }
         const tip = (wide || upright) ? '<span class="mg-tip">The wind pushed it — aim against the arrow.</span>' : (short || over) ? '<span class="mg-tip">Stop the bar inside the green.</span>' : '';
         ctx.say(`${ok ? '✅' : '❌'} ${txt}${tip}`, ok ? 'good' : 'bad'); res(ok);
       };

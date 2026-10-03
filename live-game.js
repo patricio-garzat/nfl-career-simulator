@@ -267,173 +267,511 @@ function lvFieldSVG(away, home) {
 }
 
 /* ---------- actors and formations ---------- */
-// role -> [u, v]: u = yards from the line of scrimmage (towards the end zone the offense attacks), v = lateral yards
-const LV_OFF = { OL1: [-0.6, -4], OL2: [-0.6, -2], OL3: [-0.6, 0], OL4: [-0.6, 2], OL5: [-0.6, 4], TE: [-0.6, 6.4], QB: [-4.4, 0], RB: [-5.2, 2.6], WR1: [-0.4, -21], WR2: [-0.4, 22], WR3: [-1.3, -11] };
-const LV_DEF = { DL1: [1.1, -3.5], DL2: [1.1, -1.2], DL3: [1.1, 1.2], DL4: [1.1, 3.5], LB1: [4.5, -6], LB2: [4.5, 0], LB3: [4.5, 6], CB1: [6.6, -21], CB2: [6.6, 21], S1: [12, -7], S2: [12, 8] };
+// u = yards from the line of scrimmage towards the end zone the offense attacks, v = lateral yards (screen-down is positive)
 const LV_ME = { QB: 'QB', RB: 'RB', WR: 'WR1', TE: 'TE', OL: 'OL2', DL: 'DL2', LB: 'LB2', CB: 'CB1', S: 'S1', K: 'K' };
+const LV_PASS_KINDS = ['catch', 'incomplete', 'qbPass', 'qbInc', 'qbInt', 'pressure', 'sackAllowed', 'sack', 'int', 'pd'];
+const LV_SN = 1.6;                                           // script seconds between breaking the huddle and the snap (the clock does not run during it)
+const lvSgn = v => (v < 0 ? -1 : 1);
+const lvLabel = role => role.replace(/\d+$/, '');
+
+/* one formation plan per play: where each man lines up, the coverage, any pre-snap motion, and where everybody starts (the huddle / walking up) */
+function lvPlan(play) {
+  if (play._f) return play._f;
+  const k = play.kind, kick = k === 'fg' || k === 'xp', pos = S.player.pos;
+  const meDef = ['DL', 'LB', 'CB', 'S'].includes(pos) ? LV_ME[pos] : null;
+  let pass = LV_PASS_KINDS.includes(k) || (k === 'tackle' && !!play.pass);
+  if (k === 'tackle' && meDef === 'DL2') pass = false;           // an interior lineman makes his tackles against the run
+  const F = (play._f = { kick, pass, off: {}, def: {}, pre: {}, hud: {}, dst: {}, mot: null, cov: pass ? 'man' : 'run' });
+  if (kick) {                                                   // field-goal unit: 7 on the line, two wings, holder and kicker; the defense rushes
+    F.off = { OL1: [-0.6, -4], OL2: [-0.6, -2], OL3: [-0.6, 0], OL4: [-0.6, 2], OL5: [-0.6, 4], TE: [-0.6, 6], WR1: [-0.6, -6], WR2: [-1.4, 8], WR3: [-1.4, -8], QB: [-7, 0.4], K: [-8.7, -3] };
+    F.def = { DL1: [1.1, -5.4], DL2: [1.1, -2.2], DL3: [1.1, 0], DL4: [1.1, 2.2], LB1: [1.1, 5.4], LB2: [1.1, -8], LB3: [1.1, 8], CB1: [3, -10], CB2: [3, 10], S1: [10, -3], S2: [10, 3] };
+  } else {
+    const fl = rnd() < 0.5 ? -1 : 1;
+    const key = pass ? pick(['gun22', 'gun22', 'gun31', 'gun31', 'uc']) : pick(['uc', 'uc', 'pistol', 'gun22']);
+    const base = { OL1: [-0.6, -4], OL2: [-0.6, -2], OL3: [-0.6, 0], OL4: [-0.6, 2], OL5: [-0.6, 4] };
+    const form = {
+      gun22: { TE: [-0.6, 6.4], WR1: [-0.6, -22.5], WR3: [-1.5, -12.5], WR2: [-0.6, 22.5], QB: [-4.9, 0], RB: [-4.9, 2.4] },
+      gun31: { TE: [-0.6, 6.4], WR1: [-0.6, -22.5], WR3: [-1.5, 13.5], WR2: [-0.6, 22.5], QB: [-4.9, 0], RB: [-4.9, -2.4] },
+      uc: { TE: [-0.6, 6.4], WR1: [-0.6, -22.5], WR3: [-1.5, -12.5], WR2: [-0.6, 22.5], QB: [-1.9, 0], RB: [-6.3, 0] },
+      pistol: { TE: [-0.6, 6.4], WR1: [-0.6, -22.5], WR3: [-1.5, -12.5], WR2: [-0.6, 22.5], QB: [-3.8, 0], RB: [-6.6, 0] },
+    }[key];
+    Object.entries({ ...base, ...form }).forEach(([r, [u, v]]) => { F.off[r] = [u, v * fl]; });
+    if (key.startsWith('gun') && rnd() < 0.5) {                 // pre-snap motion: the back shifts across, or the slot man tightens in
+      if (key === 'gun31' || rnd() < 0.6) { const q = F.off.RB; F.pre.RB = q.slice(); F.off.RB = [q[0], -q[1]]; F.mot = 'RB'; }
+      else { const q = F.off.WR3; F.pre.WR3 = q.slice(); F.off.WR3 = [q[0], q[1] * 0.55]; F.mot = 'WR3'; }
+    }
+    const seen = r => F.pre[r] || F.off[r];                      // alignment the defense reads
+    F.cov = pass ? pick(['man', 'man', 'c3', 'c3', 'c2', 'c4']) : 'run';
+    const press = pass && F.cov === 'man' && rnd() < 0.4;
+    const cbAt = r => [press ? 1.7 : rr(5.6, 7.3), seen(r)[1] - lvSgn(seen(r)[1]) * 0.4];
+    const twoHigh = F.cov === 'c2' || F.cov === 'c4';
+    Object.assign(F.def, {
+      DL1: [0.95, -5 * fl], DL2: [0.95, -1.6 * fl], DL3: [0.95, 1.6 * fl], DL4: [0.95, 5 * fl],
+      LB1: [4.8, -5 * fl], LB2: [4.9, 0.4 * fl],
+      LB3: pass ? [5.2, seen('WR3')[1] - lvSgn(seen('WR3')[1]) * 0.8] : [4.7, 6 * fl],
+      CB1: cbAt('WR1'), CB2: cbAt('WR2'),
+      S1: !pass ? [12.8, -3.5 * fl] : twoHigh ? [13.8, -8.5 * fl] : [14.8, 0.8 * fl],
+      S2: !pass ? [8.2, 6.5 * fl] : twoHigh ? [13.8, 8.5 * fl] : [8.8, 7.2 * fl],
+    });
+  }
+  const offKeys = Object.keys(F.off);
+  offKeys.forEach(r => {                                        // the huddle: linemen and backs gather behind the ball, receivers come in from the flanks
+    const q = F.pre[r] || F.off[r];
+    F.hud[r] = r.startsWith('OL') ? [-8 + rr(-0.5, 0.5), q[1] * 0.5] : r === 'QB' ? [-8.8, rr(-0.4, 0.4)] : r === 'K' ? [-11, -2] : [Math.min(q[0], -1) - 5, q[1] * 0.92 + rr(-0.5, 0.5)];
+  });
+  Object.keys(F.def).forEach(r => { const q = F.def[r]; F.dst[r] = [q[0] + (r.startsWith('DL') ? rr(3, 4) : rr(2.5, 4.5)), q[1] * 1.05 + rr(-1, 1)]; });
+  return F;
+}
 
 function lvScene(play, ctx) {
   const meOff = ['QB', 'RB', 'WR', 'TE', 'OL', 'K'].includes(S.player.pos), myRole = LV_ME[S.player.pos];
   const offIsMe = play.off === 'me', dir = offIsMe ? ctx.myDir : -ctx.myDir, los = dir === 1 ? play.los : 100 - play.los;
-  const P = (u, v) => ({ x: lvX(los + dir * u), y: lvY(v) });
+  const P = (u, v) => ({ x: lvX(clamp(los + dir * u, -9.4, 109.4)), y: lvY(v) });
   const offCol = TEAM[offIsMe ? ctx.myId : ctx.oppId].c1, defCol = TEAM[offIsMe ? ctx.oppId : ctx.myId].c1;
   return { dir, los, P, offCol, defCol, offIsMe, myRole, meOff, meOnField: offIsMe ? meOff : !meOff };
 }
 function lvMakeActors(sc, play) {
-  const g = document.getElementById('lvActors'); g.innerHTML = '';
-  const kick = play.kind === 'fg' || play.kind === 'xp';
-  const offLayout = { ...LV_OFF }, defLayout = { ...LV_DEF };
-  if (kick) {                                       // field-goal unit: line of scrimmage, holder and kicker; the defense rushes
-    Object.assign(offLayout, { OL1: [-0.6, -5.2], OL2: [-0.6, -3.2], OL3: [-0.6, -1.2], OL4: [-0.6, 1.2], OL5: [-0.6, 3.2], TE: [-0.6, 5.2], QB: [-7, 0.4], RB: [-0.6, -7.2], WR1: [-0.6, 7.2], WR2: [-0.6, -9.2], WR3: [-0.6, 9.2], K: [-8.4, -1.6] });
-    delete offLayout.RB; offLayout.RB = [-0.6, -7.2]; offLayout.K = [-8.4, -1.6];
-    Object.assign(defLayout, { DL1: [1.1, -5.4], DL2: [1.1, -2.2], DL3: [1.1, 0], DL4: [1.1, 2.2], LB1: [1.1, 5.4], LB2: [1.1, -8], LB3: [1.1, 8], CB1: [3, -10], CB2: [3, 10], S1: [10, -3], S2: [10, 3] });
-  }
-  const actors = {}, mk = (role, off) => {
-    const [u, v] = (off ? offLayout : defLayout)[role], p = sc.P(u, v), isMe = sc.meOnField && off === sc.meOff && role === sc.myRole;
-    const el = document.createElementNS('http://www.w3.org/2000/svg', 'g'); el.setAttribute('class', 'lv-pl' + (isMe ? ' me' : ''));
-    el.innerHTML = `<circle r="${isMe ? 12.5 : 9.5}" fill="${off ? sc.offCol : sc.defCol}" stroke="${isMe ? '#ffd23d' : '#fff'}" stroke-width="${isMe ? 3.5 : 2}"/>` + (isMe ? `<text y="3.6" text-anchor="middle" class="lv-pn">${playerNumber()}</text>` : '');
-    g.appendChild(el); actors[role + (off ? '' : '_d')] = { el, x: p.x, y: p.y, id: role + (off ? '' : '_d'), role, off, isMe };
+  const F = lvPlan(play), g = document.getElementById('lvActors'); g.innerHTML = '';
+  const actors = {}, svg = 'http://www.w3.org/2000/svg';
+  const mk = (role, off) => {
+    const q = (off ? F.hud : F.dst)[role], p = sc.P(q[0], q[1]), isMe = sc.meOnField && off === sc.meOff && role === sc.myRole;
+    const col = off ? sc.offCol : sc.defCol, id = role + (off ? '' : '_d'), face = (off ? sc.dir === 1 : sc.dir !== 1) ? 0 : Math.PI;
+    const el = document.createElementNS(svg, 'g'); el.setAttribute('class', 'lv-pl' + (isMe ? ' me' : ''));
+    el.innerHTML = `<g class="lv-fc"><path d="M9 -5.2L16.5 0L9 5.2Z" fill="${isMe ? '#ffd23d' : '#fff'}" opacity=".92"/></g><circle r="${isMe ? 12.5 : 9.5}" fill="${col}" stroke="${isMe ? '#ffd23d' : '#fff'}" stroke-width="${isMe ? 3.5 : 2}"/>`
+      + (isMe ? `<text y="3.6" text-anchor="middle" class="lv-pn">${playerNumber()}</text>` : `<text y="2.7" text-anchor="middle" class="lv-pr" fill="${contrastOn(col)}">${lvLabel(role)}</text>`);
+    g.appendChild(el); actors[id] = { el, fc: el.querySelector('.lv-fc'), x: p.x, y: p.y, id, role, off, isMe, face };
     el.setAttribute('transform', `translate(${p.x} ${p.y})`);
   };
-  Object.keys(offLayout).forEach(r => mk(r, true)); Object.keys(defLayout).forEach(r => mk(r, false));
-  if (!kick) { /* the 11th offensive man: K does not exist in a normal formation */ }
-  const ball = document.createElementNS('http://www.w3.org/2000/svg', 'g'); ball.setAttribute('class', 'lv-ball');
+  Object.keys(F.off).forEach(r => mk(r, true)); Object.keys(F.def).forEach(r => mk(r, false));
+  const ball = document.createElementNS(svg, 'g'); ball.setAttribute('class', 'lv-ball');
   ball.innerHTML = '<ellipse class="sh" rx="7" ry="3.4" cy="6" fill="#000" opacity=".3"/><ellipse class="b" rx="7.5" ry="4.6" fill="#8a4b1f" stroke="#fff" stroke-width="1.2"/><line x1="-2.5" x2="2.5" stroke="#fff" stroke-width="1"/>';
   g.appendChild(ball);
-  const bp = sc.P(kick ? -7 : -0.6, kick ? 0.4 : 0); actors.ball = { el: ball, x: bp.x, y: bp.y, id: 'ball', ball: true };
+  const bp = sc.P(-0.1, 0); actors.ball = { el: ball, x: bp.x, y: bp.y, id: 'ball', ball: true };
   ball.setAttribute('transform', `translate(${bp.x} ${bp.y})`);
   // your player's name tag
   const me = Object.values(actors).find(a => a.isMe);
-  if (me) { const tag = document.createElementNS('http://www.w3.org/2000/svg', 'text'); tag.setAttribute('class', 'lv-tag'); tag.textContent = surname(S.player.name).toUpperCase(); tag.setAttribute('text-anchor', 'middle'); g.appendChild(tag); actors.tag = { el: tag, follow: me.id, tag: true, x: me.x, y: me.y }; }
+  if (me) { const tag = document.createElementNS(svg, 'text'); tag.setAttribute('class', 'lv-tag'); tag.textContent = surname(S.player.name).toUpperCase(); tag.setAttribute('text-anchor', 'middle'); g.appendChild(tag); actors.tag = { el: tag, follow: me.id, tag: true, id: 'tag', x: me.x, y: me.y }; }
   return actors;
 }
 
-/* ---------- tiny timeline engine: move(actor, to, t0, t1), follow(ball, actor, t0, t1) ---------- */
+/* ---------- tiny timeline engine ----------
+   move(id, to, t0, t1)            straight line (smooth, or a trapezoid speed profile with prof:1)
+   run(id, pts, t0, speed, o)      a rounded path at a given speed (yards / second); o.t1 forces the arrival time
+   follow(id, other, t0, t1, dx, dy, {lag, wob})   stick to another actor (blocking, man coverage, tackling), optionally with a reaction lag and a little tussle */
 function lvTimeline(actors) {
-  const steps = [], cur = {}; Object.values(actors).forEach(a => { cur[a.id] = { x: a.x, y: a.y }; });
+  const steps = {}, cur = {};
+  Object.values(actors).forEach(a => { if (!a.tag) { cur[a.id] = { x: a.x, y: a.y }; steps[a.id] = []; } });
+  const add = s => { const l = steps[s.a]; l.push(s); l.sort((p, q) => p.t0 - q.t0); };
+  const smooth = k => k * k * (3 - 2 * k);
+  const prof = (k, a, d) => {                                   // trapezoid speed profile: accelerate over a, cruise, brake over d
+    const tot = 1 - a / 2 - d / 2; let s;
+    if (a > 0 && k < a) s = k * k / (2 * a);
+    else if (d > 0 && k > 1 - d) { const q = k - (1 - d); s = a / 2 + (1 - d - a) + q - q * q / (2 * d); }
+    else s = a / 2 + (k - a);
+    return clamp(s / tot, 0, 1);
+  };
+  const chaikin = (pts, n) => {                                  // rounds the corners of a polyline (cuts stay sharp but not robotic)
+    for (let it = 0; it < n; it++) {
+      if (pts.length < 3) break;
+      const out = [pts[0]];
+      for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; out.push({ x: a.x * 0.75 + b.x * 0.25, y: a.y * 0.75 + b.y * 0.25 }, { x: a.x * 0.25 + b.x * 0.75, y: a.y * 0.25 + b.y * 0.75 }); }
+      out.push(pts[pts.length - 1]); pts = out;
+    }
+    return pts;
+  };
   const at = (id, t) => {
-    const list = steps.filter(s => s.a === id).sort((a, b) => a.t0 - b.t0); let p = actors[id] ? { x: actors[id].x, y: actors[id].y, z: 0 } : { x: 0, y: 0, z: 0 };
+    const list = steps[id]; let p = actors[id] ? { x: actors[id].x, y: actors[id].y, z: 0 } : { x: 0, y: 0, z: 0 };
+    if (!list) return p;
     for (const s of list) {
       if (t < s.t0) break;
-      if (s.follow) { const q = at(s.follow, Math.min(t, s.t1)); p = { x: q.x + (s.dx || 0), y: q.y + (s.dy || 0), z: 0 }; continue; }
-      const k = clamp((t - s.t0) / Math.max(0.001, s.t1 - s.t0), 0, 1), e = s.linear ? k : k * k * (3 - 2 * k);
+      const k = clamp((t - s.t0) / Math.max(0.001, s.t1 - s.t0), 0, 1);
+      if (s.follow) {
+        const tt = Math.min(t, s.t1), q = at(s.follow, tt - (s.lag || 0));
+        const b = s.bl ? 1 - smooth(clamp((t - s.t0) / s.bl, 0, 1)) : 0;      // the starting offset to the target fades out, so he keeps moving with the target while he closes in
+        p = { x: q.x + (s.dx || 0) + s.rel.x * b, y: q.y + (s.dy || 0) + (s.wob ? s.wob * Math.sin(tt * s.fq + s.ph) : 0) + s.rel.y * b, z: 0 }; continue;
+      }
+      if (s.path) {
+        const d = prof(k, s.pa, s.pd) * s.len, c = s.cum; let i = 1; while (i < c.length - 1 && c[i] < d) i++;
+        const seg = c[i] - c[i - 1] || 1, f = clamp((d - c[i - 1]) / seg, 0, 1), a = s.path[i - 1], b = s.path[i];
+        p = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: 0 }; continue;
+      }
+      const e = s.lin ? k : (s.prof ? prof(k, s.pa == null ? 0.2 : s.pa, s.pd == null ? 0.2 : s.pd) : smooth(k));
       p = { x: s.from.x + (s.to.x - s.from.x) * e, y: s.from.y + (s.to.y - s.from.y) * e, z: s.arc ? 4 * s.arc * k * (1 - k) : 0 };
     }
     return p;
   };
   const T = {
-    move(id, to, t0, t1, o = {}) { const from = cur[id]; steps.push({ a: id, t0, t1, from, to, ...o }); cur[id] = { x: to.x, y: to.y }; },
-    follow(id, other, t0, t1, dx = 0, dy = 0) { steps.push({ a: id, t0, t1, follow: other, dx, dy }); const q = at(other, t1); cur[id] = { x: q.x + dx, y: q.y + dy }; },
+    move(id, to, t0, t1, o = {}) { add({ a: id, t0, t1: Math.max(t1, t0 + 0.02), from: at(id, t0), to: { x: to.x, y: to.y }, ...o }); cur[id] = { x: to.x, y: to.y }; },
+    run(id, pts, t0, speed, o = {}) {
+      const f = at(id, t0), poly = chaikin([{ x: f.x, y: f.y }, ...pts.map(q => ({ x: q.x, y: q.y }))], o.sm == null ? 1 : o.sm), cum = [0];
+      for (let i = 1; i < poly.length; i++) cum.push(cum[i - 1] + Math.hypot(poly[i].x - poly[i - 1].x, poly[i].y - poly[i - 1].y));
+      const len = cum[cum.length - 1], t1 = o.t1 != null ? Math.max(o.t1, t0 + 0.06) : t0 + Math.max(0.06, len / 10 / speed);
+      add({ a: id, t0, t1, path: poly, cum, len, pa: o.pa == null ? 0.14 : o.pa, pd: o.pd || 0 }); cur[id] = { x: poly[poly.length - 1].x, y: poly[poly.length - 1].y };
+      return t1;
+    },
+    follow(id, other, t0, t1, dx = 0, dy = 0, o = {}) {
+      const f = at(id, t0), q0 = at(other, t0 - (o.lag || 0));
+      add({ a: id, t0, t1: Math.max(t1, t0 + 0.02), follow: other, dx, dy, rel: { x: f.x - q0.x - dx, y: f.y - q0.y - dy }, bl: o.bl == null ? 0.25 : o.bl, lag: o.lag || 0, wob: o.wob || 0, fq: o.fq || 8, ph: Math.random() * 6.28 });
+      const q = at(other, t1 - (o.lag || 0)); cur[id] = { x: q.x + dx, y: q.y + dy };
+    },
     pos: id => ({ ...cur[id] }),
     posAt: at,
+    steps,
     end: 0,
     render(t) {
       Object.values(actors).forEach(a => {
-        if (a.tag) { const p = at(a.follow, t); a.el.setAttribute('x', p.x); a.el.setAttribute('y', p.y - 20); return; }
+        if (a.tag) { const p = at(a.follow, t); a.el.setAttribute('x', p.x); a.el.setAttribute('y', p.y - 21); return; }
         const p = at(a.id, t);
-        if (a.ball) { a.el.setAttribute('transform', `translate(${p.x} ${p.y - p.z}) scale(${1 + p.z / 90})`); a.el.querySelector('.sh').setAttribute('cy', 6 + p.z * 0.9); a.el.querySelector('.sh').setAttribute('opacity', Math.max(0.1, 0.3 - p.z / 300)); }
-        else a.el.setAttribute('transform', `translate(${p.x} ${p.y})`);
+        if (a.ball) { a.el.setAttribute('transform', `translate(${p.x} ${p.y - p.z}) scale(${1 + p.z / 90})`); a.el.querySelector('.sh').setAttribute('cy', 6 + p.z * 0.9); a.el.querySelector('.sh').setAttribute('opacity', Math.max(0.1, 0.3 - p.z / 300)); return; }
+        a.el.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`);
+        const q = at(a.id, t - 0.09), vx = p.x - q.x, vy = p.y - q.y;      // players face where they are running
+        if (vx * vx + vy * vy > 0.9) { let d = Math.atan2(vy, vx) - a.face; d = Math.atan2(Math.sin(d), Math.cos(d)); a.face += d * 0.35; }
+        a.fc.setAttribute('transform', `rotate(${(a.face * 180 / Math.PI).toFixed(0)})${a.isMe ? ' scale(1.25)' : ''}`);
       });
     },
   };
   return T;
 }
 
-/* ---------- play templates ---------- */
+/* ---------- play templates ----------
+   Every play is built from the same football pieces: the huddle breaks and lines up (sometimes with motion), then each position does its job —
+   linemen block and rush, receivers run routes, defenders play man or zone and then pursue, the tackle is made by whoever is closest. */
 function lvPlayScript(play, sc, A, T) {
-  const { P, dir } = sc, me = sc.myRole, ballId = 'ball';
-  const to = (u, v) => P(u, v), tackleAll = (ids, p, t0, t1) => ids.forEach((id, i) => T.move(id, { x: p.x + dir * (-3 - i * 3), y: p.y + (i % 2 ? 9 : -9) * (i ? 1 : 0.4) }, t0, t1));
-  const rec = r => A[r] ? r : 'WR2', result = { dur: 4, text: '', fx: [] };
-  const offIds = Object.keys(LV_OFF), defKeys = Object.keys(LV_DEF);
-  const crowd = (end, exclude = []) => defKeys.filter(k => !exclude.includes(k)).sort((a, b) => Math.hypot(T.pos(a + '_d').x - end.x, T.pos(a + '_d').y - end.y) - Math.hypot(T.pos(b + '_d').x - end.x, T.pos(b + '_d').y - end.y)).slice(0, 3);
-  const pocket = (t1 = 1) => { ['OL1', 'OL2', 'OL3', 'OL4', 'OL5'].forEach(r => { const q = LV_OFF[r]; T.move(r, to(q[0] - 1.6, q[1] * 0.92), 0.15, t1); }); ['DL1', 'DL2', 'DL3', 'DL4'].forEach(r => { const q = LV_DEF[r]; T.move(r + '_d', to(q[0] - 0.4, q[1] * 0.9), 0.15, t1); }); };
-  const sideV = r => LV_OFF[r][1];
-  const meDefRole = ['DL', 'LB', 'CB', 'S'].includes(S.player.pos) ? LV_ME[S.player.pos] : null;
-  const k = play.kind;
-  /* a pass to a receiver (the target is you if you are WR/TE/RB, otherwise a teammate) */
-  const passTo = (target, air, yac, res, defRole) => {
-    const tv = sideV(target) * 0.5, dId = defRole + '_d';
-    T.move('QB', to(-7.6, 0.4), 0, 1.0); pocket(1.1);
-    T.move(target, to(air * 0.55, sideV(target) * 0.75), 0, 0.85); T.move(target, to(air, tv), 0.85, 1.85);
-    T.move(dId, to(air - 0.6, tv + (defRole === meDefRole ? 0.5 : 1)), 0.1, 1.9);
-    offIds.filter(r => ['WR1', 'WR2', 'WR3', 'TE'].includes(r) && r !== target).forEach((r, i) => T.move(r, to(7 + i * 3, sideV(r) * 0.8), 0, 2));
-    T.move('RB', to(-4, sideV('RB') * 1.4), 0, 1.2);
-    T.follow(ballId, 'QB', 0, 1.0, 0, 0);
-    let end = to(air, tv), t = 1.85;
+  const { P, dir } = sc, F = play._f, SN = LV_SN, ballId = 'ball', k = play.kind, me = sc.myRole;
+  const result = { dur: 4, text: '', fx: [], snap: SN };
+  const meDef = ['DL', 'LB', 'CB', 'S'].includes(S.player.pos) ? LV_ME[S.player.pos] : null;
+  const to = (u, v) => P(u, v), O = r => F.off[r], D = r => F.def[r], dd = r => r + '_d';
+  const loc = p => ({ u: (p.x - lvX(sc.los)) * dir / 10, v: (p.y - lvY(0)) / 10 });
+  const posL = (id, t) => T.posAt(id, SN + t), at = (id, t) => loc(posL(id, t));
+  const pts = a => a.map(q => to(q[0], q[1]));
+  const R = (id, a, t0, spd = 7, o = {}) => T.run(id, pts(a), SN + t0, spd, o.t1 != null ? { ...o, t1: SN + o.t1 } : o) - SN;
+  const RT = (id, a, t0, tArr, o = {}) => {                       // run to a point, arriving at tArr but never faster than a sprint
+    const p0 = at(id, t0); let len = 0, pv = [p0.u, p0.v]; a.forEach(q => { len += Math.hypot(q[0] - pv[0], q[1] - pv[1]); pv = q; });
+    return R(id, a, t0, 9, { ...o, t1: Math.max(tArr, t0 + len / 10.5) });
+  };
+  const M = (id, q, t0, t1, o = {}) => T.move(id, to(q[0], q[1]), SN + t0, SN + t1, o);
+  const FOL = (id, other, t0, t1, du = 0, dv = 0, o = {}) => T.follow(id, other, SN + t0, SN + t1, dir * du * 10, dv * 10, o);
+  const FX = (t, p, text, cls, sticky) => result.fx.push({ t: SN + t, p, text, cls, sticky });
+  const done = tl => { result.dur = SN + tl; };
+  const clampV = v => clamp(v, -24.3, 24.3);
+  const OLS = ['OL1', 'OL2', 'OL3', 'OL4', 'OL5'], DLS = ['DL1', 'DL2', 'DL3', 'DL4'], defKeys = Object.keys(F.def);
+  const SKILL = ['QB', 'WR1', 'WR2', 'WR3', 'TE', 'RB'];
+  const manOf = { WR1: 'CB1', WR2: 'CB2', WR3: 'LB3', TE: 'LB2', RB: 'LB1' };
+  const tgtOf = { CB1: 'WR1', LB2: 'TE', S1: 'WR3', DL2: 'WR2' };
+  const pairDL = {};                                               // each lineman's man across the ball
+  DLS.forEach(d => { pairDL[d] = OLS.slice().sort((a, b) => Math.abs(O(a)[1] - D(d)[1]) - Math.abs(O(b)[1] - D(d)[1]))[0]; });
+  const pairOL = ol => DLS.slice().sort((a, b) => Math.abs(D(a)[1] - O(ol)[1]) - Math.abs(D(b)[1] - O(ol)[1]))[0];
+  const sd = r => lvSgn(D(r)[1] || 1);
+
+  /* ---- before the snap: break the huddle, line up, (motion) ---- */
+  const shadow = F.mot && F.cov === 'man' ? (F.mot === 'RB' ? 'LB1' : 'LB3') : null;
+  Object.keys(F.off).forEach(r => { const q = F.pre[r] || F.off[r]; T.move(r, to(q[0], q[1]), rr(0, 0.12), SN - (r === F.mot ? 0.9 : 0.5) - rr(0, 0.08), { prof: 1, pa: 0.2, pd: 0.25 }); });
+  defKeys.forEach(r => { const q = D(r); T.move(dd(r), to(q[0], q[1]), 0.1 + rr(0, 0.2), SN - (r === shadow ? 0.9 : 0.18), { prof: 1, pa: 0.3, pd: 0.4 }); });
+  if (F.mot) {
+    const q = O(F.mot), pq = F.pre[F.mot]; M(F.mot, q, -0.7, -0.02, { prof: 1, pa: 0.3, pd: 0.3 });
+    if (shadow) M(dd(shadow), [D(shadow)[0], D(shadow)[1] + (q[1] - pq[1]) * 0.85], -0.55, -0.02, { prof: 1, pa: 0.3, pd: 0.3 });   // man coverage follows the motion man, zone does not
+  }
+
+  /* ---- blocking ---- */
+  const cup = { OL1: -1.5, OL2: -2.1, OL3: -2.4, OL4: -2.1, OL5: -1.5 };
+  const engage = (t0, t1, du, free = [], wob = 3.2) => DLS.forEach(d => { if (free.includes(d)) return; FOL(dd(d), pairDL[d], t0, t1, du, (D(d)[1] - O(pairDL[d])[1]) * 0.45, { wob, fq: 7 + rnd() * 3, bl: 0.4 }); });
+  const passPro = (free = [], tEng = 3) => { OLS.forEach(r => M(r, [cup[r], O(r)[1] * 0.93], 0.05, 0.55, { prof: 1, pa: 0.4, pd: 0.5 })); engage(0.05, tEng, 1.25, free); };
+
+  /* ---- routes ---- */
+  const routePts = (type, st, air) => {                            // waypoints from the receiver's alignment; the last one is the catch point
+    const v0 = st[1], sg = lvSgn(v0 || (rnd() < 0.5 ? -1 : 1)), inn = d => clampV(v0 - sg * d), out = d => clampV(v0 + sg * d);
+    air = Math.max(air, 1);
+    let r;
+    switch (type) {
+      case 'go': r = [[air * 0.55, inn(0.2)], [air, inn(1.2)]]; break;
+      case 'curl': r = [[air + 2.6, inn(0.1)], [air, inn(1.5)]]; break;
+      case 'comeback': r = [[air + 3.2, v0], [air, out(2.6)]]; break;
+      case 'out': r = [[air, inn(0.1)], [air, out(3.4)]]; break;
+      case 'dig': r = [[air, inn(0.2)], [air, inn(7.5)]]; break;
+      case 'slant': r = [[1.6, inn(0.1)], [air, inn(Math.max(3, (air - 1.6) * 0.9))]]; break;
+      case 'post': r = [[air * 0.62, inn(0.3)], [air, inn(0.3 + air * 0.38 * 0.85)]]; break;
+      case 'corner': r = [[air * 0.62, inn(0.2)], [air, out(air * 0.38 * 0.85)]]; break;
+      case 'flat': r = [[Math.max(-3.5, air * 0.3 - 3), out(3)], [Math.max(air, -1), out(8)]]; break;
+      case 'wheel': r = [[-2.8, out(4.2)], [air * 0.5, out(8)], [air, out(6.8)]]; break;
+      case 'drag': r = [[Math.max(air, 2), inn(3)], [Math.max(air, 2) + 0.3, inn(10)]]; break;
+      default: r = [[air * 0.6, inn(0.2)], [air, inn(1.1)]];       // seam
+    }
+    return r;
+  };
+  const pickRoute = (role, air, v0) => {
+    let t;
+    if (role === 'RB') t = air >= 9 ? 'wheel' : 'flat';
+    else if (role === 'TE') t = air >= 15 ? 'seam' : air >= 8 ? pick(['dig', 'curl', 'drag']) : pick(['drag', 'curl']);
+    else if (air <= 4) t = pick(['slant', 'slant', 'curl']);
+    else if (air <= 9) t = pick(['slant', 'curl', 'out', 'curl']);
+    else if (air <= 17) t = pick(['out', 'dig', 'comeback', 'post', 'curl']);
+    else t = pick(['go', 'go', 'post', 'corner']);
+    if (Math.abs(v0) > 18 && t === 'out') t = 'comeback';
+    return t;
+  };
+  const sendRoutes = (exclude = []) => {                           // everybody who is not the target runs his own route (or stays in to block)
+    ['WR1', 'WR2', 'WR3', 'TE', 'RB'].forEach(r => {
+      if (exclude.includes(r)) return;
+      const st = O(r);
+      if (r === 'RB' && rnd() < 0.5) { R('RB', [[-3.5, st[1] * 0.6 + (st[1] === 0 ? 1.5 : 0)]], 0.05, 6); return; }
+      if (r === 'TE' && rnd() < 0.35) { const ed = lvSgn(st[1]) === lvSgn(D('DL1')[1]) ? 'DL1' : 'DL4'; FOL('TE', dd(ed), 0.25, 3, -0.9, (st[1] - D(ed)[1]) * 0.4, { wob: 2.4, bl: 0.6 }); return; }
+      const a2 = Math.round(rr(5, 19)); R(r, routePts(pickRoute(r, a2, st[1]), st, a2), 0, 7.4);
+    });
+  };
+
+  /* ---- coverage ---- */
+  const ZONES = {
+    c3: { CB1: [14, 17], CB2: [14, 17], S1: [16, 0], S2: [7.5, 12], LB1: [8.5, 6], LB2: [9.5, 0], LB3: [6.5, 13] },
+    c2: { CB1: [6.5, 18], CB2: [6.5, 18], S1: [15, 8.5], S2: [15, 8.5], LB1: [9, 6.5], LB2: [11, 0], LB3: [6.5, 13.5] },
+    c4: { CB1: [12.5, 14.5], CB2: [12.5, 14.5], S1: [11.5, 8.5], S2: [11.5, 8.5], LB1: [7.5, 5], LB2: [8.5, 0], LB3: [6.5, 10.5] },
+  };
+  const zoneDrop = (cov, excl = []) => {                           // defenders drop into their zones (backpedal, then settle)
+    const Z = ZONES[cov] || ZONES.c3;
+    defKeys.filter(r => !DLS.includes(r) && !excl.includes(r)).forEach(r => { const z = Z[r]; R(dd(r), [[z[0], sd(r) * z[1]]], 0.05, 5.8, { pa: 0.3 }); });
+  };
+
+  /* ---- tackling: the nearest men run to where the carrier will be stopped, the first one wraps him up, the rest pile on ---- */
+  const swarm = (carrier, tEnd, o = {}) => {
+    const ids = (o.ids || defKeys.filter(r => !DLS.includes(r) || (o.dl || []).includes(r)).map(dd)).filter(id => id !== carrier && !(o.not || []).includes(id));
+    const tR = id => (o.tRid && o.tRid[id] != null) ? o.tRid[id] : Math.max(o.tR || 0, /^LB/.test(id) ? 0.42 : /^S/.test(id) ? 0.55 : /^(CB|WR|TE|RB|QB)/.test(id) ? 0.65 : 0.95);
+    const endP = loc(posL(carrier, tEnd)), tHit = tEnd - 0.28, trail = o.trail == null ? -1 : o.trail;
+    const cand = ids.map(id => { const t0 = Math.min(tR(id), tHit - 0.2), p = at(id, t0), d = Math.hypot(p.u - endP.u, p.v - endP.v); return { id, t0, p, d, eta: t0 + d / 10.5 }; }).sort((a, b) => a.eta - b.eta);
+    const nH = o.n || (o.solo ? 1 : (rnd() < 0.42 ? 1 : 2));
+    let hitters = cand.slice(0, nH);
+    if (o.first) { const f = cand.find(c => c.id === o.first); if (f) hitters = [f, ...hitters.filter(c => c !== f)].slice(0, nH); }
+    let tFin = tEnd;
+    hitters.forEach((c, i) => {
+      if (o.td) { tFin = Math.max(tFin, RT(c.id, [[endP.u + trail * (2.6 + i * 1.6), endP.v + (i % 2 ? 1.4 : -1.4)]], c.t0, tEnd + 0.4)); return; }   // touchdown: they chase but never catch him
+      let tA = tHit, ch = loc(posL(carrier, tHit));                   // where he can really get to him: aim at the carrier's spot when he arrives
+      for (let it = 0; it < 5; it++) { ch = loc(posL(carrier, Math.min(tA, tEnd))); const nt = Math.max(tHit, c.t0 + Math.hypot(c.p.u - ch.u, c.p.v - ch.v) / 10.5); if (Math.abs(nt - tA) < 0.01) break; tA = nt; }
+      ch = loc(posL(carrier, Math.min(tA, tEnd)));
+      tA = RT(c.id, [[ch.u, ch.v]], c.t0, tA);
+      if (tA < tEnd + 0.4) FOL(c.id, carrier, tA, tEnd + 1.0, 0.5 - i * 0.45, i ? (i % 2 ? 0.8 : -0.8) : 0, { bl: 0.12 });
+      tFin = Math.max(tFin, tA);
+    });
+    cand.filter(c => !hitters.includes(c)).forEach((c, i) => {
+      const side = i % 2 ? 1 : -1, far = c.d > 16 ? 0.5 : c.d > 9 ? 0.8 : 1, tg = o.td ? [endP.u + trail * (4 + i), endP.v + side * 2.4] : [endP.u + (rnd() < 0.5 ? 1 : -1) * rr(0.8, 2.2), endP.v + side * rr(1.4, 3.4)];
+      RT(c.id, [[c.p.u + (tg[0] - c.p.u) * far, c.p.v + (tg[1] - c.p.v) * far]], c.t0, tEnd + 0.25);
+    });
+    return tFin;
+  };
+
+  /* ---- a pass: drop-back, route, coverage, throw, catch, run after the catch, tackle ---- */
+  const passTo = (target, air, yac, res, defRole, o = {}) => {
+    const st = O(target), qb0 = O('QB'), shot = qb0[0] < -3, ty = pickRoute(target, air, st[1]);
+    const rp = routePts(ty, st, air), cp = rp[rp.length - 1];
+    const dropTo = shot ? [qb0[0] - 1.2, qb0[1] + rr(-0.5, 0.5)] : [-6.7 + rr(-0.3, 0.3), qb0[1] + rr(-0.4, 0.4)], dropT = shot ? 0.45 : 1.0;
+    let tT = Math.max(dropT + 0.22, (shot ? 0.68 : 0.9) + Math.max(0, air) * 0.04 + rr(0, 0.12));
+    if (o.hurry) tT = Math.max(dropT * 0.8 + 0.1, tT - 0.45);
+    const dist0 = Math.hypot(cp[0] - dropTo[0], cp[1] - dropTo[1]), flight = 0.3 + dist0 / 27;
+    let len = 0, pv = st; rp.forEach(q => { len += Math.hypot(q[0] - pv[0], q[1] - pv[1]); pv = q; });
+    const tCatch = Math.max(tT + flight, len / 9 + 0.15); tT = tCatch - flight;
+    // quarterback: snap, drop, step into the throw
+    R('QB', [dropTo], 0, 5, { t1: dropT, pa: 0.25, pd: 0.35 });
+    T.move(ballId, posL('QB', shot ? 0.3 : 0.12), SN, SN + (shot ? 0.3 : 0.12), shot ? { arc: 6 } : {}); FOL(ballId, 'QB', shot ? 0.3 : 0.12, tT, 0, 0, { bl: 0 });
+    M('QB', [dropTo[0] + 0.7, dropTo[1]], tT - 0.3, tT + 0.12, { prof: 1, pa: 0.4, pd: 0.4 });
+    // the target and the rest of the routes
+    R(target, rp, 0, 8, { t1: tCatch, pa: 0.14, pd: 0 });
+    passPro(o.rusher ? [o.rusher] : [], tCatch + 0.2);              // pass protection (a rusher who wins his block is left free)
+    sendRoutes([target]);
+    if (o.rusher) { const rv = D(o.rusher)[1], g = lvSgn(rv || 1); RT(dd(o.rusher), [[-0.4, rv + g * 1.1], [-2.8, dropTo[1] + g * 0.9]], 0.1, tT + 0.12, { pa: 0.25 }); FX(tT, posL(dd(o.rusher), tT), 'PRESSURE', 'bad'); }
+    // coverage: the man covering the target stays on him; the others play man or zone
+    const prim = defRole, others = defKeys.filter(r => !DLS.includes(r) && r !== prim), inside = -lvSgn(st[1] || 1) * 0.35;
+    const blFor = (dr, wr) => { const a = at(dd(dr), 0.05), b = at(wr, 0.05); return clamp(Math.hypot(a.u - b.u, a.v - b.v) / 4.2, 0.4, 2.5); };   // the farther he starts from his man, the slower he closes
+    const stick = (dr, wr, t1, du = 1.15) => FOL(dd(dr), wr, 0.05, t1, du, inside, { lag: 0.2, bl: blFor(dr, wr), wob: 2, fq: 6 + rnd() * 3 });
+    if (res === 'int') { FOL(dd(prim), target, 0.05, tCatch - 0.4, 0.4, 0, { lag: 0.15, bl: blFor(prim, target), wob: 1.5 }); M(dd(prim), cp, tCatch - 0.4, tCatch, { prof: 1, pa: 0.3, pd: 0.5 }); }
+    else if (res === 'comp') stick(prim, target, tCatch + 0.05);
+    else { FOL(dd(prim), target, 0.05, tCatch - 0.3, 1.0, inside, { lag: 0.15, bl: blFor(prim, target), wob: 1.8 }); M(dd(prim), [cp[0] + 0.3, cp[1]], tCatch - 0.3, tCatch + 0.05, { prof: 1, pa: 0.3, pd: 0.4 }); }
+    if (F.cov === 'man') {
+      Object.entries(manOf).forEach(([wr, dr]) => { if (dr !== prim && others.includes(dr)) stick(dr, wr, tCatch + 0.6); });
+      if (prim !== 'S1') R(dd('S1'), [[16.2, 0.5]], 0.1, 5.5, { pa: 0.3 });
+      if (prim !== 'S2') R(dd('S2'), [[10.5, sd('S2') * 6]], 0.1, 5.5, { pa: 0.3 });
+    } else zoneDrop(F.cov, [prim]);
+    if (res !== 'comp') others.forEach(r => {                       // zone defenders and safeties break on the ball once it is thrown (after a catch the swarm takes over)
+      if (F.cov === 'man' && Object.values(manOf).includes(r)) return;
+      const p = at(dd(r), tT), dx = cp[0] - p.u, dy = cp[1] - p.v, dist = Math.hypot(dx, dy), f = Math.min(dist < 14 ? 0.55 : 0.2, (dist < 14 ? 7 : 3) / Math.max(dist, 0.1));
+      R(dd(r), [[p.u + dx * f, p.v + dy * f]], tT + 0.05, 6.5);
+    });
+    // the ball, and what happens at the catch point
+    let tFin, endLoc = { u: cp[0], v: cp[1] }, arc = 16 + dist0 * 2;
     if (res === 'comp') {
-      T.move(ballId, T.posAt(target, 1.85), 1.0, 1.85, { arc: 40 + air * 2.4 }); T.follow(ballId, target, 1.85, 6, 0, 0);
-      if (yac > 0) { end = to(air + yac, tv + (rnd() - 0.5) * 3); T.move(target, end, 1.85, 1.85 + 0.35 + yac * 0.075); t = 1.85 + 0.35 + yac * 0.075; }
-      const ends = crowd(end).concat([defRole]).filter((x, i, a) => a.indexOf(x) === i).slice(0, 3); ends.forEach((r, i) => T.move(r + '_d', { x: end.x + dir * (-1.2 - i * 2.2) + (i ? 0 : 0), y: end.y + (i % 2 ? 8 : -6) * (i ? 1 : 0.5) }, Math.max(1.9, t - 1), t + 0.25));
-      result.dur = t + 0.9; result.end = end;
+      T.move(ballId, posL(target, tCatch), SN + tT, SN + tCatch, { arc });
+      let tEnd = tCatch + 0.5;
+      if (yac > 0.4) {
+        const dv1 = rr(-1.8, 1.8), dv2 = rr(-3, 3);
+        tEnd = R(target, [[cp[0] + yac * 0.45, clampV(cp[1] + dv1)], [cp[0] + yac, clampV(cp[1] + dv1 + dv2)]], tCatch, 8.4, { pa: 0.28, pd: o.td ? 0 : 0.3 });
+      }
+      FOL(ballId, target, tCatch, tEnd + 4, 0, 0, { bl: 0 });
+      tFin = swarm(target, tEnd, { tR: tCatch + 0.05, first: o.first ? dd(o.first) : (prim ? dd(prim) : null), td: !!o.td, solo: o.solo, n: o.td ? 3 : undefined, ids: defKeys.filter(r => !DLS.includes(r)).map(dd) });
+      endLoc = at(target, tEnd);
+      done(tFin + 0.9);
     } else if (res === 'inc') {
-      const land = to(air + 2.4, tv + 1.6); T.move(ballId, land, 1.0, 1.9, { arc: 46 + air * 2 }); T.move(ballId, to(air + 3.4, tv + 2.4), 1.9, 2.3, { arc: 8 }); result.dur = 3.0; result.end = land; result.fx.push({ t: 1.95, p: land, text: 'INCOMPLETE', cls: 'bad' });
+      const land = [cp[0] + rr(1.8, 3.2) * (o.drop ? 0.3 : 1), clampV(cp[1] + rr(-2.2, 2.2))];
+      if (o.drop) { T.move(ballId, posL(target, tCatch), SN + tT, SN + tCatch, { arc }); T.move(ballId, to(land[0], land[1]), SN + tCatch, SN + tCatch + 0.45, { arc: 14 }); }
+      else { T.move(ballId, to(land[0], land[1]), SN + tT, SN + tCatch + 0.1, { arc }); T.move(ballId, to(land[0] + 1.0, land[1] + 0.6), SN + tCatch + 0.1, SN + tCatch + 0.35, { arc: 6 }); }
+      FX(tCatch + 0.1, to(land[0], land[1]), 'INCOMPLETE', 'bad'); endLoc = { u: land[0], v: land[1] }; done(tCatch + 1.0);
     } else if (res === 'pd') {
-      const land = to(air, tv); T.move(ballId, land, 1.0, 1.85, { arc: 46 + air * 2 }); T.move(ballId, to(air + 1.5, tv - 6), 1.85, 2.4, { arc: 38 }); result.dur = 3.2; result.end = land; result.fx.push({ t: 1.9, p: land, text: 'PASS BREAKUP', cls: 'good' });
+      T.move(ballId, to(cp[0], cp[1]), SN + tT, SN + tCatch, { arc });
+      T.move(ballId, to(cp[0] + rr(1, 2.5), cp[1] - sd(prim) * rr(2.5, 4.5)), SN + tCatch, SN + tCatch + 0.5, { arc: 38 });
+      FX(tCatch + 0.05, to(cp[0], cp[1]), 'PASS BREAKUP', 'good'); done(tCatch + 1.1);
     } else if (res === 'int') {
-      const dEnd = to(air, tv), retU = play.td ? -(play.los + 3) : air - (play.yards || 0);
-      T.move(ballId, dEnd, 1.0, 1.85, { arc: 46 + air * 2 }); T.follow(ballId, dId, 1.85, 8);
-      const rp = to(retU, tv + (play.td ? 0 : 3)); T.move(dId, rp, 1.9, 1.9 + 0.6 + Math.abs(retU - air) * 0.06);
-      ['QB', target].forEach((r, i) => T.move(r, to(retU + 1 + i, tv * 0.5 + i * 2), 2, 2 + 0.7 + Math.abs(retU - air) * 0.06));
-      result.dur = 2.0 + 0.9 + Math.abs(retU - air) * 0.06; result.end = rp; result.fx.push({ t: 1.95, p: dEnd, text: play.td ? 'PICK SIX!' : 'INTERCEPTION', cls: 'good' });
+      const retU = play.td ? -(play.los + 3) : cp[0] - (play.yards || 0);
+      T.move(ballId, to(cp[0], cp[1]), SN + tT, SN + tCatch, { arc }); FOL(ballId, dd(prim), tCatch, tCatch + 9, 0, 0, { bl: 0 });
+      const gv = cp[1] + rr(-3, 3), tEnd = R(dd(prim), [[(cp[0] + retU) / 2, gv], [retU, gv + rr(-3, 3)]], tCatch + 0.05, 8.2, { pa: 0.25, pd: play.td ? 0 : 0.3 });
+      tFin = swarm(dd(prim), tEnd, { ids: SKILL, tR: tCatch + 0.1, td: !!play.td, trail: 1, n: play.td ? 3 : 2 });
+      FX(tCatch + 0.05, to(cp[0], cp[1]), play.td ? 'PICK SIX!' : 'INTERCEPTION', 'good'); endLoc = { u: retU, v: gv }; done(tFin + 0.9);
     }
-    return end;
+    result.end = to(endLoc.u, endLoc.v);
+    return { tFin, end: endLoc };
   };
-  const rushPlay = (carrier, yards, td) => {
-    const holeV = (rnd() - 0.5) * 6;
-    pocket(0.5); ['OL1', 'OL2', 'OL3', 'OL4', 'OL5'].forEach(r => T.move(r, to(1.4, LV_OFF[r][1]), 0.5, 1.4)); ['DL1', 'DL2', 'DL3', 'DL4'].forEach(r => T.move(r + '_d', to(2.8 + Math.max(0, yards) * 0.2, LV_DEF[r][1]), 0.5, 1.7));
-    offIds.filter(r => ['WR1', 'WR2', 'WR3'].includes(r)).forEach((r, i) => T.move(r, to(5 + i * 2, sideV(r) * 0.9), 0, 2));
-    if (carrier === 'QB') { T.move('QB', to(-3, 0), 0, 0.5); T.follow(ballId, 'QB', 0, 9); T.move('QB', to(0.5, holeV), 0.5, 1.15); T.move('QB', to(yards, holeV + (rnd() - 0.5) * 4), 1.15, 1.15 + 0.45 + Math.abs(yards) * 0.07); }
-    else {
-      T.follow(ballId, 'QB', 0, 0.45); T.move('QB', to(-4.4, 0.8), 0, 0.5); T.move(ballId, T.posAt('RB', 0.55), 0.45, 0.6); T.follow(ballId, carrier, 0.6, 9);
-      T.move(carrier, to(-3.2, 1.8), 0, 0.55); T.move(carrier, to(0.6, holeV), 0.55, 1.2); T.move(carrier, to(yards, holeV + (rnd() - 0.5) * 4), 1.2, 1.2 + 0.4 + Math.abs(yards) * 0.07);
-    }
-    const t = 1.2 + 0.45 + Math.abs(yards) * 0.07, end = to(yards, holeV);
-    crowd(end).forEach((r, i) => T.move(r + '_d', { x: end.x + dir * (-1.6 - i * 2), y: end.y + (i % 2 ? 8 : -7) * (i ? 1 : 0.5) }, 1.0, t + 0.2)); result.dur = t + 0.9; result.end = end;
-    return end;
+
+  /* ---- a deflection at the line by a lineman (batted ball) ---- */
+  const tipPlay = res => {
+    const qb0 = O('QB'), shot = qb0[0] < -3, dropTo = shot ? [qb0[0] - 1.2, qb0[1]] : [-6.7, qb0[1]], dropT = shot ? 0.45 : 1.0, tT = Math.max(dropT + 0.2, 1.15), tB = tT + 0.28;
+    const g = D('DL2')[1], tipPt = [-1.9, g * 0.6];
+    R('QB', [dropTo], 0, 5, { t1: dropT, pa: 0.25, pd: 0.35 });
+    T.move(ballId, posL('QB', shot ? 0.3 : 0.12), SN, SN + (shot ? 0.3 : 0.12), shot ? { arc: 6 } : {}); FOL(ballId, 'QB', shot ? 0.3 : 0.12, tT, 0, 0, { bl: 0 });
+    passPro(['DL2'], tB + 0.2); sendRoutes([]); zoneDrop('c3');
+    RT(dd('DL2'), [[-0.4, g + lvSgn(g) * 0.7], tipPt], 0.1, tB, { pa: 0.25 });
+    T.move(ballId, to(tipPt[0], tipPt[1]), SN + tT, SN + tB, { arc: 14 });
+    if (res === 'pd') { T.move(ballId, to(tipPt[0] - 1.8, tipPt[1] + rr(-3, 3)), SN + tB, SN + tB + 0.55, { arc: 30 }); FX(tB, to(tipPt[0], tipPt[1]), 'BATTED DOWN', 'good'); done(tB + 1.2); result.end = to(tipPt[0], tipPt[1]); return; }
+    FOL(ballId, dd('DL2'), tB, tB + 9, 0, 0, { bl: 0 });
+    const retU = play.td ? -(play.los + 3) : tipPt[0] - (play.yards || 0), tEnd = R(dd('DL2'), [[(tipPt[0] + retU) / 2, tipPt[1] + rr(-2, 2)], [retU, tipPt[1] + rr(-3, 3)]], tB + 0.05, 8, { pa: 0.25, pd: play.td ? 0 : 0.3 });
+    const tFin = swarm(dd('DL2'), tEnd, { ids: SKILL, tR: tB + 0.1, td: !!play.td, trail: 1, n: 2 });
+    FX(tB, to(tipPt[0], tipPt[1]), play.td ? 'PICK SIX!' : 'INTERCEPTION', 'good'); done(tFin + 0.9); result.end = to(retU, tipPt[1]);
   };
+
+  /* ---- a run: snap, handoff, blocking up front, the hole, the carrier, pursuit and the tackle ---- */
+  const holeFor = r => !r ? null : r.startsWith('DL') ? D(r)[1] + rr(-1.2, 1.2) : r.startsWith('LB') ? D(r)[1] + rr(-4, 4) : r.startsWith('CB') ? D(r)[1] * 0.62 + rr(-2, 2) : D(r)[1] * 0.4 + rr(-3, 3);
+  const runPlay = (carrier, yards, td, o = {}) => {
+    const qb = O('QB'), shot = qb[0] < -3;
+    let hv = o.hv;
+    if (hv == null) { const kd = pick(['in', 'in', 'off', 'off', 'out']); hv = kd === 'in' ? rr(-3.5, 3.5) : (rnd() < 0.5 ? -1 : 1) * (kd === 'off' ? rr(5, 7.5) : rr(11, 16)); }
+    hv = clampV(hv);
+    const hs = lvSgn(hv), tH0 = shot ? 0.55 : 0.78, mesh = shot ? [qb[0] - 0.3, qb[1] + hs * 0.9] : [qb[0] - 1.4, qb[1] + hs * 0.9];
+    T.move(ballId, posL('QB', shot ? 0.3 : 0.12), SN, SN + (shot ? 0.3 : 0.12), shot ? { arc: 6 } : {});
+    R('QB', [shot ? [qb[0] - 0.2, qb[1] + hs * 0.25] : [qb[0] - 1.0, qb[1] + hs * 0.4]], 0, 4, { t1: tH0, pa: 0.3, pd: 0.3 });
+    const tH = RT(carrier, [mesh], 0, tH0, { pa: 0.2 });
+    FOL(ballId, 'QB', shot ? 0.3 : 0.12, tH - 0.12, 0, 0, { bl: 0 }); T.move(ballId, posL(carrier, tH), SN + tH - 0.12, SN + tH); FOL(ballId, carrier, tH, tH + 12, 0, 0, { bl: 0 });
+    let path;
+    if (yards <= 1) path = [[Math.min(0.4, yards + 0.8), hv * 0.85], [yards, hv * 0.85 + rr(-1, 1)]];
+    else if (Math.abs(hv) > 10) path = [[-2.2, hv * 0.6], [-0.2, hv * 0.92], [Math.min(yards, 3.5), hv + hs * 0.8], [yards, hv + hs * rr(1.5, 3.5)]];
+    else path = [[0.5, hv * 0.9], [yards * 0.55, hv + rr(-1.4, 1.4)], [yards, hv + rr(-2.2, 2.2)]];
+    const tEnd = R(carrier, path.map(q => [q[0], clampV(q[1])]), tH, Math.abs(yards) > 14 ? 8.6 : 7.5, { pa: 0.22, pd: td ? 0 : 0.3 });
+    // the line: zone blocking, one guard pulls on runs outside the tackles
+    const big = Math.abs(hv) > 4.5, pull = big ? ['OL2', 'OL4'].find(r => O(r)[1] * hs < 0) : null, tShed = 0.95;
+    const pen = yards <= 1 ? DLS.slice().sort((a, b) => Math.abs(D(a)[1] - hv) - Math.abs(D(b)[1] - hv))[0] : null;
+    const surge = Math.min(2.4, 1.0 + Math.max(0, yards) * 0.08) + (o.surge || 0);
+    OLS.forEach(r => { if (r === pull) return; const q = O(r), s2 = r === o.pan ? surge + 1.4 : surge; M(r, [s2, q[1] + hs * rr(0.8, 1.3)], 0.12, 1.0, { prof: 1, pa: 0.3, pd: 0.5 }); });
+    if (o.pan) { const q = O(o.pan); M(o.pan, [surge + 3.3, q[1] + hs * 1.0], 1.0, 1.6, { prof: 1, pa: 0.3, pd: 0.5 }); }
+    if (pull) { const q = O(pull); R(pull, [[-1.6, q[1] * 0.9], [-1.5, hv * 0.55], [1.2, hv - hs * 0.4], [3.4, hv - hs * 0.3]], 0.05, 7.8, { pa: 0.3 }); }
+    DLS.forEach(d => { if (d === pen) return; const ol = (pull && pairDL[d] === pull) ? 'OL3' : pairDL[d]; FOL(dd(d), ol, 0.12, tShed + 0.1, 1.1, (D(d)[1] - O(ol)[1]) * 0.35, { wob: 3, fq: 7 + rnd() * 3, bl: 0.4 }); });
+    // receivers and tight end: stalk-block on the run side, otherwise clear the defense out
+    const blocked = [];
+    ['WR1', 'WR2', 'WR3'].forEach(r => {
+      if (r === carrier) return;
+      const q = O(r), cb = manOf[r], sameSide = Math.abs(hv) > 8 && lvSgn(q[1]) === hs;
+      if (sameSide && cb !== o.first && cb !== meDef && yards >= 4) { const ta = RT(r, [[D(cb)[0] - 0.9, D(cb)[1]]], 0.05, 1.1); FOL(dd(cb), r, ta, Math.max(tEnd + 0.4, ta + 0.3), 0.9, 0, { wob: 2.4, bl: 0.3 }); blocked.push(cb); }
+      else R(r, routePts('go', q, rr(14, 20)), 0, 7.6);
+    });
+    if (carrier !== 'TE') { const ed = lvSgn(O('TE')[1]) === lvSgn(D('DL1')[1]) ? 'DL1' : 'DL4'; if (ed !== pen) FOL('TE', dd(ed), 0.15, tShed + 0.1, -0.9, (O('TE')[1] - D(ed)[1]) * 0.4, { wob: 2.4, bl: 0.6 }); }
+    if (carrier !== 'RB') R('RB', [[-3.2, hv * 0.5], [2.0, hv]], 0.05, 7);
+    // linebackers and safeties read the run: a step toward the hole before they fill
+    ['LB1', 'LB2', 'LB3', 'S1', 'S2'].forEach(r => { if (!blocked.includes(r)) M(dd(r), [D(r)[0] - 0.3, D(r)[1] + (hv - D(r)[1]) * 0.1], 0.05, 0.4); });
+    let tFin = tEnd + 0.5, endLoc = at(carrier, tEnd);
+    if (!td) {
+      const not = blocked.map(dd).concat(o.fumble && meDef ? [dd(meDef)] : []);
+      tFin = swarm(carrier, tEnd, { first: o.first ? dd(o.first) : null, solo: o.solo, not, dl: yards <= 2 ? DLS : (o.first && DLS.includes(o.first) ? [o.first] : []), tRid: pen ? { [dd(pen)]: 0.25 } : {} });
+    } else tFin = swarm(carrier, tEnd, { td: true, n: 3, not: blocked.map(dd), tR: 0.5 });
+    if (o.pan) { const dl = pairOL(o.pan); FX(1.15, posL(dd(dl), 1.15), 'PANCAKE!', 'good', true); }
+    result.end = to(endLoc.u, endLoc.v); done(tFin + 0.9);
+    return { tEnd, tFin, end: endLoc };
+  };
+
+  /* ---- a quarterback scramble: the pocket breaks down, he flushes and runs ---- */
+  const scramblePlay = (yards, td) => {
+    const qb0 = O('QB'), shot = qb0[0] < -3, dropTo = shot ? [qb0[0] - 1.2, qb0[1]] : [-6.7, qb0[1]], dropT = shot ? 0.45 : 1.0, tB = dropT + 0.55;
+    const hv = (rnd() < 0.5 ? -1 : 1) * rr(4, 9), hs = lvSgn(hv);
+    R('QB', [dropTo], 0, 5, { t1: dropT, pa: 0.25, pd: 0.35 });
+    T.move(ballId, posL('QB', shot ? 0.3 : 0.12), SN, SN + (shot ? 0.3 : 0.12), shot ? { arc: 6 } : {}); FOL(ballId, 'QB', shot ? 0.3 : 0.12, tB + 12, 0, 0, { bl: 0 });
+    passPro([], tB + 0.1); sendRoutes([]); zoneDrop('c3');
+    const path = yards <= 2 ? [[dropTo[0] + 1.5, hv * 0.5], [yards, hv]] : [[dropTo[0] + 1.2, hv * 0.55], [Math.min(yards, 4), hv], [yards, hv + rr(-3, 3)]];
+    const tEnd = R('QB', path.map(q => [q[0], clampV(q[1])]), tB, 7.3, { pa: 0.2, pd: td ? 0 : 0.3 });
+    const tFin = swarm('QB', tEnd, { dl: DLS, tR: tB, td, n: td ? 3 : undefined });
+    result.end = to(path[path.length - 1][0], clampV(path[path.length - 1][1]));
+    return tFin;
+  };
+
+  /* ---- a sack: the rusher beats his man (or blitzes) and takes the quarterback down ---- */
   const sackPlay = (rusher, loss) => {
-    T.move('QB', to(-7.2, 0.4), 0, 0.9); pocket(0.9); T.follow(ballId, 'QB', 0, 9);
-    ['OL1', 'OL2', 'OL3', 'OL4', 'OL5'].forEach(r => T.move(r, to(-1.9, LV_OFF[r][1] * 0.9), 0.15, 1.0));
-    const q = to(-7.2 - Math.abs(loss) + 4.4, 0.4); T.move('QB', q, 0.9, 1.9); T.move(rusher + '_d', to(-7.4 - Math.abs(loss) + 4.4, 0.7), 0.2, 1.7);
-    result.dur = 3.1; result.end = q; result.fx.push({ t: 1.7, p: q, text: 'SACK', cls: 'good' });
+    const qb0 = O('QB'), shot = qb0[0] < -3, dropTo = shot ? [qb0[0] - 1.2, qb0[1]] : [-6.7, qb0[1]], dropT = shot ? 0.45 : 1.0;
+    const spot = [Math.min(-2.5, loss), qb0[1] + rr(-1.4, 1.4)], isDL = DLS.includes(rusher), v0 = D(rusher)[1], g = lvSgn(v0 || 1), edge = isDL && Math.abs(v0) > 3;
+    const rp = isDL ? (edge ? [[0.1, v0 * 1.22], [-2.0, v0 * 0.95], [spot[0] + 0.4, spot[1] + g * 0.9]] : [[0.1, v0 + g * 1.0], [-2.6, spot[1] + g], [spot[0] + 0.4, spot[1] + g * 0.5]])
+      : [[Math.max(0, D(rusher)[0] * 0.3), v0 * 0.7], [-1.6, spot[1] + g * 1.4], [spot[0] + 0.4, spot[1] + g * 0.5]];
+    R('QB', [dropTo], 0, 5, { t1: dropT, pa: 0.25, pd: 0.35 });
+    T.move(ballId, posL('QB', shot ? 0.3 : 0.12), SN, SN + (shot ? 0.3 : 0.12), shot ? { arc: 6 } : {});
+    passPro(isDL ? [rusher] : [], 4); sendRoutes([]); zoneDrop('c3', [rusher]);
+    const tS = RT(dd(rusher), rp, 0.12, 1.95 + rnd() * 0.4, { pa: 0.25 });
+    M('QB', [(dropTo[0] + spot[0]) / 2, dropTo[1] * 0.4 + spot[1] * 0.6], dropT + 0.1, tS - 0.3, { prof: 1, pa: 0.3, pd: 0.3 }); M('QB', spot, tS - 0.3, tS + 0.25, { prof: 1, pa: 0.3, pd: 0.5 });
+    FOL(ballId, 'QB', shot ? 0.3 : 0.12, tS + 9, 0, 0, { bl: 0 });
+    FOL(dd(rusher), 'QB', tS, tS + 1.1, 0.4, g * 0.6, { bl: 0.12 });
+    FX(tS, to(spot[0], spot[1]), 'SACK', 'good');
+    result.end = to(spot[0], spot[1]); done(tS + 1.0);
   };
-  const passerTarget = () => ['WR1', 'WR2', 'WR3', 'TE'].filter(r => r !== (['WR', 'TE'].includes(S.player.pos) ? LV_ME[S.player.pos] : '')).sort(() => rnd() - 0.5)[0];
-  const anyDef = pickRole => pickRole;
+
+  /* ---- kicks: snap to the holder, spot the ball, kick; the line holds and the wings / corners rush ---- */
+  const kickPlay = () => {
+    const holder = O('QB'), made = play.made, goalAbs = dir === 1 ? 110 : -10, endX = lvX(goalAbs), far = { x: endX, y: lvY(made ? 0.3 : (rnd() < 0.5 ? -4.6 : 4.6)) };
+    T.move(ballId, posL('QB', 0.45), SN, SN + 0.45, { arc: 3 }); FOL(ballId, 'QB', 0.45, 1.3, 0, 0, { bl: 0 });
+    R('K', [[holder[0] - 1.1, holder[1] - 1.2]], 0.2, 6, { t1: 1.26, pa: 0.3, pd: 0 });
+    R('K', [[holder[0] + 0.9, holder[1] - 0.4]], 1.26, 5, { t1: 1.5, pd: 0.3 });             // follow-through
+    DLS.forEach(d => FOL(dd(d), pairDL[d], 0.1, 1.9, 1.15, 0, { wob: 3, fq: 7 + rnd() * 3, bl: 0.2 }));
+    [['LB2', 'WR3'], ['LB3', 'WR2'], ['LB1', 'TE']].forEach(([r, w]) => { R(dd(r), [[D(r)[0] - 0.2, O(w)[1] + (D(r)[1] - O(w)[1]) * 0.2]], 0.1, 6); FOL(dd(r), w, 0.8, 1.9, 0.9, 0, { wob: 2.4, bl: 0.2 }); });
+    [['CB1', 'WR1'], ['CB2', 'WR2']].forEach(([r, w]) => R(dd(r), [[1.2, D(r)[1] * 0.7]], 0.1, 6));
+    T.move(ballId, far, SN + 1.3, SN + 2.7, { arc: 70 }); result.end = far; done(3.9);
+    FX(2.6, { x: 600, y: lvY(-2) }, made ? (k === 'xp' ? 'EXTRA POINT GOOD' : `FIELD GOAL GOOD — ${play.yards} YDS`) : `NO GOOD — ${play.yards} YDS`, made ? 'good' : 'bad', true);
+    result.text = made ? (k === 'xp' ? 'Extra point is good' : `${play.yards}-yard field goal is GOOD`) : `${play.yards}-yard field goal is NO GOOD`;
+  };
+
+  const passerTarget = () => (rnd() < 0.08 ? 'RB' : pick(['WR1', 'WR2', 'WR3', 'TE']));
+  const rushCarrier = () => (S.player.pos === 'RB' ? 'RB' : LV_ME[S.player.pos]);
+  const pickAir = (r, lo, hi) => (r === 'RB' ? Math.round(rr(1, 6)) : Math.round(rr(lo, hi)));
   switch (k) {
-    case 'catch': { const target = LV_ME[S.player.pos] === 'RB' ? 'RB' : LV_ME[S.player.pos]; const y = Math.max(0, play.yards), air = play.td ? Math.max(1, Math.round(y * rr(0.35, 0.8))) : Math.round(y * rr(0.4, 0.85)); passTo(target, Math.max(0.5, air), Math.max(0, y - air), 'comp', pick(['CB1', 'CB2', 'LB2', 'S1'])); result.text = `${play.td ? 'TOUCHDOWN — ' : ''}${y}-yard catch`; break; }
-    case 'incomplete': passTo(LV_ME[S.player.pos], Math.round(rr(6, 20)), 0, 'inc', pick(['CB1', 'CB2', 'S1'])); result.text = play.drop ? 'Pass hits your hands — dropped' : 'Pass falls incomplete'; break;
-    case 'qbPass': { const t = passerTarget(), y = Math.max(0, play.yards), air = Math.max(1, Math.round(y * rr(0.5, 0.9))); passTo(t, air, Math.max(0, y - air), 'comp', pick(['CB1', 'CB2', 'LB2', 'S1'])); result.text = `${play.td ? 'TOUCHDOWN — ' : ''}${y}-yard completion`; break; }
-    case 'qbInc': passTo(passerTarget(), Math.round(rr(6, 22)), 0, 'inc', pick(['CB1', 'CB2'])); result.text = 'Pass falls incomplete'; break;
-    case 'qbInt': passTo(passerTarget(), Math.round(rr(8, 22)), 0, 'int', pick(['CB1', 'CB2', 'S1'])); result.text = 'INTERCEPTED'; break;
-    case 'rush': rushPlay('RB' === LV_ME[S.player.pos] || S.player.pos === 'RB' ? 'RB' : LV_ME[S.player.pos], play.yards, play.td); result.text = `${play.td ? 'TOUCHDOWN — ' : ''}${play.yards}-yard run`; break;
-    case 'qbRush': rushPlay('QB', play.yards, play.td); result.text = `${play.td ? 'TOUCHDOWN — ' : ''}${play.yards}-yard scramble`; break;
-    case 'pancake': { rushPlay('RB', play.yards, false); T.move('DL2_d', to(3.8 + play.yards * 0.15, LV_DEF.DL2[1] + 0.5), 0.55, 1.5); T.move(me, to(2.6, LV_OFF[me] ? LV_OFF[me][1] : -2), 0.55, 1.5); result.fx.push({ t: 1.3, p: T.pos('DL2_d'), text: 'PANCAKE!', cls: 'good', sticky: true }); result.text = 'Pancake block springs a run'; break; }
-    case 'block': { rushPlay('RB', play.yards, false); T.move(me, to(1.6, LV_OFF[me][1]), 0.5, 1.2); result.text = `Solid block — ${play.yards}-yard gain`; break; }
-    case 'pressure': { passTo('WR2', 12, 0, 'inc', 'CB1'); T.move('DL2_d', to(-5.2, LV_OFF[me] ? LV_OFF[me][1] + 3 : 1), 0.2, 1.0); result.fx.push({ t: 1.0, p: T.pos('DL2_d'), text: 'PRESSURE', cls: 'bad' }); result.text = 'Defender beats you — QB hurried'; break; }
-    case 'sackAllowed': sackPlay('DL2', play.yards); result.text = 'Sack allowed'; break;
-    case 'penalty': { rushPlay('RB', 3, false); result.fx.push({ t: 1.0, p: T.pos('QB'), text: '🚩 FLAG', cls: 'bad' }); result.text = `Penalty on you (${Math.abs(play.yards)} yds)`; break; }
-    case 'sack': sackPlay(LV_ME[S.player.pos], play.yards); result.text = play.half ? 'Shared sack' : 'SACK!'; break;
+    case 'catch': { const target = LV_ME[S.player.pos], y = Math.max(0, play.yards), air = play.td ? Math.max(1, Math.round(y * rr(0.35, 0.8))) : Math.round(y * rr(0.4, 0.85)); passTo(target, Math.max(0.5, air), Math.max(0, y - air), 'comp', manOf[target], { td: play.td }); result.text = `${play.td ? 'TOUCHDOWN — ' : ''}${y}-yard catch`; break; }
+    case 'incomplete': { const target = LV_ME[S.player.pos]; passTo(target, pickAir(target, 6, 20), 0, 'inc', manOf[target], { drop: play.drop }); result.text = play.drop ? 'Pass hits your hands — dropped' : 'Pass falls incomplete'; break; }
+    case 'qbPass': { const t = passerTarget(), y = Math.max(0, play.yards), air = Math.max(1, Math.round(y * rr(0.5, 0.9))); passTo(t, t === 'RB' ? Math.min(air, 7) : air, Math.max(0, y - (t === 'RB' ? Math.min(air, 7) : air)), 'comp', manOf[t], { td: play.td }); result.text = `${play.td ? 'TOUCHDOWN — ' : ''}${y}-yard completion`; break; }
+    case 'qbInc': { const t = passerTarget(); passTo(t, pickAir(t, 6, 22), 0, 'inc', manOf[t]); result.text = 'Pass falls incomplete'; break; }
+    case 'qbInt': { const t = passerTarget(); passTo(t, pickAir(t, 8, 22), 0, 'int', t === 'RB' ? 'LB1' : pick([manOf[t], manOf[t], 'S1'])); result.text = 'INTERCEPTED'; break; }
+    case 'rush': runPlay(rushCarrier(), play.yards, play.td); result.text = `${play.td ? 'TOUCHDOWN — ' : ''}${play.yards}-yard run`; break;
+    case 'qbRush': { const tF = scramblePlay(play.yards, play.td); done(tF + 0.9); result.text = `${play.td ? 'TOUCHDOWN — ' : ''}${play.yards}-yard scramble`; break; }
+    case 'pancake': runPlay('RB', play.yards, false, { hv: O(me)[1] + rr(-1.5, 1.5), pan: me }); result.text = 'Pancake block springs a run'; break;
+    case 'block': runPlay('RB', play.yards, false, { hv: O(me)[1] + rr(-2, 2), surge: 0.8 }); result.text = `Solid block — ${play.yards}-yard gain`; break;
+    case 'pressure': passTo('WR2', 12, 0, 'inc', 'CB2', { hurry: true, rusher: pairOL(me) }); result.text = 'Defender beats you — QB hurried'; break;
+    case 'sackAllowed': sackPlay(pairOL(me), play.yards); result.text = 'Sack allowed'; break;
+    case 'penalty': runPlay('RB', 3, false); FX(1.0, posL('QB', 1.0), '🚩 FLAG', 'bad'); result.text = `Penalty on you (${Math.abs(play.yards)} yds)`; break;
+    case 'sack': sackPlay(meDef, play.yards); result.text = play.half ? 'Shared sack' : 'SACK!'; break;
     case 'tackle': {
-      const y = Math.max(-1, play.yards); const end = play.pass ? passTo('WR2', Math.max(1, y - 2), 2, 'comp', pick(['CB2', 'S2'])) : rushPlay('RB', y, false);
-      const ids = [LV_ME[S.player.pos] + '_d'].concat(play.solo ? [] : [pick(['LB1', 'LB3', 'S2']) + '_d']);
-      const tEnd = (result.dur || 3) - 0.7; ids.forEach((id, i) => T.move(id, { x: end.x + dir * (-0.8 - i * 1.6), y: end.y + (i ? 8 : -5) * (i ? 1 : 0.6) }, Math.max(1.2, tEnd - 1), tEnd));
-      result.fx.push({ t: tEnd, p: end, text: play.solo ? 'TACKLE' : 'ASSISTED TACKLE', cls: 'good' });
-      if (play.ff) { result.fx.push({ t: tEnd + 0.2, p: end, text: 'FORCED FUMBLE!', cls: 'good' }); T.move(ballId, { x: end.x + dir * 36, y: end.y - 18 }, tEnd, tEnd + 0.5, { arc: 22 }); }
+      const y = Math.max(-1, play.yards); let r;
+      if (F.pass) { const air = Math.max(1, y - 2); r = passTo(tgtOf[meDef] || 'WR2', air, Math.max(0, y - air), 'comp', meDef, { first: meDef, solo: play.solo }); }
+      else r = runPlay('RB', y, false, { hv: holeFor(meDef), first: meDef, solo: play.solo });
+      if (play.ff) { const e = r.end, tb = r.tFin - 0.4; FX(tb + 0.2, to(e.u, e.v), 'FORCED FUMBLE!', 'good'); T.move(ballId, to(e.u + 1.8, e.v - 1.8), SN + tb, SN + tb + 0.5, { arc: 22 }); done(r.tFin + 1.2); }
       result.text = `${play.solo ? 'Tackle' : 'Assisted tackle'} for ${y >= 0 ? y : 'a loss of ' + Math.abs(y)}${y >= 0 ? ' yards' : ''}${play.ff ? ' — fumble forced' : ''}`; break;
     }
-    case 'int': passTo('WR2', Math.round(rr(8, 18)), 0, 'int', LV_ME[S.player.pos]); result.text = play.td ? 'PICK SIX!' : 'INTERCEPTION'; break;
-    case 'pd': passTo('WR2', Math.round(rr(7, 18)), 0, 'pd', LV_ME[S.player.pos]); result.text = 'Pass broken up'; break;
-    case 'frec': { const end = rushPlay('RB', 3, false); T.move(ballId, { x: end.x + dir * 40, y: end.y - 12 }, 1.9, 2.5, { arc: 20 }); T.follow(ballId, LV_ME[S.player.pos] + '_d', 2.5, 9); T.move(LV_ME[S.player.pos] + '_d', { x: end.x + dir * 40, y: end.y - 12 }, 1.8, 2.5); const out = P(play.td ? -(play.los + 2) : 6, 0); T.move(LV_ME[S.player.pos] + '_d', out, 2.6, 3.8); result.dur = 4.3; result.fx.push({ t: 2.3, p: end, text: 'FUMBLE RECOVERED', cls: 'good' }); result.text = play.td ? 'Fumble recovery — TOUCHDOWN' : 'Fumble recovered'; break; }
-    case 'fg': case 'xp': {
-      const kicker = A.K, snapT = 0.5;
-      T.move(ballId, T.pos('QB'), 0, snapT, { arc: 4 }); T.follow(ballId, 'QB', snapT, 1.2); T.move('K', to(-6.4, -0.8), 0.7, 1.3); T.move('QB', to(-6.9, 0.2), 0.3, 0.6);
-      ['DL1', 'DL2', 'DL3', 'DL4', 'LB1', 'LB3'].forEach((r, i) => T.move(r + '_d', to(0.2, LV_DEF[r][1] * 0.9), 0.9, 1.4));
-      const goalAbs = dir === 1 ? 110 : -10, kx = lvX(sc.los - dir * 7), endX = lvX(goalAbs), made = play.made;
-      const spot = P(-7, 0.4), endY = lvY(made ? 0.3 : (rnd() < 0.5 ? -4.6 : 4.6)), far = { x: endX, y: endY };
-      T.move(ballId, far, 1.3, 2.7, { arc: 70 }); result.dur = 3.9; result.end = far;
-      result.fx.push({ t: 2.6, p: { x: 600, y: lvY(-2) }, text: made ? (k === 'xp' ? 'EXTRA POINT GOOD' : `FIELD GOAL GOOD — ${play.yards} YDS`) : `NO GOOD — ${play.yards} YDS`, cls: made ? 'good' : 'bad', sticky: true });
-      result.text = made ? (k === 'xp' ? 'Extra point is good' : `${play.yards}-yard field goal is GOOD`) : `${play.yards}-yard field goal is NO GOOD`; break;
+    case 'int': if (meDef === 'DL2') tipPlay('int'); else passTo(tgtOf[meDef] || 'WR2', Math.round(rr(8, 18)), 0, 'int', meDef); result.text = play.td ? 'PICK SIX!' : 'INTERCEPTION'; break;
+    case 'pd': if (meDef === 'DL2') tipPlay('pd'); else passTo(tgtOf[meDef] || 'WR2', Math.round(rr(7, 18)), 0, 'pd', meDef); result.text = meDef === 'DL2' ? 'Pass batted down' : 'Pass broken up'; break;
+    case 'frec': {
+      const r = runPlay('RB', 3, false, { hv: holeFor(meDef), fumble: true }), e = r.end, tb = r.tEnd - 0.1, loose = [e.u + rr(1.2, 2.6), clampV(e.v + rr(-2.5, 2.5))];
+      T.move(ballId, to(loose[0], loose[1]), SN + tb, SN + tb + 0.5, { arc: 22 }); T.move(ballId, to(loose[0] + 0.9, loose[1] + 0.5), SN + tb + 0.5, SN + tb + 0.75, { arc: 6 });
+      const tRec = RT(dd(meDef), [loose], 0.5, tb + 0.7, { pa: 0.25, pd: 0.3 });
+      FX(tRec, to(loose[0], loose[1]), 'FUMBLE RECOVERED', 'good');
+      FOL(ballId, dd(meDef), tRec, tRec + 12, 0, 0, { bl: 0 });
+      if (play.td) {
+        const gu = -(play.los + 2), tEnd = R(dd(meDef), [[(loose[0] + gu) / 2, loose[1] + rr(-3, 3)], [gu, loose[1] + rr(-3, 3)]], tRec + 0.05, 8.2, { pa: 0.25, pd: 0 });
+        const tf = swarm(dd(meDef), tEnd, { ids: SKILL, td: true, trail: 1, n: 3, tR: tRec + 0.1 }); result.end = to(gu, loose[1]); done(tf + 0.9);
+      } else { result.end = to(loose[0], loose[1]); done(tRec + 1.1); }
+      result.text = play.td ? 'Fumble recovery — TOUCHDOWN' : 'Fumble recovered'; break;
     }
+    case 'fg': case 'xp': kickPlay(); break;
   }
   if (play.td) result.fx.push({ t: Math.max(0, result.dur - 1.1), p: result.end || P(0, 0), text: 'TOUCHDOWN!', cls: 'td', sticky: true });
   if (play.td) result.dur += 1.1;
@@ -517,7 +855,7 @@ async function openLiveGame(game, notes, season) {
     const dd = p.kind === 'xp' ? 'Extra point' : p.kind === 'fg' ? `Field goal · ${p.yards} yds` : `${['', '1st', '2nd', '3rd', '4th'][p.down]} & ${p.dist}`;
     const spot = p.los < 50 ? `${TEAM[p.off === 'me' ? myId : oppId].id} ${p.los}` : (p.los === 50 ? 'Midfield' : `${TEAM[p.off === 'me' ? oppId : myId].id} ${100 - p.los}`);
     $('lvDD').textContent = `${dd} · ball on ${spot}`; setBugDD(p.kind === 'xp' ? 'Extra Point' : p.kind === 'fg' ? `FG ${p.yards} yds` : `${['', '1st', '2nd', '3rd', '4th'][p.down]} & ${p.dist}`); $('lvText').textContent = '…';
-    const A = lvMakeActors(sc, p), T = lvTimeline(A), res = lvPlayScript(p, sc, A, T);
+    const A = lvMakeActors(sc, p), T = lvTimeline(A), res = lvPlayScript(p, sc, A, T); LV.last = { A, T, res, sc, p };
     const los = $('lvLos'), fd = $('lvFd'), losX = lvX(sc.los) - 2;
     if (los) { los.setAttribute('x', lvX(sc.los) - 2); los.setAttribute('opacity', .9); }
     if (fd && p.kind !== 'fg' && p.kind !== 'xp') { fd.setAttribute('x', lvX(sc.dir === 1 ? sc.los + p.dist : sc.los) - 2 + (sc.dir === 1 ? 0 : 0)); const fdAbs = sc.dir === 1 ? Math.min(100, sc.los + p.dist) : Math.max(0, sc.los - p.dist); fd.setAttribute('x', lvX(fdAbs) - 2); fd.setAttribute('opacity', .85); } else if (fd) fd.setAttribute('opacity', 0);
@@ -529,7 +867,7 @@ async function openLiveGame(game, notes, season) {
       const frame = ts => {
         if (!alive()) return resolve();
         if (start === null) { start = ts; last = ts; }
-        const real = ((ts - start) / 1000) * L.speed, t = real * LV_PACE; T.render(t); { const nx = script[si + 1], [cq, cc] = clockOf(Math.min(e.t + Math.min(real, res.dur / LV_PACE), nx ? nx.t - 0.5 : e.q * 900)); if (!L.frozen) setClock(cq, cc); }
+        const real = ((ts - start) / 1000) * L.speed, t = real * LV_PACE; T.render(t); { const nx = script[si + 1], live = Math.max(0, Math.min(real, res.dur / LV_PACE) - res.snap / LV_PACE), [cq, cc] = clockOf(Math.min(e.t + live, nx ? nx.t - 0.5 : e.q * 900)); if (!L.frozen) setClock(cq, cc); }
         while (pending.length && pending[0].t <= t) { const f = pending.shift(); const el = document.createElementNS('http://www.w3.org/2000/svg', 'text'); el.setAttribute('class', `lv-pop ${f.cls}${f.sticky ? ' sticky' : ''}`); el.setAttribute('x', Math.min(1090, Math.max(110, f.p.x))); el.setAttribute('y', Math.max(60, f.p.y - 28)); el.setAttribute('text-anchor', 'middle'); el.textContent = f.text; fxLayer.appendChild(el); Snd.play(f.cls === 'td' ? 'roar' : (f.cls === 'good' ? 'pick' : 'click')); }
         if (t >= res.dur) return resolve();
         raf = requestAnimationFrame(frame);

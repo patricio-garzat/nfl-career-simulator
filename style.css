@@ -969,3 +969,6 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .yp-tab span { display: flex; flex-direction: column; min-width: 0; } .yp-tab b { font-family: var(--head); font-size: 16px; letter-spacing: .06em; text-transform: uppercase; line-height: 1.1; } .yp-tab small { font-size: 10px; color: var(--mut); letter-spacing: .05em; }
 .yp-tab.on { border-color: var(--lime); background: color-mix(in srgb, var(--lime) 14%, transparent); }
 @media (max-width: 720px) { .yp-tab { padding: 6px 8px; gap: 7px; } .yp-tab img, .yp-tab .yp-hs { width: 30px; height: 30px; } .yp-tab b { font-size: 13px; } .yp-tab small { font-size: 9px; } }
+
+/* live game: position labels on the players */
+.lv-pr { font: 800 7.4px var(--head); letter-spacing: 0; pointer-events: none; }

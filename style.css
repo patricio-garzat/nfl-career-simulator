@@ -858,3 +858,8 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .ff-near { color: var(--mut); font-size: 14px; } .ff-near b { color: var(--text); } .ff-actions { display: flex; justify-content: center; margin-top: 6px; }
 .ff-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .05); font-size: 13px; } .ff-line b { color: var(--lime); }
 .ff-sum-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; margin: 8px 0; } .ff-sum-row b { display: block; font: 800 clamp(26px, 7vw, 36px) var(--head); } .ff-sum-row span { font-size: 12px; color: var(--mut); letter-spacing: .06em; } .ff-sum-row .good b { color: var(--lime); } .ff-sum-row .bad b { color: #ff7a7a; }
+
+/* jersey creator: which jersey you are editing (NFL team / college / kids team) */
+.jc-target { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin: 0 0 8px; } .jc-target span { font: 700 11px var(--head); letter-spacing: .14em; color: var(--mut); margin-right: 4px; }
+.jc-target .mini { max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-jh .col-logo { width: 28px; height: 28px; object-fit: contain; }

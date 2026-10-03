@@ -1245,7 +1245,12 @@ const jName = p => cleanJerseyName(p.jerseyName) || cleanJerseyName(surname(p.na
    ===================================================================== */
 const JERSEY_BLACK = '#111418';
 // the team's two logo colors, with near-black ones unified to our standard black
-const teamCols = teamId => { const t = TEAM[teamId], nb = c => (lum(c) < 0.08 ? JERSEY_BLACK : c); return [nb(t.c1), nb(t.c2)]; };
+const jcIsAlt = key => typeof key === 'string' && key[1] === ':';          // 'c:Alabama' (college) / 'y:Pumas' (youth) jersey keys
+const teamCols = key => {
+  const nb = c => (lum(c) < 0.08 ? JERSEY_BLACK : c);
+  if (jcIsAlt(key)) { const b = key[0] === 'c' ? collegeJerseyBase(key.slice(2)) : youthJerseyBase(key.slice(2)); return [nb(b.primary), nb(b.secondary)]; }
+  const t = TEAM[key]; return [nb(t.c1), nb(t.c2)];
+};
 const contrastOn = hex => (lum(hex) > 0.58 ? '#111418' : '#FFFFFF');
 function mixHex(a, b, t) {
   const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)), A = p(a), B = p(b);
@@ -1335,7 +1340,7 @@ function newJersey(pal, pattern = 'solid') {
 }
 // jersey in the school's colors (create screen + player card)
 const _cj = {};
-function collegeJersey(name) {
+function collegeJerseyBase(name) {
   if (_cj[name]) return _cj[name];
   const info = COLLEGE_INFO[name] || {}, ok = h => /^#[0-9A-F]{6}$/i.test(h || '');
   let p = ok(info.c1) ? info.c1 : '#E9EDF4', sec = ok(info.c2) ? info.c2 : '#2B3A55';
@@ -1347,7 +1352,7 @@ function collegeJersey(name) {
 }
 // the kid's first jersey: the MFL team's colors (taken from its logo), built the same way as a college jersey
 const _yj = {};
-function youthJersey(name) {
+function youthJerseyBase(name) {
   if (_yj[name]) return _yj[name];
   const info = MFL_INFO[name] || {}, ok = h => /^#[0-9A-F]{6}$/i.test(h || '');
   let p = ok(info.c1) ? info.c1 : '#E9EDF4', sec = ok(info.c2) ? info.c2 : '#2B3A55';
@@ -1357,9 +1362,12 @@ function youthJersey(name) {
   const acc = Math.abs(lum(sec) - lum(p)) > 0.3 ? contrastOn(sec) : contrastOn(p);
   return (_yj[name] = newJersey({ p, s: sec, a: acc }, 'solid'));
 }
+// the school's / kid team's jersey: your edited version if you designed one in the Locker Room, otherwise the club colors
+const collegeJersey = name => (typeof S !== 'undefined' && S && S.jerseys && S.jerseys['c:' + name]) ? normJersey(S.jerseys['c:' + name]) : collegeJerseyBase(name);
+const youthJersey = name => (typeof S !== 'undefined' && S && S.jerseys && S.jerseys['y:' + name]) ? normJersey(S.jerseys['y:' + name]) : youthJerseyBase(name);
 const youthJerseySVG = (name, view, num, shown) => jerseySVG(youthJersey(name), shown || '', num, { view, noShield: true, word: String(name).toUpperCase(), backLogo: MFL_INFO[name] ? mflLogo(MFL_INFO[name].slug) : '' });
 const neutralJersey = () => newJersey({ p: '#E9EDF4', s: '#2B3A55', a: '#8B97AD' }, 'solid');
-const defaultJersey = teamId => newJersey(jcPalettes(teamId)[0], 'solid');
+const defaultJersey = key => jcIsAlt(key) ? (key[0] === 'c' ? collegeJerseyBase(key.slice(2)) : youthJerseyBase(key.slice(2))) : newJersey(jcPalettes(key)[0], 'solid');
 // upgrades designs saved by the older creators
 function migrateJersey(o) {
   const c = newJersey({ p: o.body || '#FFFFFF', s: o.trim || o.cap || '#111418', a: o.outline || '#FFFFFF' }, 'solid');
@@ -1563,13 +1571,13 @@ function jerseyOne(cfg, view, name, number, o = {}) {
   const tid = o.teamId || (typeof S !== 'undefined' && S && S.teamId), lkey = lum(C.body) > 0.45 ? 'light' : 'dark';
   const backHref = !back ? '' : (o.backLogo !== undefined ? o.backLogo : (tid && TEAM[tid] ? (o.logoData ? o.logoData[lkey] : jcLogoUrl(tid, lkey)) : ''));
   const backLogo = backHref ? `<image href="${backHref}" x="${M.cx - 8.5}" y="35" width="17" height="17" preserveAspectRatio="xMidYMid meet"/>` : '';
-  const tSz = 34 * cfg.logoSize / 100, tHref = (!back && cfg.torsoLogo && tid && TEAM[tid]) ? (o.logoData ? o.logoData[lkey] : jcLogoUrl(tid, lkey)) : '';
+  const tSz = 34 * cfg.logoSize / 100, tHref = (!back && cfg.torsoLogo && (o.logoSrc || (tid && TEAM[tid]))) ? (o.logoSrc ? (o.logoData ? o.logoData[lkey] : o.logoSrc) : (o.logoData ? o.logoData[lkey] : jcLogoUrl(tid, lkey))) : '';
   const torsoLogo = tHref ? `<g clip-path="url(#${id}bo)"><image class="jc-tlogo" data-tlogo="1" href="${tHref}" x="${(cfg.logoX - tSz / 2).toFixed(1)}" y="${(cfg.logoY - tSz / 2).toFixed(1)}" width="${tSz.toFixed(1)}" height="${tSz.toFixed(1)}" preserveAspectRatio="xMidYMid meet"/><circle class="jc-thit" data-thit="1" cx="${cfg.logoX.toFixed(1)}" cy="${cfg.logoY.toFixed(1)}" r="${Math.max(tSz / 2, 24).toFixed(1)}" fill="transparent"/></g>` : '';   // the round hit area makes a small logo easy to grab
   const swoosh = cfg.swoosh && Z.swooshL ? `<g clip-path="url(#${id}bo)" fill="${C.swoosh}"><path d="${Z.swooshL}"/><path d="${Z.swooshR}"/></g>` : '';
   // team logo on both sleeves (spot from the user's JERSEY2Logos.svg; whatever sticks out of the jersey outline is cut off by the clip below): the wearer's right sleeve as it is, the wearer's left one mirrored (so on the front view the screen-right logo is the mirrored one), so faces/birds look the same way on both arms
-  const sl = (cfg.sleeveLogo && tid && TEAM[tid] && UNI.slogo) ? ['L', 'R'].map(sd => {
+  const sl = (cfg.sleeveLogo && (o.logoSrc || (tid && TEAM[tid])) && UNI.slogo) ? ['L', 'R'].map(sd => {
     const g = UNI.slogo[view][sd], w = g.w * cfg.sleeveLogoSize / 100, k = lum(C['sleeve' + sd]) > 0.45 ? 'light' : 'dark';
-    const href = o.logoData ? o.logoData[k] : jcLogoUrl(tid, k);
+    const href = o.logoSrc ? (o.logoData ? o.logoData[k] : o.logoSrc) : (o.logoData ? o.logoData[k] : jcLogoUrl(tid, k));
     return `<image class="jc-slogo" href="${href}" x="${(-w / 2).toFixed(2)}" y="${(-w / 2).toFixed(2)}" width="${w.toFixed(2)}" height="${w.toFixed(2)}" preserveAspectRatio="xMidYMid meet" transform="translate(${(g.x + (sd === 'L' ? -1 : 1) * (cfg.sleeveLogoSpread || 0)).toFixed(2)} ${(g.y + (cfg.sleeveLogoY || 0)).toFixed(2)}) rotate(${(g.r + (sd === 'L' ? -1 : 1) * (cfg.sleeveLogoRot || 0)).toFixed(2)})${((back ? sd : (sd === 'L' ? 'R' : 'L')) === 'L') !== !!cfg['sleeveLogoFlip' + (back ? sd : (sd === 'L' ? 'R' : 'L'))] ? ' scale(-1 1)' : ''}"/>`;
   }).join('') : '';
   const sleeveLogos = sl ? `<g clip-path="url(#${id}bo)">${sl}</g>` : '';
@@ -1614,9 +1622,9 @@ function jerseySVG(cfg, name, number, o = {}) {
 /* ---- PNG export: the SVG shapes are rasterized, and the name/number are drawn with canvas text (so the page fonts are used) ---- */
 // team logo on the back, just under the collar: ESPN has a normal version (light fabric) and a "dark" one (dark fabric) and allows CORS, so it also goes into the PNG
 const jcLogoUrl = (teamId, key) => `https://a.espncdn.com/i/teamlogos/nfl/${key === 'dark' ? '500-dark' : '500'}/${({ WAS: 'wsh' })[teamId] || teamId.toLowerCase()}.png`;
-async function jcLogoDataURL(teamId, key) {
+async function jcLogoDataURL(teamId, key, url) {
   try {
-    const r = await fetch(jcLogoUrl(teamId, key), { mode: 'cors' }); if (!r.ok) return null;
+    const r = await fetch(url || jcLogoUrl(teamId, key), { mode: 'cors' }); if (!r.ok) return null;
     const b = await r.blob();
     return await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => res(null); fr.readAsDataURL(b); });
   } catch (e) { return null; }
@@ -1635,9 +1643,9 @@ async function drawCollarLogo(ctx, ox, oy, sc) {
   }
 }
 // draws one view of the jersey (shapes, collar logo, numbers and name) onto a canvas: (ox, oy) in canvas pixels, sc = canvas pixels per jersey unit
-async function jcDrawJersey(ctx, cfg, view, name, num, word, id, logoData, ox, oy, sc, shadow) {
+async function jcDrawJersey(ctx, cfg, view, name, num, word, id, logoData, ox, oy, sc, shadow, extra) {
   const W = UNI.meta.w, H = UNI.meta.h;
-    const svg = jerseyOne(cfg, view, name, num, { noText: true, noShield: true, word, teamId: id, logoData });
+    const svg = jerseyOne(cfg, view, name, num, { noText: true, noShield: true, word, teamId: id, logoData, ...(extra || {}) });
     const img = new Image();
     await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); });
     if (shadow) { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 14 * sc; ctx.shadowOffsetY = 14 * sc; }
@@ -1664,14 +1672,16 @@ async function jcDrawJersey(ctx, cfg, view, name, num, word, id, logoData, ox, o
     });
 }
 async function exportJerseyPNG() {
-  const id = S.teamId, cfg = jerseyFor(id), name = jName(S.player), num = playerNumber(), word = TEAM[id].nick;
+  const alt = jcAlt(), id = S.teamId, cfg = jerseyFor(jcKey()), name = jName(S.player), num = playerNumber(), word = alt ? alt.word : TEAM[id].nick;
   await Promise.all(JC_FONTS.map(f => document.fonts.load(`${f.w} 100px ${f.css}`).catch(() => {})));
   const sc = 3, W = UNI.meta.w, H = UNI.meta.h, pad = 28, gap = 28;
   const cv = document.createElement('canvas'); cv.width = (W * 2 + gap + pad * 2) * sc; cv.height = (H + pad * 2) * sc;
   const ctx = cv.getContext('2d');
   const views = ['front', 'back'];
-  const logoData = { light: await jcLogoDataURL(id, 'light'), dark: await jcLogoDataURL(id, 'dark') };
-  for (let i = 0; i < 2; i++) await jcDrawJersey(ctx, cfg, views[i], name, num, word, id, logoData, (pad + i * (W + gap)) * sc, pad * sc, sc);
+  const one = alt ? await jcLogoDataURL(null, null, alt.logo) : null;
+  const logoData = alt ? { light: one, dark: one } : { light: await jcLogoDataURL(id, 'light'), dark: await jcLogoDataURL(id, 'dark') };
+  const extra = alt ? { logoSrc: alt.logo, backLogo: one || '' } : undefined;
+  for (let i = 0; i < 2; i++) await jcDrawJersey(ctx, cfg, views[i], name, num, word, id, logoData, (pad + i * (W + gap)) * sc, pad * sc, sc, undefined, extra);
   const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${name.replace(/[^A-Z0-9]+/g, '-')}-${num}-jersey.png`;
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
@@ -1741,14 +1751,14 @@ async function exportVitrinaPNG(o = {}) {
 
 // Framed jersey: wooden (or gold, for Hall of Famers) frame, team-colored mat and a brass plaque with career stats
 function frameHTML(o = {}) {
-  const P = S.player, id = S.teamId, t = TEAM[id], cc = POS[P.pos], C = careerTotals();
+  const P = S.player, id = S.teamId, alt = o.useAlt ? jcAlt() : null, t = alt ? { name: alt.name, nick: alt.word } : TEAM[id], cc = POS[P.pos], C = careerTotals();
   const stats = cc.careerLines(C).map(x => `<div><b>${fmtN(x.v)}</b><span>${x.l}</span></div>`).join('');
   const aw = [[awardCount('SB_CHAMP'), '🏆', 'Super Bowl'], [awardCount('MVP'), '👑', 'MVP'], [awardCount('AP1'), '🏅', 'All-Pro'], [awardCount('PB'), '⭐', 'Pro Bowl']].filter(a => a[0]).map(a => `<span>${a[1]} ${a[0]}× ${a[2]}</span>`).join('');
   const seasons = S.seasons.filter(s => s.games.length);
   const years = seasons.length ? (seasons[0].year === seasons[seasons.length - 1].year ? `${seasons[0].year}` : `${seasons[0].year} – ${seasons[seasons.length - 1].year}`) : `${S.year}`;
   return `<div class="frame ${o.gold ? 'gold' : ''}" style="${themeVars(id)}"><div class="frame-in">
     <div class="mat bg-${S.jerseyBg || 'team'}"><div class="mat-tag">${t.name.toUpperCase()}</div>
-      <div class="mat-jersey">${jerseySVG(jerseyFor(id), jName(P), playerNumber(), { view: o.view || 'both', word: t.nick })}</div></div>
+      <div class="mat-jersey">${alt ? jerseySVG(jerseyFor(alt.key), jName(P), playerNumber(), jcOpts({ view: o.view || 'both' })) : jerseySVG(jerseyFor(id), jName(P), playerNumber(), { view: o.view || 'both', word: t.nick })}</div></div>
     <div class="plaque"><div class="pl-name">${esc(P.name)}</div><div class="pl-sub">#${playerNumber()} · ${P.pos} · ${years}</div>
       <div class="pl-stats">${stats}</div>${aw ? `<div class="pl-aw">${aw}</div>` : ''}<div class="pl-foot">${o.final ? 'CAREER TOTALS' : 'CAREER SO FAR'} · ${fmt1(C.fp)} FANTASY PTS</div></div></div></div>`;
 }
@@ -2334,18 +2344,27 @@ function renderTrades() {
    Every control is bound with data-jc="<path>" (e.g. primary, parts.collar, numOutlineW): typing/dragging updates the
    jersey instantly (jcLive); releasing saves it into S.jerseys[teamId]. */
 let jcView = 'front'; // FRONT / BACK
+let jcTarget = 'nfl';  // which jersey the creator edits: 'nfl' (your team), 'college', 'youth'
+function jcKey() { const P = S.player; if (jcTarget === 'college' && P.college) return 'c:' + P.college; if (jcTarget === 'youth' && P.youth) return 'y:' + P.youth; return S.teamId; }
+function jcAlt() {
+  const k = jcKey(); if (!jcIsAlt(k)) return null; const name = k.slice(2);
+  if (k[0] === 'c') { const i = COLLEGE_INFO[name]; return { key: k, name, word: name.toUpperCase(), logo: i ? collegeLogo(i.id, 200) : '', kind: 'College' }; }
+  const i = MFL_INFO[name]; return { key: k, name, word: name.toUpperCase(), logo: i ? mflLogo(i.slug) : '', kind: 'Youth' };
+}
+// options for every jersey drawn by the creator: NFL team logo + nickname, or the college / kid team's own logo + name
+const jcOpts = (o = {}) => { const a = jcAlt(); return a ? { ...o, noShield: true, logoSrc: a.logo, backLogo: a.logo, word: a.word } : { ...o, word: TEAM[S.teamId].nick }; };
 let jcTab = 'colors';  // editor tab
 const JC_TABS = [['colors', '🎨', 'Colors'], ['style', '👕', 'Style'], ['patterns', '🔳', 'Patterns'], ['extras', '🏷', 'Sleeves & logos'], ['text', '🔤', 'Name & number']];
 function renderLocker(keepScroll) {
   const ed0 = document.querySelector('.jc2-editor'), ey = ed0 ? ed0.scrollTop : 0, ay = app.scrollTop;
-  const y = window.scrollY, P = S.player, id = S.teamId, t = TEAM[id], cfg = jerseyFor(id), C = jcColors(cfg), bg = S.jerseyBg || 'team';
+  const y = window.scrollY, P = S.player, id = S.teamId, t0 = TEAM[id], alt = jcAlt(), key = jcKey(), t = alt ? { name: alt.name } : TEAM[id], cfg = jerseyFor(key), C = jcColors(cfg), bg = S.jerseyBg || 'team';
   const opt = (list, cur) => list.map(f => `<option value="${f.k}" ${f.k === cur ? 'selected' : ''}>${f.label}</option>`).join('');
   const chip = (act, k, l, on) => `<button class="mini ${on ? 'on' : ''}" data-act="${act}" data-k="${k}">${l}</button>`;
-  const SW = jcSwatches(id);
+  const SW = jcSwatches(key);
   const colorRow = (label, path, val, extra = '') => `<div class="jc-sw"><span class="jc-sw-l">${label}</span><div class="sw-row">${SW.map(h => `<button class="sw ${sameHex(h, val) ? 'on' : ''}" style="background:${h}" data-act="jcColor" data-path="${path}" data-c="${h}" title="${h}" aria-label="${label} ${h}"></button>`).join('')}${extra}</div></div>`;
   const range = (label, path, min, max, step, val, unit = '') => `<label class="rng"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${val}" data-jc="${path}"><b data-rv="${path}">${val}${unit}</b></label>`;
-  const pals = jcPalettes(id).map((p, i) => `<button class="theme" data-act="jcPalette" data-i="${i}" title="${p.label}"><span class="tri"><i style="background:${p.p}"></i><i style="background:${p.s}"></i><i style="background:${p.a}"></i></span><em>${p.label}</em></button>`).join('');
-  const pats = JC_PATTERNS.map(p => `<button class="design ${patternMatches(cfg, p.k) ? 'on' : ''}" data-act="jcPattern" data-k="${p.k}" title="${p.label}">${jerseySVG(applyPattern(cfg, p.k), '', playerNumber(), { view: 'front', cls: 'thumb', noText: false })}<em>${p.label}</em></button>`).join('');
+  const pals = jcPalettes(key).map((p, i) => `<button class="theme" data-act="jcPalette" data-i="${i}" title="${p.label}"><span class="tri"><i style="background:${p.p}"></i><i style="background:${p.s}"></i><i style="background:${p.a}"></i></span><em>${p.label}</em></button>`).join('');
+  const pats = JC_PATTERNS.map(p => `<button class="design ${patternMatches(cfg, p.k) ? 'on' : ''}" data-act="jcPattern" data-k="${p.k}" title="${p.label}">${jerseySVG(applyPattern(cfg, p.k), '', playerNumber(), jcOpts({ view: 'front', cls: 'thumb', noText: false }))}<em>${p.label}</em></button>`).join('');
   const zpRow = ([z, l]) => {
     const v = cfg.zp[z], P = JC_PATS.find(x => x.k === v.p);
     return `<div class="zp-row"><div class="zp-h"><b>${l}</b><div class="seg zp-seg"><button class="tog ${!v.p ? 'on' : ''}" data-act="jcZoneOff" data-z="${z}"><i></i>Off</button>${JC_PATS.map(p => `<button class="tog ${v.p === p.k ? 'on' : ''}" data-act="jcZonePat" data-z="${z}" data-p="${p.k}"><i></i>${p.name}</button>`).join('')}</div></div>`
@@ -2361,12 +2380,13 @@ function renderLocker(keepScroll) {
     <h2 class="h-xl title-logo">${badge(id, 'lg')}<span>NFL JERSEY CREATOR</span></h2>
     <div class="jc2">
       <section class="jc2-preview">
+        ${P.college || P.youth ? `<div class="jc-target"><span>JERSEY</span>${[['nfl', '🏈 ' + t0.nick], P.college ? ['college', '🎓 ' + P.college] : null, P.youth ? ['youth', '🧒 ' + P.youth] : null].filter(Boolean).map(([k, l]) => chip('jcTarget', k, esc(l), (alt ? jcTarget : 'nfl') === k)).join('')}</div>` : ''}
         <div class="jc2-bar">
           <div class="minis big">${chip('jcView', 'front', 'FRONT', jcView === 'front')}${chip('jcView', 'back', 'BACK', jcView === 'back')}</div>
           <div class="minis">${chip('jerseyBg', 'team', 'Team', bg === 'team')}${chip('jerseyBg', 'dark', 'Dark', bg === 'dark')}${chip('jerseyBg', 'light', 'Light', bg === 'light')}</div>
           <button class="mini solo" data-act="jerseyExpand">⛶ Expand</button>
         </div>
-        ${frameHTML({ view: jcView })}
+        ${frameHTML({ view: jcView, useAlt: true })}
       </section>
       <section class="card jc2-editor">
         <div class="jc-actions">
@@ -2598,7 +2618,7 @@ function renderCareerComplete() {
       const yrs = S.seasons.filter(se => se.teamId === id || (se.stints || []).some(x => x.teamId === id)).map(se => se.year), y0 = Math.min(...yrs), y1 = Math.max(...yrs);
       return `<div class="cc-jersey" style="${themeVars(id)}"><div class="cc-jh">${badge(id)}<div><b>${TEAM[id].name}</b><span>${y0 === y1 ? y0 : y0 + '–' + y1}${i === teams.length - 1 ? ' · FINAL TEAM' : ''}</span></div></div>
         ${jerseySVG(jerseyFor(id), jName(P), playerNumber(), { view: 'both', teamId: id, word: TEAM[id].nick })}</div>`;
-    }).join('')}</div><div class="muted small">The last design you saved for each team.</div></section>
+    }).join('')}${[P.college ? `<div class="cc-jersey"><div class="cc-jh"><img class="col-logo" src="${COLLEGE_INFO[P.college] ? collegeLogo(COLLEGE_INFO[P.college].id, 80) : ''}" alt=""><div><b>${esc(P.college)}</b><span>COLLEGE</span></div></div>${jerseySVG(collegeJersey(P.college), jName(P), playerNumber(), { view: 'both', noShield: true, word: P.college.toUpperCase(), backLogo: COLLEGE_INFO[P.college] ? collegeLogo(COLLEGE_INFO[P.college].id, 80) : '' })}</div>` : '', P.youth && MFL_INFO[P.youth] ? `<div class="cc-jersey"><div class="cc-jh"><img class="col-logo" src="${mflLogo(MFL_INFO[P.youth].slug)}" alt=""><div><b>${esc(P.youth)}</b><span>FIRST TEAM · MFL</span></div></div>${youthJerseySVG(P.youth, 'both', playerNumber(), jName(P))}</div>` : ''].join('')}</div><div class="muted small">The last design you saved for each team.</div></section>
     <div class="row between wrap-row"><button class="btn btn-ghost" data-act="viewCareer">VIEW CAREER TIMELINE</button><button class="btn btn-ghost" data-act="toTitle">MAIN MENU</button><button class="btn btn-primary" data-act="startCareer">NEW CAREER</button></div></div>`);
   if (score >= 45) { setTimeout(() => burst(app.querySelector('.complete'), 90), 500); Snd.play('bigFanfare', 0.4); }
 }
@@ -2642,9 +2662,9 @@ function enterFreeAgency() {
 }
 
 // Jersey Creator state helpers (the design lives in S.jerseys[teamId]; name/number belong to the player)
-function jcSave(cfg) { S.jerseys = S.jerseys || {}; S.jerseys[S.teamId] = normJersey(cfg); }
+function jcSave(cfg) { S.jerseys = S.jerseys || {}; S.jerseys[jcKey()] = normJersey(cfg); }
 function editJersey(fn) {
-  const cfg = JSON.parse(JSON.stringify(jerseyFor(S.teamId)));
+  const cfg = JSON.parse(JSON.stringify(jerseyFor(jcKey())));
   fn(cfg); jcSave(cfg); saveGame(); renderLocker(true);
 }
 function setPlayerNumber(n) {
@@ -2654,12 +2674,11 @@ function setPlayerNumber(n) {
 // instant preview: redraws only the big jersey (called on every input event)
 function jcLive() {
   const el = document.querySelector('.jc2-preview .mat-jersey'); if (!el) return;
-  const id = S.teamId;
-  el.innerHTML = jerseySVG(jerseyFor(id), jName(S.player), playerNumber(), { view: jcView, word: TEAM[id].nick });
+  el.innerHTML = jerseySVG(jerseyFor(jcKey()), jName(S.player), playerNumber(), jcOpts({ view: jcView }));
 }
 // a bound control changed: path like "primary" or "parts.collar"
 function jcInput(el, commit) {
-  const path = el.dataset.jc, cfg = JSON.parse(JSON.stringify(jerseyFor(S.teamId)));
+  const path = el.dataset.jc, cfg = JSON.parse(JSON.stringify(jerseyFor(jcKey())));
   const v = el.type === 'range' ? Number(el.value) : el.value;
   jcSetPath(cfg, path, v);
   if (['numColor', 'numOutline', 'nameColor', 'nameOutline'].includes(path)) cfg.textCustom = true;
@@ -2832,7 +2851,7 @@ const actions = {
     });
   },
   tradeDone: () => { closeModal(); renderDashboard(); },
-  viewLocker: () => renderLocker(),
+  viewLocker: () => { jcTarget = 'nfl'; renderLocker(); },
   jcView: (d) => { jcView = d.k; renderLocker(true); },
   jcTab: (d) => { jcTab = d.k; renderLocker(false); const ed = document.querySelector('.jc2-editor'); if (ed) ed.scrollTop = 0; },
   jcPattern: (d) => editJersey(c => Object.assign(c, applyPattern(c, d.k))),
@@ -2841,7 +2860,7 @@ const actions = {
   jcZoneRot: (d) => editJersey(c => { c.zp = jcNormZones(c.zp); c.zp[d.z].r = (c.zp[d.z].r + 90) % 360; }),
   jcZoneAuto: (d) => editJersey(c => { c.zp = jcNormZones(c.zp); c.zp[d.z].c = ''; }),
   jcToggle: (d) => editJersey(c => { c[d.k] = !c[d.k]; c.pattern = 'custom'; }),
-  jcPalette: (d) => editJersey(c => { const p = jcPalettes(S.teamId)[Number(d.i)]; c.primary = p.p; c.secondary = p.s; c.accent = p.a; c.parts = {}; c.sideNumColor = ''; c.sideNumOutline = ''; c.textCustom = false; autoText(c); }),
+  jcPalette: (d) => editJersey(c => { const p = jcPalettes(jcKey())[Number(d.i)]; c.primary = p.p; c.secondary = p.s; c.accent = p.a; c.parts = {}; c.sideNumColor = ''; c.sideNumOutline = ''; c.textCustom = false; autoText(c); }),
   jcColor: (d) => editJersey(c => {
     const path = d.path, v = d.c;
     jcSetPath(c, path, v);
@@ -2862,13 +2881,14 @@ const actions = {
   jcSleeve: (d) => editJersey(c => { const n = Number(d.k); c.sleeveCount = n; c.sleeveStripes = n > 0; c.retro = n === 3; }),
   jcSideAuto: (d) => editJersey(c => { c[d.k] = ''; }),
   jcPartAuto: (d) => editJersey(c => { delete c.parts[d.k]; }),
-  jcRandom: () => editJersey(c => Object.assign(c, randomJersey(S.teamId, c))),
-  jcReset: () => { if (S.jerseys) delete S.jerseys[S.teamId]; saveGame(); renderLocker(true); toast('Design reset'); },
-  jcExport: () => { exportVitrinaPNG().then(() => toast('⬇ Display case saved as PNG')).catch(e => { console.error(e); toast('Could not export the image'); }); },
+  jcRandom: () => editJersey(c => Object.assign(c, randomJersey(jcKey(), c))),
+  jcTarget: (d) => { jcTarget = d.k; jcView = 'front'; renderLocker(true); },
+  jcReset: () => { if (S.jerseys) delete S.jerseys[jcKey()]; saveGame(); renderLocker(true); toast('Design reset'); },
+  jcExport: () => { (jcAlt() ? exportJerseyPNG() : exportVitrinaPNG()).then(() => toast(jcAlt() ? '⬇ Jersey saved as PNG' : '⬇ Display case saved as PNG')).catch(e => { console.error(e); toast('Could not export the image'); }); },
   jerseyBg: (d) => { S.jerseyBg = d.k; saveGame(); renderLocker(true); },
   jerseyExpand: () => {
-    const P = S.player, id = S.teamId;
-    openModal(`<div class="expand mat bg-${S.jerseyBg || 'team'}" style="${themeVars(id)}"><div class="mat-tag">${TEAM[id].name.toUpperCase()}</div><div class="mat-jersey">${jerseySVG(jerseyFor(id), jName(P), playerNumber(), { view: 'both', word: TEAM[id].nick })}</div></div>
+    const P = S.player, id = S.teamId, alt = jcAlt();
+    openModal(`<div class="expand mat bg-${S.jerseyBg || 'team'}" style="${themeVars(id)}"><div class="mat-tag">${(alt ? alt.name : TEAM[id].name).toUpperCase()}</div><div class="mat-jersey">${jerseySVG(jerseyFor(jcKey()), jName(P), playerNumber(), jcOpts({ view: 'both' }))}</div></div>
       <div class="row end"><button class="btn btn-primary" data-act="closeModal">CLOSE</button></div>`, 'wide');
   },
   jerseyName: (v) => { S.player.jerseyName = cleanJerseyName(v) || ''; saveGame(); renderLocker(true); toast(`Jersey name: ${jName(S.player)}`); },
@@ -2972,7 +2992,7 @@ let jcDrag = null, jcNumDrag = null;
 document.addEventListener('pointerdown', e => {                       // sleeve numbers: drag up or down (vertical only)
   const el = e.target.closest && e.target.closest('[data-snum]'); if (!el || !el.closest('.jc2-preview')) return;
   const svg = el.ownerSVGElement, p = svg && jcPoint(svg, e); if (!p) return;
-  const cfg = JSON.parse(JSON.stringify(jerseyFor(S.teamId))); jcNumDrag = { svg, cfg, y0: p.y, v0: cfg.sleeveNumY || 0 }; e.preventDefault();
+  const cfg = JSON.parse(JSON.stringify(jerseyFor(jcKey()))); jcNumDrag = { svg, cfg, y0: p.y, v0: cfg.sleeveNumY || 0 }; e.preventDefault();
 });
 document.addEventListener('pointermove', e => {
   if (!jcNumDrag) return; const p = jcPoint(jcNumDrag.svg, e); if (!p) return;
@@ -2983,7 +3003,7 @@ const jcPoint = (svg, e) => { const m = svg.getScreenCTM(); if (!m) return null;
 document.addEventListener('pointerdown', e => {
   const el = e.target.closest && e.target.closest('image[data-tlogo], circle[data-thit]'); if (!el || !el.closest('.jc2-preview')) return;
   const svg = el.ownerSVGElement, p = jcPoint(svg, e); if (!p) return;
-  const cfg = JSON.parse(JSON.stringify(jerseyFor(S.teamId))); jcDrag = { svg, cfg, dx: cfg.logoX - p.x, dy: cfg.logoY - p.y }; svg.querySelector('image[data-tlogo]').classList.add('drag'); e.preventDefault();
+  const cfg = JSON.parse(JSON.stringify(jerseyFor(jcKey()))); jcDrag = { svg, cfg, dx: cfg.logoX - p.x, dy: cfg.logoY - p.y }; svg.querySelector('image[data-tlogo]').classList.add('drag'); e.preventDefault();
 });
 document.addEventListener('pointermove', e => {
   if (!jcDrag) return; const p = jcPoint(jcDrag.svg, e); if (!p) return; const c = jcDrag.cfg;

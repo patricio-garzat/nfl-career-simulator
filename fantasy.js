@@ -73,6 +73,12 @@ function ffEvaluate(se) {
 function ffBoard(F) {
   const N = FF_TEAMS, R = FF_ROUNDS, total = N * R, P = S.player;
   const avail = FF_ADP[F.year].map(p => ({ n: p[0], pos: p[1], tm: p[2], adp: p[3] })).sort((x, y) => x.adp - y.adp);
+  // some years' lists are shorter than a 12 x 15 draft (2022 has 157 names): top it up with the best players from the other years so the board always fills
+  const have = new Set(avail.map(x => x.n)); have.add(P.name);
+  if (avail.length < total + 12) {
+    const extra = []; Object.keys(FF_ADP).forEach(y => { if (+y === F.year) return; FF_ADP[y].forEach(q => { if (!have.has(q[0])) { have.add(q[0]); extra.push({ n: q[0], pos: q[1], tm: q[2], adp: q[3] }); } }); });
+    extra.sort((x, y) => x.adp - y.adp); const top = avail.length ? avail[avail.length - 1].adp : 150; extra.forEach((q, i) => { q.adp = top + 1 + i * 0.3; avail.push(q); });
+  }
   const mePick = F.adp != null && !F.undrafted ? clamp(Math.round(F.adp), 1, total) : 0;
   const me = { n: P.name, pos: P.pos, tm: S.teamId, adp: F.adp == null ? 9999 : F.adp, me: true };
   const teams = Array.from({ length: N }, () => ({ QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 })), cells = [];
@@ -94,8 +100,8 @@ function ffBoard(F) {
       if (need && rnd() < 0.7) choice = need;
       else { const w = pool.map((_, i) => Math.exp(-i * 0.55)); let r = rnd() * w.reduce((x, y) => x + y, 0), i = 0; for (; i < pool.length - 1; i++) { r -= w[i]; if (r <= 0) break; } choice = pool[i] || avail[0]; }
     }
-    if (!choice) break;
-    if (!choice.me) avail.splice(avail.indexOf(choice), 1);
+    if (!choice) choice = { n: 'Free Agent', pos: 'WR', tm: 'FA', adp: 999 };      // never leave a hole in the board
+    if (!choice.me && avail.includes(choice)) avail.splice(avail.indexOf(choice), 1);
     teams[ti][choice.pos] = (teams[ti][choice.pos] || 0) + 1;
     cells.push({ ...choice, pick, team: ti, row: round - 1, col: ti });
   }

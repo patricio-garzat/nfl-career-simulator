@@ -876,3 +876,5 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 @keyframes ffMe { 50% { transform: scale(1.06); } }
 @media (max-width: 700px) { .ff-bwrap { max-height: 54vh; } }
 @keyframes ffPop { from { transform: scale(.5); opacity: 0; } }
+
+.jc2-preview .jc-jock, .jc2-preview .jc-jhit { cursor: grab; touch-action: none; }

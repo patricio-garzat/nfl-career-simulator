@@ -1419,7 +1419,7 @@ function normJersey(c) {
   o.torsoLogo = !!o.torsoLogo; o.logoX = clamp(Number(o.logoX) || 150, 8, 292); o.logoY = clamp(Number(o.logoY) || 112, 8, 337); o.logoSize = clamp(Number(o.logoSize) || 100, 40, 220);
   o.sleeveStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.sleeveStyle) ? o.sleeveStyle : 'even'; o.sleeveThick = clamp(Number(o.sleeveThick) || 100, 60, 200); o.sleeveNumY = clamp(Number(o.sleeveNumY) || 0, -50, 40);
   o.zp = jcNormZones(o.zp);
-  o.shCount = clamp(Math.round(Number(o.shCount) || 0), 0, 3); o.shStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.shStyle) ? o.shStyle : 'even'; o.shThick = clamp(Number(o.shThick) || 100, 60, 200); o.shPos = clamp(Number(o.shPos) || 0, -8, 72); o.shAngle = clamp(Number(o.shAngle) || 0, -45, 45); o.sleevePos = clamp(Number(o.sleevePos) || 0, -8, 60);
+  o.shCount = clamp(Math.round(Number(o.shCount) || 0), 0, 3); o.shStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.shStyle) ? o.shStyle : 'even'; o.shThick = clamp(Number(o.shThick) || 100, 60, 200); o.shPos = clamp(Number(o.shPos) || 0, -8, 72); o.jockTag = !!o.jockTag; o.jockX = clamp(Number(o.jockX) || 98, 10, 290); o.jockY = clamp(Number(o.jockY) || 322, 200, 340); o.jockSize = clamp(Number(o.jockSize) || 100, 40, 240); o.shAngle = clamp(Number(o.shAngle) || 0, -45, 45); o.sleevePos = clamp(Number(o.sleevePos) || 0, -8, 60);
   o.showWord = o.showWord !== false; o.swoosh = !!o.swoosh; o.sleeveLogo = !!o.sleeveLogo; o.sleeveLogoFlipL = !!o.sleeveLogoFlipL; o.sleeveLogoFlipR = !!o.sleeveLogoFlipR; o.sleeveLogoSize = clamp(Number(o.sleeveLogoSize) || 100, 40, 160); o.sleeveLogoRot = clamp(Number(o.sleeveLogoRot) || 0, -45, 45); o.sleeveLogoSpread = clamp(Number(o.sleeveLogoSpread) || 0, -24, 24); o.sleeveLogoY = clamp(Number(o.sleeveLogoY) || 0, -30, 40); o.noSideNums = !!o.noSideNums; o.sleeveNums = !!o.sleeveNums && !o.noSideNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
   const hx = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d; o.primary = hx(o.primary, '#FFFFFF'); o.secondary = hx(o.secondary, '#111418'); o.accent = hx(o.accent, '#FFFFFF');
   o.numSize = clamp(Number(o.numSize) || 100, 50, 150); o.nameSize = clamp(Number(o.nameSize) || 100, 50, 150); o.numY = clamp(Number(o.numY) || 0, -60, 70); o.numYFront = clamp(o.numYFront !== undefined && o.numYFront !== null && Number.isFinite(Number(o.numYFront)) ? Number(o.numYFront) : o.numY, -60, 70);   // number height: the front and the back are independent
@@ -1446,7 +1446,7 @@ function randomJersey(teamId, current) {
   if (rnd() < 0.15) c.collarContrast = false;
   c.numFont = pick(['cond', 'cond', 'block', 'athletic']); c.nameFont = c.numFont; c.numOutlineW = pick([0, 3.2, 3.2, 4.5]);
   c.sleeveStyle = pick(JC_SLEEVE_STYLES)[0]; c.sleeveThick = pick([90, 100, 120, 150]);
-  if (current) { c.numSize = current.numSize; c.numY = current.numY; c.numYFront = current.numYFront; c.noSideNums = current.noSideNums; c.nameSize = current.nameSize; c.zp = current.zp; c.swoosh = current.swoosh; c.sleeveLogo = current.sleeveLogo; c.sleeveLogoFlipL = current.sleeveLogoFlipL; c.sleeveLogoFlipR = current.sleeveLogoFlipR; c.sleeveLogoSize = current.sleeveLogoSize; c.sleeveLogoRot = current.sleeveLogoRot; c.sleeveLogoSpread = current.sleeveLogoSpread; c.sleeveLogoY = current.sleeveLogoY; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
+  if (current) { c.numSize = current.numSize; c.numY = current.numY; c.numYFront = current.numYFront; c.noSideNums = current.noSideNums; c.nameSize = current.nameSize; c.zp = current.zp; c.swoosh = current.swoosh; c.sleeveLogo = current.sleeveLogo; c.sleeveLogoFlipL = current.sleeveLogoFlipL; c.sleeveLogoFlipR = current.sleeveLogoFlipR; c.jockTag = current.jockTag; c.jockX = current.jockX; c.jockY = current.jockY; c.jockSize = current.jockSize; c.sleeveLogoSize = current.sleeveLogoSize; c.sleeveLogoRot = current.sleeveLogoRot; c.sleeveLogoSpread = current.sleeveLogoSpread; c.sleeveLogoY = current.sleeveLogoY; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
   return autoText(c);
 }
 
@@ -1573,6 +1573,9 @@ function jerseyOne(cfg, view, name, number, o = {}) {
   const backLogo = backHref ? `<image href="${backHref}" x="${M.cx - 8.5}" y="35" width="17" height="17" preserveAspectRatio="xMidYMid meet"/>` : '';
   const tSz = 34 * cfg.logoSize / 100, tHref = (!back && cfg.torsoLogo && (o.logoSrc || (tid && TEAM[tid]))) ? (o.logoSrc ? (o.logoData ? o.logoData[lkey] : o.logoSrc) : (o.logoData ? o.logoData[lkey] : jcLogoUrl(tid, lkey))) : '';
   const torsoLogo = tHref ? `<g clip-path="url(#${id}bo)"><image class="jc-tlogo" data-tlogo="1" href="${tHref}" x="${(cfg.logoX - tSz / 2).toFixed(1)}" y="${(cfg.logoY - tSz / 2).toFixed(1)}" width="${tSz.toFixed(1)}" height="${tSz.toFixed(1)}" preserveAspectRatio="xMidYMid meet"/><circle class="jc-thit" data-thit="1" cx="${cfg.logoX.toFixed(1)}" cy="${cfg.logoY.toFixed(1)}" r="${Math.max(tSz / 2, 24).toFixed(1)}" fill="transparent"/></g>` : '';   // the round hit area makes a small logo easy to grab
+  // the Nike jock tag, front only, lower left; moves and scales (width 36 units at 100%, aspect of the real label)
+  const jW = 36 * cfg.jockSize / 100, jH = jW * 159 / 520, jHref = o.logoData && o.logoData.jock ? o.logoData.jock : 'assets/nfl/jocktag.png';
+  const jockTag = (!back && cfg.jockTag) ? `<g clip-path="url(#${id}bo)"><image class="jc-jock" href="${jHref}" x="${(cfg.jockX - jW / 2).toFixed(1)}" y="${(cfg.jockY - jH / 2).toFixed(1)}" width="${jW.toFixed(1)}" height="${jH.toFixed(1)}" preserveAspectRatio="xMidYMid meet" data-jock="1"/><rect class="jc-jhit" data-jhit="1" x="${(cfg.jockX - Math.max(jW / 2, 20)).toFixed(1)}" y="${(cfg.jockY - Math.max(jH / 2, 12)).toFixed(1)}" width="${(Math.max(jW, 40)).toFixed(1)}" height="${(Math.max(jH, 24)).toFixed(1)}" fill="transparent"/></g>` : '';
   const swoosh = cfg.swoosh && Z.swooshL ? `<g clip-path="url(#${id}bo)" fill="${C.swoosh}"><path d="${Z.swooshL}"/><path d="${Z.swooshR}"/></g>` : '';
   // team logo on both sleeves (spot from the user's JERSEY2Logos.svg; whatever sticks out of the jersey outline is cut off by the clip below): the wearer's right sleeve as it is, the wearer's left one mirrored (so on the front view the screen-right logo is the mirrored one), so faces/birds look the same way on both arms
   const sl = (cfg.sleeveLogo && (o.logoSrc || (tid && TEAM[tid])) && UNI.slogo) ? ['L', 'R'].map(sd => {
@@ -1608,7 +1611,7 @@ function jerseyOne(cfg, view, name, number, o = {}) {
     </g>
     ${pieces.map(([k]) => `<path d="${Z[k]}" ${ln}/>`).join('')}
     <path d="${Z.bodyOuter}" fill="none" stroke="${INK}" stroke-width="1.3" stroke-linejoin="round"/>
-    ${swoosh}${sleeveLogos}${back || o.noShield ? '' : nflCollarLogo()}${backLogo}${torsoLogo}
+    ${swoosh}${sleeveLogos}${back || o.noShield ? '' : nflCollarLogo()}${backLogo}${torsoLogo}${jockTag}
     ${texts}
   </svg>`;
 }
@@ -1680,6 +1683,7 @@ async function exportJerseyPNG() {
   const views = ['front', 'back'];
   const one = alt ? await jcLogoDataURL(null, null, alt.logo) : null;
   const logoData = alt ? { light: one, dark: one } : { light: await jcLogoDataURL(id, 'light'), dark: await jcLogoDataURL(id, 'dark') };
+  logoData.jock = await jcLogoDataURL(null, null, 'assets/nfl/jocktag.png');
   const extra = alt ? { logoSrc: alt.logo, backLogo: one || '' } : undefined;
   for (let i = 0; i < 2; i++) await jcDrawJersey(ctx, cfg, views[i], name, num, word, id, logoData, (pad + i * (W + gap)) * sc, pad * sc, sc, undefined, extra);
   const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
@@ -1691,7 +1695,7 @@ async function exportJerseyPNG() {
 async function exportVitrinaPNG(o = {}) {
   const P = S.player, id = S.teamId, t = TEAM[id], cc = POS[P.pos], C = careerTotals(), cfg = jerseyFor(id), name = jName(P), num = playerNumber(), view = o.view || jcView || 'front', gold = !!o.gold;
   await Promise.all(JC_FONTS.map(f => document.fonts.load(`${f.w} 100px ${f.css}`).catch(() => {})).concat(['500', '600', '700', '800'].map(w => document.fonts.load(`${w} 20px 'Barlow Condensed'`).catch(() => {})), [document.fonts.load("700 12px 'Inter'").catch(() => {})]));
-  const logoData = { light: await jcLogoDataURL(id, 'light'), dark: await jcLogoDataURL(id, 'dark') };
+  const logoData = { light: await jcLogoDataURL(id, 'light'), dark: await jcLogoDataURL(id, 'dark'), jock: await jcLogoDataURL(null, null, 'assets/nfl/jocktag.png') };
   const stats = cc.careerLines(C).map(x => ({ v: fmtN(x.v), l: x.l }));
   const aw = [[awardCount('SB_CHAMP'), '🏆', 'Super Bowl'], [awardCount('MVP'), '👑', 'MVP'], [awardCount('AP1'), '🏅', 'All-Pro'], [awardCount('PB'), '⭐', 'Pro Bowl']].filter(a => a[0]).map(a => `${a[1]} ${a[0]}× ${a[2]}`);
   const seasons = S.seasons.filter(x => x.games.length), years = seasons.length ? (seasons[0].year === seasons[seasons.length - 1].year ? `${seasons[0].year}` : `${seasons[0].year} – ${seasons[seasons.length - 1].year}`) : `${S.year}`;
@@ -2428,6 +2432,10 @@ function renderLocker(keepScroll) {
 <section class="jc-card"><h4 class="jc-h">▮ Shoulder lines<small>vertical lines pushed to the outside of the shoulders</small></h4>
         ${shoulderSel}
 </section>
+<section class="jc-card"><h4 class="jc-h">🏷 Jock tag<small>front, lower left · drag it or use the sliders</small></h4>
+        <div class="seg"><button class="tog ${cfg.jockTag ? 'on' : ''}" data-act="jcJock"><i></i>Jock tag</button>${cfg.jockTag ? '<button class="mini" data-act="jcJockReset">Reset position</button>' : ''}</div>
+        ${cfg.jockTag ? range('Size', 'jockSize', 40, 240, 5, cfg.jockSize, '%') + range('Move left ↔ right', 'jockX', 10, 290, 1, Math.round(cfg.jockX)) + range('Move up ↕ down', 'jockY', 200, 340, 1, Math.round(cfg.jockY)) + (jcView === 'back' ? '<div class="muted small">Switch to FRONT to see and move it.</div>' : '') : ''}
+</section>
 <section class="jc-card"><h4 class="jc-h">✔ Nike swoosh<small>on both sleeves</small></h4>
         <div class="seg"><button class="tog ${cfg.swoosh ? 'on' : ''}" data-act="jcSwoosh"><i></i>Nike swoosh</button></div>
         ${cfg.swoosh ? colorRow('Swoosh color', 'parts.swoosh', C.swoosh, cfg.parts.swoosh ? '<button class="mini" data-act="jcPartAuto" data-k="swoosh">Auto</button>' : '<span class="hint">auto</span>') : ''}
@@ -2684,7 +2692,7 @@ function jcInput(el, commit) {
   if (['numColor', 'numOutline', 'nameColor', 'nameOutline'].includes(path)) cfg.textCustom = true;
   if (['primary', 'secondary', 'accent'].includes(path)) autoText(cfg);
   jcSave(cfg);
-  const lab = document.querySelector(`[data-rv="${path}"]`); if (lab && el.type === 'range') lab.textContent = v + (/(Size|Thick|\.s)$/.test(path) ? '%' : /(shAngle|sleeveLogoRot)$/.test(path) ? '°' : '');
+  const lab = document.querySelector(`[data-rv="${path}"]`); if (lab && el.type === 'range') lab.textContent = v + (/(Size|Thick|\.s|jockSize)$/.test(path) ? '%' : /(shAngle|sleeveLogoRot)$/.test(path) ? '°' : '');
   const code = el.parentNode && el.parentNode.querySelector('code'); if (code) code.textContent = path.startsWith('parts.') ? 'CUSTOM' : String(v).toUpperCase();
   if (commit) { saveGame(); renderLocker(true); } else jcLive();
 }
@@ -2868,6 +2876,8 @@ const actions = {
     if (['primary', 'secondary', 'accent'].includes(path)) autoText(c);
   }),
   jcNumPos: (d) => editJersey(c => { c.sleeveNums = d.k === 'sleeve'; c.noSideNums = d.k === 'none'; }),
+  jcJock: () => { jcView = 'front'; editJersey(c => { c.jockTag = !c.jockTag; }); },
+  jcJockReset: () => editJersey(c => { c.jockX = 98; c.jockY = 322; c.jockSize = 100; }),
   jcTorsoLogo: () => { jcView = 'front'; editJersey(c => { c.torsoLogo = !c.torsoLogo; }); },
   jcLogoCenter: () => editJersey(c => { c.logoX = 150; c.logoY = 112; c.logoSize = 100; }),
   jcNumReset: () => editJersey(c => { c.sleeveNumY = 0; }),
@@ -3001,17 +3011,29 @@ document.addEventListener('pointermove', e => {
 ['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, () => { if (!jcNumDrag) return; jcSave(jcNumDrag.cfg); saveGame(); jcNumDrag = null; renderLocker(true); }));
 const jcPoint = (svg, e) => { const m = svg.getScreenCTM(); if (!m) return null; const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(m.inverse()); };
 document.addEventListener('pointerdown', e => {
+  const jh = e.target.closest && e.target.closest('rect[data-jhit], image[data-jock]');
+  if (jh && jh.closest('.jc2-preview')) {
+    const svg = jh.ownerSVGElement, p = jcPoint(svg, e); if (!p) return;
+    const cfg = JSON.parse(JSON.stringify(jerseyFor(jcKey()))); jcDrag = { svg, cfg, jock: true, dx: cfg.jockX - p.x, dy: cfg.jockY - p.y }; e.preventDefault(); return;
+  }
   const el = e.target.closest && e.target.closest('image[data-tlogo], circle[data-thit]'); if (!el || !el.closest('.jc2-preview')) return;
   const svg = el.ownerSVGElement, p = jcPoint(svg, e); if (!p) return;
   const cfg = JSON.parse(JSON.stringify(jerseyFor(jcKey()))); jcDrag = { svg, cfg, dx: cfg.logoX - p.x, dy: cfg.logoY - p.y }; svg.querySelector('image[data-tlogo]').classList.add('drag'); e.preventDefault();
 });
 document.addEventListener('pointermove', e => {
   if (!jcDrag) return; const p = jcPoint(jcDrag.svg, e); if (!p) return; const c = jcDrag.cfg;
+  if (jcDrag.jock) {
+    c.jockX = clamp(p.x + jcDrag.dx, 10, 290); c.jockY = clamp(p.y + jcDrag.dy, 200, 340);
+    const im = jcDrag.svg.querySelector('image[data-jock]'), hit = jcDrag.svg.querySelector('rect[data-jhit]');
+    if (im) { im.setAttribute('x', (c.jockX - Number(im.getAttribute('width')) / 2).toFixed(1)); im.setAttribute('y', (c.jockY - Number(im.getAttribute('height')) / 2).toFixed(1)); }
+    if (hit) { hit.setAttribute('x', (c.jockX - Number(hit.getAttribute('width')) / 2).toFixed(1)); hit.setAttribute('y', (c.jockY - Number(hit.getAttribute('height')) / 2).toFixed(1)); }
+    return;
+  }
   c.logoX = clamp(p.x + jcDrag.dx, 8, 292); c.logoY = clamp(p.y + jcDrag.dy, 8, 337);
   const el = jcDrag.svg.querySelector('image[data-tlogo]'), sz = Number(el.getAttribute('width')); el.setAttribute('x', (c.logoX - sz / 2).toFixed(1)); el.setAttribute('y', (c.logoY - sz / 2).toFixed(1));
   const hit = jcDrag.svg.querySelector('circle[data-thit]'); if (hit) { hit.setAttribute('cx', c.logoX.toFixed(1)); hit.setAttribute('cy', c.logoY.toFixed(1)); }
 });
-['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, () => { if (!jcDrag) return; jcSave(jcDrag.cfg); saveGame(); const el = jcDrag.svg.querySelector('image[data-tlogo]'); if (el) el.classList.remove('drag'); jcDrag = null; }));
+['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, () => { if (!jcDrag) return; jcSave(jcDrag.cfg); saveGame(); const el = jcDrag.svg.querySelector('image[data-tlogo]'); if (el) el.classList.remove('drag'); const was = jcDrag.jock; jcDrag = null; if (was) renderLocker(true); }));
 document.addEventListener('input', e => {
   const jc = e.target.closest('[data-jc]');
   if (jc) { jcInput(jc, false); return; }

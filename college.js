@@ -8,8 +8,8 @@ let CS = null;
 const csTeamR = name => 66 + ((COLLEGES.find(c => c[0] === name) || [0, 0])[1]) * 3.4;     // school strength (only differences matter)
 const csInfoOf = name => (CS && CS.oppInfo && CS.oppInfo[name]) || COLLEGE_INFO[name];
 const csYouth = () => !!(CS && CS.kind === 'youth');
-const csLabel = () => csYouth() ? 'YOUTH SEASON' : (CS.info.div === 'HS' ? 'HIGH SCHOOL SEASON' : 'COLLEGE SEASON');
-const csIcon = () => csYouth() ? '🧒' : (CS.info.div === 'HS' ? '🏫' : '🎓');
+const csLabel = () => csYouth() ? 'YOUTH SEASON' : 'COLLEGE SEASON';
+const csIcon = () => csYouth() ? '🧒' : '🎓';
 // how hard the recruiters are chasing you (0..1): rating first, season second
 const rcLevel = (P, perf = 0) => clamp((P.ovr - 60) / 26 + perf * 0.35, 0, 1);
 const rcLabel = l => l < 0.3 ? 'Low' : l < 0.55 ? 'Growing' : l < 0.8 ? 'High' : 'Elite';
@@ -26,8 +26,8 @@ function csStart(kind) {
     rows = MFL_TEAMS.filter(r => r[1] !== name).map(r => { oppInfo[r[1]] = { id: 'mfl-' + r[0], div: 'MFL', conf: 'MFL', c1: '#' + r[2], c2: '#' + r[3] }; return [r[0], r[1], 'MFL']; });
   } else {
     name = P.college; info = COLLEGE_INFO[name];
-    const league = info.div === 'HS' ? 'HS' : leagueOfDiv(info.div); G = league === 'NCAA' ? 12 : 10;
-    rows = league === 'HS' ? HS_ROWS.filter(r => r[1] !== name) : NCAA.filter(r => leagueOfDiv(r[2]) === league && r[1] !== name);
+    const league = leagueOfDiv(info.div); G = league === 'NCAA' ? 12 : 10;
+    rows = NCAA.filter(r => leagueOfDiv(r[2]) === league && r[1] !== name);
   }
   const near = rows.filter(r => r[2] === info.div), other = rows.filter(r => r[2] !== info.div);
   const opps = []; const used = new Set();
@@ -121,7 +121,7 @@ function renderCollege() {
       </div>
       <div class="col">
         <section class="card"><div class="card-h"><h3>ATTRIBUTES</h3></div><div class="attr-list">${attrBars(P)}</div></section>
-        <section class="card"><div class="card-h"><h3>${yth ? 'RECRUITERS' : 'DRAFT BOARD'}</h3></div><div class="muted small">${yth ? 'Your season moves your rating — and the rating decides who comes calling: 5 high schools (USA and Mexico), the LFA and the UFL. Big games and mini games raise their interest.' : 'Your season moves your rating — and the rating decides your draft spot. Big games and mini games raise your stock; bad ones drop it.'}</div></section>
+        <section class="card"><div class="card-h"><h3>${yth ? 'RECRUITERS' : 'DRAFT BOARD'}</h3></div><div class="muted small">${yth ? 'Your season moves your rating — and the rating decides who comes calling: 5 colleges (NCAA and ONEFA), the LFA and the UFL. Big games and mini games raise their interest.' : 'Your season moves your rating — and the rating decides your draft spot. Big games and mini games raise your stock; bad ones drop it.'}</div></section>
       </div>
     </div></div>`, 'dash');
 }
@@ -170,23 +170,25 @@ function renderCollegeReport() {
         <div class="oc-to ${up ? 'up' : down ? 'down' : ''}"><b id="ovrNum">${R.ovrFrom}</b><span>${up ? '▲' : down ? '▼' : '●'}</span></div></div>
       <div class="dev-list">${R.changes.map((c, i) => `<div class="dev-row" style="animation-delay:${0.1 + i * 0.12}s"><span>${c.attr}</span><b class="${c.d > 0 ? 'good' : c.d < 0 ? 'bad' : 'muted'}">${c.d > 0 ? '+' : ''}${c.d}</b><div class="bar ${barClass(c.to)}"><i style="--w:${c.to}%"></i></div><em>${c.to}</em></div>`).join('')}</div>
       ${R.camp ? `<div class="banner ${R.camp.score >= 3 ? 'good' : 'warn'} cs-stock">🎮 Camp: <b>${MG_GRADES[R.camp.score].n}</b> (${R.camp.score}/5) ${R.camp.score >= 3 ? 'helped' : 'hurt'} your rating</div>` : ''}
-      ${yth ? `<div class="banner ${lvl >= 0.55 ? 'good' : ''} cs-stock">📣 <b>RECRUITING BUZZ:</b> ${rcLabel(lvl)} — 5 high schools, the LFA and the UFL are watching</div>` : `<div class="banner ${rise ? 'good' : fall ? 'warn' : ''} cs-stock">📋 <b>DRAFT STOCK:</b> ${esc(CS.proj0)} → <b>${esc(R.proj1)}</b> ${rise ? '▲ rising' : fall ? '▼ falling' : '● steady'}</div>`}
+      ${yth ? `<div class="banner ${lvl >= 0.55 ? 'good' : ''} cs-stock">📣 <b>RECRUITING BUZZ:</b> ${rcLabel(lvl)} — 5 colleges, the LFA and the UFL are watching</div>` : `<div class="banner ${rise ? 'good' : fall ? 'warn' : ''} cs-stock">📋 <b>DRAFT STOCK:</b> ${esc(CS.proj0)} → <b>${esc(R.proj1)}</b> ${rise ? '▲ rising' : fall ? '▼ falling' : '● steady'}</div>`}
     </section>
     <div class="row end">${yth ? '<button class="btn btn-primary btn-xl" data-act="csOffers">SEE MY OFFERS ▸</button>' : '<button class="btn btn-primary btn-xl" data-act="csDraft">ENTER THE DRAFT</button>'}</div></div>`);
   Snd.play(up ? 'up' : down ? 'down' : 'tick', 0.4);
   setTimeout(() => { const el = document.getElementById('ovrNum'); if (el) countUp(el, R.ovrFrom, R.ovrTo); if (up && el) burst(el.closest('.dev-card'), 26); }, 350);
 }
 
-/* ---- RECRUITING OFFERS: after the MFL season, 5 high schools (USA + Mexico), 1 LFA team and 1 UFL team come calling ---- */
+/* ---- RECRUITING OFFERS: after the MFL season, 5 colleges (NCAA + ONEFA), 1 LFA team and 1 UFL team come calling ---- */
 function makeOffers(P) {
   const lvl = rcLevel(P, P.recruitPerf || 0), tgt = 1 + clamp(lvl + gauss(0, 0.08), 0, 1) * 4;     // the better you are, the bigger the programs that call
   const wsample = (pool, n, w) => { const items = pool.slice(), out = []; while (out.length < n && items.length) { const ws = items.map(w), tot = ws.reduce((a, b) => a + b, 0); let r = rnd() * tot, i = 0; for (; i < items.length - 1; i++) { r -= ws[i]; if (r <= 0) break; } out.push(items.splice(i, 1)[0]); } return out; };
-  const hw = t => Math.exp(-Math.pow(t[6] - tgt, 2) / 1.6) + 0.02;
-  const nUS = rnd() < 0.5 ? 3 : 2;
-  const hs = wsample(HS_TEAMS.filter(t => t[2] === 'USA'), nUS, hw).concat(wsample(HS_TEAMS.filter(t => t[2] === 'MX'), 5 - nUS, hw)).sort((a, b) => b[6] - a[6])
-    .map(t => ({ name: t[1], lg: 'HS', id: 'hs-' + t[0], c1: '#' + t[4], c2: '#' + t[5], stars: t[6], sub: `${t[3]} · ${t[2] === 'USA' ? 'USA' : 'México'}`, role: t[6] <= tgt - 0.4 ? 'Starter from day one' : t[6] >= tgt + 0.9 ? 'Battle for the job' : 'Real shot at starting' }));
+  const prestige = r => clamp(Math.round(3 + ((COLLEGES.find(c => c[0] === r[1]) || [0, 0])[1])), 1, 5);
+  const hw = r => Math.exp(-Math.pow(prestige(r) - tgt, 2) / 1.6) + 0.02;
+  const nMX = rnd() < 0.5 ? 1 : 2;
+  const card = r => ({ name: r[1], lg: r[2] === 'MX' ? 'ONEFA' : 'NCAA', id: r[0], c1: '#' + r[4], c2: '#' + r[5], stars: prestige(r), sub: r[2] === 'MX' ? `ONEFA · ${r[3]}` : `NCAA ${r[2]}${r[3] ? ' · ' + r[3] : ''}`,
+    role: prestige(r) <= tgt - 0.4 ? 'Starter from day one' : prestige(r) >= tgt + 0.9 ? 'Battle for the job' : 'Real shot at starting' });
+  const colleges = wsample(NCAA.filter(r => ['FBS', 'FCS', 'OTHER'].includes(r[2])), 5 - nMX, hw).concat(wsample(NCAA.filter(r => r[2] === 'MX'), nMX, hw)).sort((a, b) => prestige(b) - prestige(a)).map(card);
   const pro = (div, lg, sub) => { const r = pick(NCAA.filter(x => x[2] === div)); return { name: r[1], lg, id: r[0], c1: '#' + r[4], c2: '#' + r[5], stars: 0, sub, role: lvl >= 0.6 ? 'Wants you as a starter' : lvl >= 0.35 ? 'Wants you on the roster' : 'Tryout offer' }; };
-  return { lvl, hs, lfa: pro('LFA', 'LFA', 'México · pro league'), ufl: pro('UFL', 'UFL', 'United Football League') };
+  return { lvl, hs: colleges, lfa: pro('LFA', 'LFA', 'México · pro league'), ufl: pro('UFL', 'UFL', 'United Football League') };
 }
 function offerCard(o) {
   const stars = o.stars ? '★'.repeat(o.stars) + '<i>' + '★'.repeat(5 - o.stars) + '</i>' : '';
@@ -199,7 +201,7 @@ function renderOffers() {
   setScreen(`<div class="wrap narrow offers" style="--yc:${y.c1}">
     <div class="eyebrow">AFTER YOUR ${esc(P.youth || 'MFL').toUpperCase()} SEASON</div><h2 class="h-xl">WHO WANTS YOU?</h2>
     <div class="muted of-lead">Recruiting interest: <b>${rcLabel(O.lvl)}</b> · OVR ${P.ovr}. A better rating and a better season bring bigger programs. Pick one — you start your next season there.</div>
-    <section class="card"><div class="card-h"><h3>HIGH SCHOOLS</h3><span class="muted small">5 interested · USA + México</span></div><div class="of-grid">${O.hs.map(offerCard).join('')}</div></section>
+    <section class="card"><div class="card-h"><h3>COLLEGES</h3><span class="muted small">5 interested · NCAA + ONEFA</span></div><div class="of-grid">${O.hs.map(offerCard).join('')}</div></section>
     <section class="card"><div class="card-h"><h3>PRO PATHWAYS</h3><span class="muted small">1 LFA · 1 UFL</span></div><div class="of-grid">${offerCard(O.lfa)}${offerCard(O.ufl)}</div></section>
   </div>`);
   Snd.play('up', 0.3);
@@ -213,7 +215,7 @@ Object.assign(actions, {
   csOffers: () => { CS = null; renderOffers(); },
   offerPick: (d) => {
     const o = offerPool(d.n); if (!o) return;
-    confirmBox(`Join ${esc(o.name)}?`, `${esc(o.sub)} · ${esc(o.role)}. You will play your next season there${o.lg === 'HS' ? '' : ' and then enter the draft'}.`, 'JOIN', () => {
+    confirmBox(`Join ${esc(o.name)}?`, `${esc(o.sub)} · ${esc(o.role)}. You will play your next season there and then enter the draft.`, 'JOIN', () => {
       preview.college = o.name; form.college = o.name; CS = null; Snd.play('whistle'); csStart();
     });
   },

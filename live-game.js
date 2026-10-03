@@ -107,6 +107,93 @@ function lvBuild(game) {
   return out;
 }
 
+
+/* ---------- real end zone designs (home team paints BOTH end zones, as in a real stadium) ----------
+   bg: paint color, or null = bare turf (several teams really play on unpainted grass with only the lettering painted on top).
+   ends: [left zone, right zone] (one entry = same word at both ends). Everything is drawn in the zone's own frame:
+   x along the 53.3-yard length (0 = middle, text reads left to right), y across the depth (-50 end line ... +50 goal line), 10 px per yard.
+   t = wordmark {s text, f fill, o outline, w outline width, ff font, h cap height px, n length px, x, y, it italic, sh [color, dx, dy] 3D shadow}
+   l = logo {k team|nfl|afc|nfc, x, y, w, g grayscale}; x = special {bolt, spark, rule, band} */
+const LV_EZ = {
+  BUF: { bg: '#00338D', ends: [[{ t: { s: 'BILLS', f: '#F5F5F5', o: '#C60C30', w: 3, ff: 'Alfa Slab One', h: 76, n: 290 } }]] },
+  MIA: { bg: null, ends: [[{ t: { s: 'MIAMI', f: '#F8F9F7', o: '#FC4C02', w: 3, ff: 'Racing Sans One', h: 56, n: 346, it: 1 } }], [{ t: { s: 'DOLPHINS', f: '#F8F9F7', o: '#FC4C02', w: 3, ff: 'Racing Sans One', h: 52, n: 400, it: 1 } }]] },
+  NE: { bg: null, ends: [[{ t: { s: 'PATRIOTS', f: '#FAFAFA', o: '#002244', w: 2.5, ff: 'Barlow Condensed', fw: 800, h: 82, n: 260, y: -8 } }, { l: { k: 'team', x: 0, y: 22, w: 64 } }]] },
+  NYJ: { bg: '#125740', ends: [[{ t: { s: 'JETS', f: '#F1F5F0', ff: 'Racing Sans One', h: 71, n: 435, it: 1 } }]] },
+  BAL: { bg: '#241773', ends: [[{ t: { s: 'RAVENS', f: '#FFFFFF', o: '#9E7C0C', w: 4, ff: 'Black Ops One', h: 90, n: 280 } }], [{ t: { s: 'BALTIMORE', f: '#FFFFFF', o: '#9E7C0C', w: 4, ff: 'Black Ops One', h: 66, n: 400 } }]] },
+  CIN: { bg: '#FB4F14', deco: 'tiger', ends: [[{ t: { s: 'BENGALS', f: '#000000', o: '#FFFFFF', w: 4.5, ff: 'Alfa Slab One', h: 42, n: 420 } }]] },
+  CLE: { bg: null, ends: [[{ t: { s: 'BROWNS', f: '#F8F9F7', o: '#FF3C00', w: 3, ff: 'Saira Extra Condensed', fw: 800, h: 62, n: 280 } }], [{ t: { s: 'CLEVELAND', f: '#F8F9F7', o: '#FF3C00', w: 3, ff: 'Saira Extra Condensed', fw: 800, h: 62, n: 360 } }]] },
+  PIT: { bg: null, ends: [[{ t: { s: 'PITTSBURGH', f: '#FFB612', o: '#101820', w: 3, ff: 'Archivo Black', h: 46, n: 340, x: -34 } }, { l: { k: 'nfl', x: 228, y: 0, w: 50 } }], [{ t: { s: 'STEELERS', f: '#FFB612', o: '#101820', w: 3, ff: 'Archivo Black', h: 46, n: 300, x: -34 } }, { l: { k: 'nfl', x: 228, y: 0, w: 50 } }]] },
+  HOU: { bg: '#03202F', ends: [[{ t: { s: 'TEXANS', f: '#FFFFFF', o: '#A71930', w: 3.5, ff: 'Russo One', h: 60, n: 330 } }]] },
+  IND: { bg: '#1A4FB0', ends: [[{ t: { s: 'INDIANAPOLIS', f: '#F2EFE8', ff: 'Archivo Black', h: 50, n: 440 } }], [{ t: { s: 'COLTS', f: '#F2EFE8', o: '#0B1D5B', w: 3, ff: 'Archivo Black', h: 70, n: 240 } }, { l: { k: 'afc', x: -205, y: 8, w: 40 } }, { l: { k: 'nfl', x: 205, y: 8, w: 40 } }]] },
+  JAX: { bg: '#0A5B7B', ends: [[{ t: { s: 'JAGUARS', f: '#FFFFFF', ff: 'Archivo Black', h: 40, n: 330, y: 6 } }, { t: { s: 'JACKSONVILLE', f: '#E8F1F4', ff: 'Archivo Black', h: 16, n: 250, y: -30 } }]] },
+  TEN: { bg: null, ends: [[{ t: { s: 'TITANS', f: '#0C2340', o: '#FFFFFF', w: 5, ff: 'Russo One', h: 66, n: 480, sh: ['#4B92DB', 4, 4] } }]] },
+  DEN: { bg: null, ends: [[{ t: { s: 'BRONCOS', f: '#FB4F14', o: '#FFFFFF', w: 4, ff: 'Russo One', h: 60, n: 360 } }]] },
+  KC: { bg: null, ends: [[{ t: { s: 'CHIEFS', f: '#E31837', ff: 'Alfa Slab One', h: 60, n: 350 } }]] },
+  LV: { bg: '#0A0A0A', ends: [[{ t: { s: 'Las Vegas', f: '#DADDE0', ff: 'Pacifico', h: 52, n: 340, cap: 0.62 } }, { x: 'spark', px: -170, py: -30, r: 12 }, { x: 'spark', px: 150, py: 28, r: 9 }, { x: 'spark', px: 205, py: -26, r: 7 }, { x: 'spark', px: -215, py: 26, r: 6 }], [{ t: { s: 'RAIDERS', f: '#A5ACAF', o: '#FFFFFF', w: 1.5, ff: 'Russo One', h: 64, n: 340 } }]] },
+  LAC: { bg: '#0080C6', deco: 'band', ends: [[{ t: { s: 'CHARGERS', f: '#FFFFFF', ff: 'Russo One', h: 50, n: 330, x: 14, y: 4 } }, { x: 'bolt', px: -230, py: 6, r: 22 }], [{ t: { s: 'LOS ANGELES', f: '#FFFFFF', ff: 'Russo One', h: 46, n: 380, x: 14, y: 4 } }, { x: 'bolt', px: -230, py: 6, r: 22 }]] },
+  DAL: { bg: '#1B3A8C', ends: [[{ t: { s: 'COWBOYS', f: '#A9B0B4', o: '#FFFFFF', w: 3, ff: 'Russo One', h: 60, n: 270, sh: ['#0B1F5A', 3, 3] } }, { l: { k: 'team', x: -215, y: 0, w: 82, g: 1 } }, { l: { k: 'team', x: 215, y: 0, w: 82, g: 1 } }]] },
+  NYG: { bg: '#1E5FB5', ends: [[{ t: { s: 'GIANTS', f: '#FFFFFF', ff: 'Archivo Black', h: 66, n: 320, x: 20, sh: ['#0B2265', 4, 4] } }, { l: { k: 'team', x: -225, y: 0, w: 76 } }]] },
+  PHI: { bg: '#00494F', ends: [[{ t: { s: 'EAGLES', f: '#EDF1F1', ff: 'Squada One', h: 72, n: 360 } }]] },
+  WAS: { bg: null, ends: [[{ t: { s: 'COMMANDERS', f: '#5A1414', ff: 'Barlow Condensed', fw: 800, h: 46, n: 400 } }, { x: 'rule', py: -34, n: 430 }, { x: 'rule', py: 34, n: 430 }, { l: { k: 'team', x: -235, y: 0, w: 62 } }, { l: { k: 'team', x: 235, y: 0, w: 62 } }]] },
+  CHI: { bg: null, ends: [[{ t: { s: 'CHICAGO', f: '#C83803', o: '#0B162A', w: 3, ff: 'Archivo Black', h: 56, n: 380 } }, { l: { k: 'nfc', x: -232, y: 8, w: 52 } }, { l: { k: 'nfl', x: 232, y: 8, w: 48 } }], [{ t: { s: 'BEARS', f: '#C83803', o: '#0B162A', w: 3, ff: 'Archivo Black', h: 60, n: 290 } }, { l: { k: 'nfc', x: -232, y: 8, w: 52 } }, { l: { k: 'nfl', x: 232, y: 8, w: 48 } }]] },
+  DET: { bg: '#0076B6', ends: [[{ t: { s: 'LIONS', f: 'none', o: '#FFFFFF', w: 3, ff: 'Russo One', h: 66, n: 330 } }]] },
+  GB: { bg: '#2E6B2E', op: 0.9, ends: [[{ t: { s: 'PACKERS', f: '#FFB612', o: '#FFFFFF', w: 3, ff: 'Alfa Slab One', h: 66, n: 340 } }], [{ t: { s: 'GREEN BAY', f: '#FFB612', o: '#FFFFFF', w: 3, ff: 'Alfa Slab One', h: 66, n: 410 } }]] },
+  MIN: { bg: '#4F2683', ends: [[{ t: { s: 'VIKINGS', f: '#F4F1EA', ff: 'Cinzel', fw: 900, h: 64, n: 400, cap: 0.7 } }]] },
+  ATL: { bg: null, ends: [[{ t: { s: 'ATLANTA', f: '#FFFFFF', o: '#000000', w: 1.5, ff: 'Archivo Black', h: 56, n: 168, x: -172 } }, { l: { k: 'team', x: 0, y: 0, w: 130 } }, { t: { s: 'FALCONS', f: '#FFFFFF', o: '#000000', w: 1.5, ff: 'Archivo Black', h: 56, n: 168, x: 172 } }]] },
+  CAR: { bg: null, ends: [[{ t: { s: 'PANTHERS', f: '#000000', o: '#0085CA', w: 5, ff: 'Russo One', h: 48, n: 420, it: 1 } }]] },
+  NO: { bg: null, deco: 'sband', ends: [[{ t: { s: 'SAINTS', f: '#000000', o: '#D3BC8D', w: 2.5, ff: 'Alfa Slab One', h: 58, n: 330 } }]] },
+  TB: { bg: null, ends: [[{ t: { s: 'BUCCANEERS', f: '#D50A0A', o: '#FFFFFF', w: 1.5, ff: 'Alfa Slab One', h: 42, n: 400, sh: ['#111111', 4, 4] } }]] },
+  ARI: { bg: null, ends: [[{ t: { s: 'ARIZONA', f: '#97233F', o: '#FFFFFF', w: 4, ff: 'Archivo Black', h: 50, n: 330 } }], [{ t: { s: 'CARDINALS', f: '#97233F', o: '#FFFFFF', w: 4, ff: 'Archivo Black', h: 50, n: 400 } }]] },
+  LAR: { bg: '#0B2A8A', ends: [[{ t: { s: 'RAMS', f: '#FFD100', ff: 'Alfa Slab One', h: 66, n: 280 } }]] },
+  SF: { bg: null, ends: [[{ t: { s: '49ERS', f: '#AA0000', o: '#B3995D', w: 4, ff: 'Rye', h: 56, n: 300, cap: 0.7 } }, { l: { k: 'nfl', x: -235, y: 10, w: 48 } }, { l: { k: 'nfc', x: 235, y: 10, w: 52 } }]] },
+  SEA: { bg: '#002244', ends: [[{ t: { s: 'SEAHAWKS', f: '#A5ACAF', o: '#FFFFFF', w: 1.5, ff: 'Graduate', h: 52, n: 330, x: -4 } }, { l: { k: 'nfl', x: -232, y: 0, w: 46 } }, { l: { k: 'team', x: 232, y: 0, w: 70 } }]] },
+};
+// patches that have no logo file: drawn as small badges
+const lvPatch = (txt, c, x, y, w) => `<g transform="translate(${x} ${y})"><path d="M${-w / 2} ${-w * 0.55}h${w}v${w * 0.7}q0 ${w * 0.4} ${-w / 2} ${w * 0.55}q${-w / 2} ${-w * 0.15} ${-w / 2} ${-w * 0.55}z" fill="${c}" stroke="#fff" stroke-width="2"/><text y="${w * 0.12}" text-anchor="middle" font-family="'Barlow Condensed'" font-weight="800" font-size="${w * 0.4}" fill="#fff">${txt}</text></g>`;
+const lvSpark = (x, y, r) => `<path d="M${x} ${y - r}Q${x + r * 0.15} ${y - r * 0.15} ${x + r} ${y}Q${x + r * 0.15} ${y + r * 0.15} ${x} ${y + r}Q${x - r * 0.15} ${y + r * 0.15} ${x - r} ${y}Q${x - r * 0.15} ${y - r * 0.15} ${x} ${y - r}z" fill="#E8ECEF"/>`;
+const lvBolt = (x, y, r) => `<path transform="translate(${x} ${y}) scale(${r / 22})" d="M-14 -30L10 -30L0 -8L16 -8L-10 30L-2 4L-16 4Z" fill="#FFC20E"/>`;
+function lvEzItems(items, team) {
+  return items.map(it => {
+    if (it.t) {
+      const t = it.t, cap = t.cap || 0.72, fs = t.h / cap, x = t.x || 0, y = (t.y || 0) + t.h / 2;
+      const one = (dx, dy, fill, o, w) => `<text x="${x + dx}" y="${y + dy}" text-anchor="middle" textLength="${t.n}" lengthAdjust="spacingAndGlyphs" font-family="'${t.ff}',Impact,sans-serif" font-weight="${t.fw || 400}" font-size="${fs.toFixed(1)}" fill="${fill}"${o ? ` stroke="${o}" stroke-width="${w}" stroke-linejoin="round" paint-order="stroke"` : ''}${t.it ? ` transform="translate(${x} ${y}) skewX(-10) translate(${-x} ${-y})"` : ''}>${esc(t.s)}</text>`;
+      return `<g opacity=".95">${t.sh ? one(t.sh[1], t.sh[2], t.sh[0], t.sh[0], (t.w || 0) + 1) : ''}${one(0, 0, t.f, t.o, t.w)}</g>`;
+    }
+    if (it.l) {
+      const l = it.l, src = l.k === 'team' ? logoUrl(team.id) : l.k === 'nfl' ? NFL_LOGO : '';
+      if (l.k === 'afc') return lvPatch('AFC', '#D50A0A', l.x, l.y, l.w);
+      if (l.k === 'nfc') return lvPatch('NFC', '#013369', l.x, l.y, l.w);
+      return `<image href="${src}" x="${l.x - l.w / 2}" y="${l.y - l.w / 2}" width="${l.w}" height="${l.w}" opacity=".95" preserveAspectRatio="xMidYMid meet"${l.g ? ' style="filter:grayscale(1) brightness(1.25)"' : ''}/>`;
+    }
+    if (it.x === 'spark') return lvSpark(it.px, it.py, it.r);
+    if (it.x === 'bolt') return lvBolt(it.px, it.py, it.r);
+    if (it.x === 'rule') return `<rect x="${-it.n / 2}" y="${it.py - 1.6}" width="${it.n}" height="3.2" fill="#5A1414" opacity=".95"/>`;
+    return '';
+  }).join('');
+}
+// the stripes of the Bengals zone: black curved bands over the orange, from both sidelines
+function lvTiger() {
+  let out = '';
+  for (let i = 0; i < 9; i++) {
+    const x0 = -246 + i * 62, w = 20 + (i % 3) * 5, bend = (i % 2 ? 1 : -1) * 16;
+    out += `<path d="M${x0} -50 Q${x0 + bend} -16 ${x0 + bend * 0.2} 0 Q${x0 - bend * 0.8} 16 ${x0 + w * 0.2} 50 L${x0 + w + 6} 50 Q${x0 + w - bend * 0.5} 16 ${x0 + w + bend * 0.2} 0 Q${x0 + w + bend} -16 ${x0 + w} -50Z" fill="#0b0b0b"/>`;
+  }
+  return out;
+}
+function lvEndZone(x, team, rot, endIdx) {
+  const d = LV_EZ[team.id], top = LV_PAD, cx = x + 50, cy = lvY(0);
+  if (!d) {                                                        // safety net: a team with no design gets its color and name
+    const bg = team.c1, txt = lum(bg) > 0.5 ? '#101418' : '#FFFFFF';
+    return `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="${bg}"/><g transform="translate(${cx} ${cy}) rotate(${rot})"><text text-anchor="middle" y="22" font-family="'Anton',sans-serif" font-size="70" fill="${txt}">${esc(team.nick.toUpperCase())}</text></g>`;
+  }
+  const items = d.ends[Math.min(endIdx, d.ends.length - 1)];
+  const turf = `<rect x="${x}" y="${top}" width="50" height="${LV_FH}" fill="#2a8044"/><rect x="${x + 50}" y="${top}" width="50" height="${LV_FH}" fill="#2f8a4a"/>`;   // mowed grass shows through unpainted zones
+  const paint = turf + (d.bg ? `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="${d.bg}" opacity="${d.op || 0.94}"/>` : '');
+  const local = (d.deco === 'tiger' ? lvTiger() : '') + (d.deco === 'band' ? `<rect x="-270" y="-50" width="540" height="7" fill="#fff" opacity=".85"/>` : '')
+    + (d.deco === 'sband' ? `<rect x="-270" y="-50" width="540" height="9" fill="#101010" opacity=".92"/><rect x="-270" y="-39" width="540" height="2" fill="#D3BC8D"/>` : '') + lvEzItems(items, team);
+  return `${paint}<g transform="translate(${cx} ${cy}) rotate(${rot})">${local}</g>`;
+}
+
 /* ---------- the field ---------- */
 function lvFieldSVG(away, home) {
   const A = TEAM[away], H = TEAM[home], top = LV_PAD, bot = LV_PAD + LV_FH, cy = lvY(0);
@@ -135,22 +222,14 @@ function lvFieldSVG(away, home) {
     };
     return place(bot - 120 - NH, false) + place(top + 120, true);
   }).join('');
-  // end zones: the team's color, its name in big letters across the zone, its logo on each side of the name, orange pylons at the corners
-  const dk = c => mixHex(c, '#000000', 0.22);
-  const ezOf = (x, team, rot) => {
-    const bg = team.c1, txt = Math.abs(lum(team.c2) - lum(bg)) > 0.28 ? team.c2 : (lum(bg) > 0.5 ? '#101418' : '#ffffff'), ol = lum(txt) > 0.5 ? '#000' : '#fff';
-    const name = team.nick.toUpperCase(), fs = 70, len = Math.max(170, Math.min(370, name.length * fs * 0.5)), cx = x + 50, half = len / 2;
-    const logo = y => `<image href="${logoUrl(team.id)}" x="${cx - 36}" y="${y - 36}" width="72" height="72" preserveAspectRatio="xMidYMid meet"/>`;
-    return `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="${bg}"/><rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="${dk(bg)}" opacity=".18"/>
-    <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" textLength="${len}" lengthAdjust="spacingAndGlyphs" transform="rotate(${rot} ${cx} ${cy})" class="lv-ez" font-size="${fs}" fill="${txt}" stroke="${ol}" stroke-opacity=".55">${esc(name)}</text>
-    ${logo(cy - half - 52)}${logo(cy + half + 52)}`;
-  };
+  // end zones: the home team's real design, painted on BOTH ends
+  const ezOf = (x, team, rot, end) => lvEndZone(x, team, rot, end);
   const pylon = (x, y) => `<rect x="${x - 4.5}" y="${y - 4.5}" width="9" height="9" fill="#ff6a13" stroke="#fff" stroke-width="1"/>`;
   const pylons = [100, 1100, 0, 1200].map(x => pylon(Math.min(1198, Math.max(2, x)), top + 5) + pylon(Math.min(1198, Math.max(2, x)), bot - 5)).join('');
   const post = (x, d) => `<g stroke="#ffd23d" stroke-width="5" stroke-linecap="round" fill="none"><line x1="${x}" x2="${x}" y1="${lvY(-3.1)}" y2="${lvY(3.1)}"/><line x1="${x}" x2="${x + d * 18}" y1="${lvY(-3.1)}" y2="${lvY(-3.1)}"/><line x1="${x}" x2="${x + d * 18}" y1="${lvY(3.1)}" y2="${lvY(3.1)}"/></g>`;
   const shield = x => `<image href="${NFL_LOGO}" x="${x - 34}" y="${cy - 34}" width="68" height="68" opacity=".9" preserveAspectRatio="xMidYMid meet"/>`;
   return `<svg class="lv-field" viewBox="0 0 ${LV_FW} ${LV_FH + 2 * LV_PAD}" role="img" aria-label="Football field">
-    <rect width="${LV_FW}" height="${LV_FH + 2 * LV_PAD}" rx="16" fill="#1e5f34"/>${stripes}${ezOf(0, A, -90)}${ezOf(1100, H, 90)}
+    <rect width="${LV_FW}" height="${LV_FH + 2 * LV_PAD}" rx="16" fill="#1e5f34"/>${stripes}${ezOf(0, H, -90, 0)}${ezOf(1100, H, 90, 1)}
     <g class="lv-lines">${lines}${hashes}<rect x="1" y="${top}" width="1198" height="${LV_FH}" fill="none" stroke="#fff" stroke-opacity=".95" stroke-width="4"/></g>
     <g class="lv-nums" fill="#fff" fill-opacity=".88">${nums}</g>
     ${shield(lvX(25))}${shield(lvX(75))}

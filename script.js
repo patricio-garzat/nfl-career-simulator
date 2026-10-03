@@ -1889,7 +1889,7 @@ function renderTitle() {
 let collegeDiv = 'ALL';
 const collegeImg = (name, size = 80, cls = 'col-logo') => { const c = COLLEGE_INFO[name]; return c ? `<img class="${cls}" src="${collegeLogo(c.id, size)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ''; };
 const collegeChip = name => `<span class="chip chip-col">${collegeImg(name, 40, 'col-logo xs')}${esc(name)}</span>`;
-const DIV_LABEL = { FBS: 'FBS', FCS: 'FCS', OTHER: 'Other', MX: 'México', LFA: 'LFA', UFL: 'UFL', HS: 'High school', MFL: 'MFL' };
+const DIV_LABEL = { FBS: 'FBS', FCS: 'FCS', OTHER: 'Other', MX: 'México', LFA: 'LFA', UFL: 'UFL', MFL: 'MFL' };
 // leagues shown first; picking one reveals its teams
 const COLLEGE_LEAGUES = [
   { k: 'NCAA', name: 'NCAA', sub: 'College football', logo: 'assets/leagues/ncaa.png', divs: ['FBS', 'FCS', 'OTHER'] },
@@ -1957,7 +1957,7 @@ function renderCreate() {
       <label class="lbl lbl-m">College <span class="hint">every NCAA program + Mexican ONEFA and LFA teams + the UFL</span></label>
       ${collegePickerHTML()}
       </div>
-      <div class="youth-note" id="youthNote" ${form.youth ? '' : 'hidden'}>🧒 <b>You'll play a season with your first team.</b> Then 5 high schools (USA and Mexico), the LFA and the UFL make you offers — and you pick where to go next. Leave First Team empty to choose a college right now.</div>
+      <div class="youth-note" id="youthNote" ${form.youth ? '' : 'hidden'}>🧒 <b>You'll play a season with your first team.</b> Then 5 colleges (NCAA and ONEFA), the LFA and the UFL make you offers — and you pick where to go next. Leave First Team empty to choose a college right now.</div>
       <div class="row3">
         <div><label class="lbl">Age</label><input class="input" type="number" min="21" max="25" data-model="age" value="${form.age}"></div>
         <div><label class="lbl">Jersey Number <span class="hint" id="numHint"></span></label><input class="input" type="number" min="0" max="99" data-model="number" value="${form.number}"></div>

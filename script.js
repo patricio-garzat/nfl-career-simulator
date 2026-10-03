@@ -1323,7 +1323,7 @@ function normJersey(c) {
   o = { ...JC_EL_DEFAULT, numFont: 'jets', nameFont: 'jets', numSize: 100, numY: 0, nameSize: 100, numOutlineW: 2.4, nameOutlineW: 0, pattern: 'solid', ...o };
   o.torsoLogo = !!o.torsoLogo; o.logoX = clamp(Number(o.logoX) || 150, 8, 292); o.logoY = clamp(Number(o.logoY) || 112, 8, 337); o.logoSize = clamp(Number(o.logoSize) || 100, 40, 220);
   o.sleeveStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.sleeveStyle) ? o.sleeveStyle : 'even'; o.sleeveThick = clamp(Number(o.sleeveThick) || 100, 60, 200); o.sleeveNumY = clamp(Number(o.sleeveNumY) || 0, -50, 40);
-  o.showWord = o.showWord !== false; o.swoosh = !!o.swoosh; o.sleeveLogo = !!o.sleeveLogo; o.sleeveLogoSize = clamp(Number(o.sleeveLogoSize) || 100, 40, 160); o.sleeveNums = !!o.sleeveNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
+  o.showWord = o.showWord !== false; o.swoosh = !!o.swoosh; o.sleeveLogo = !!o.sleeveLogo; o.sleeveLogoFlipL = !!o.sleeveLogoFlipL; o.sleeveLogoFlipR = !!o.sleeveLogoFlipR; o.sleeveLogoSize = clamp(Number(o.sleeveLogoSize) || 100, 40, 160); o.sleeveNums = !!o.sleeveNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
   const hx = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d; o.primary = hx(o.primary, '#FFFFFF'); o.secondary = hx(o.secondary, '#111418'); o.accent = hx(o.accent, '#FFFFFF');
   o.numSize = clamp(Number(o.numSize) || 100, 50, 150); o.nameSize = clamp(Number(o.nameSize) || 100, 50, 150); o.numY = clamp(Number(o.numY) || 0, -60, 70);
   o.numOutlineW = clamp(Number(o.numOutlineW) || 0, 0, 8); o.nameOutlineW = clamp(Number(o.nameOutlineW) || 0, 0, 5);
@@ -1348,7 +1348,7 @@ function randomJersey(teamId, current) {
   if (rnd() < 0.15) c.collarContrast = false;
   c.numFont = pick(['cond', 'cond', 'block', 'athletic']); c.nameFont = c.numFont; c.numOutlineW = pick([0, 3.2, 3.2, 4.5]);
   c.sleeveStyle = pick(JC_SLEEVE_STYLES)[0]; c.sleeveThick = pick([90, 100, 120, 150]);
-  if (current) { c.numSize = current.numSize; c.numY = current.numY; c.nameSize = current.nameSize; c.swoosh = current.swoosh; c.sleeveLogo = current.sleeveLogo; c.sleeveLogoSize = current.sleeveLogoSize; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
+  if (current) { c.numSize = current.numSize; c.numY = current.numY; c.nameSize = current.nameSize; c.swoosh = current.swoosh; c.sleeveLogo = current.sleeveLogo; c.sleeveLogoFlipL = current.sleeveLogoFlipL; c.sleeveLogoFlipR = current.sleeveLogoFlipR; c.sleeveLogoSize = current.sleeveLogoSize; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
   return autoText(c);
 }
 
@@ -1464,7 +1464,7 @@ function jerseyOne(cfg, view, name, number, o = {}) {
   const sl = (cfg.sleeveLogo && tid && TEAM[tid] && UNI.slogo) ? ['L', 'R'].map(sd => {
     const g = UNI.slogo[view][sd], w = g.w * cfg.sleeveLogoSize / 100, k = lum(C['sleeve' + sd]) > 0.45 ? 'light' : 'dark';
     const href = o.logoData ? o.logoData[k] : jcLogoUrl(tid, k);
-    return `<image class="jc-slogo" href="${href}" x="${(-w / 2).toFixed(2)}" y="${(-w / 2).toFixed(2)}" width="${w.toFixed(2)}" height="${w.toFixed(2)}" preserveAspectRatio="xMidYMid meet" transform="translate(${g.x} ${g.y}) rotate(${g.r})${(back ? sd === 'L' : sd === 'R') ? ' scale(-1 1)' : ''}"/>`;
+    return `<image class="jc-slogo" href="${href}" x="${(-w / 2).toFixed(2)}" y="${(-w / 2).toFixed(2)}" width="${w.toFixed(2)}" height="${w.toFixed(2)}" preserveAspectRatio="xMidYMid meet" transform="translate(${g.x} ${g.y}) rotate(${g.r})${((back ? sd : (sd === 'L' ? 'R' : 'L')) === 'L') !== !!cfg['sleeveLogoFlip' + (back ? sd : (sd === 'L' ? 'R' : 'L'))] ? ' scale(-1 1)' : ''}"/>`;
   }).join('') : '';
   const sleeveLogos = sl ? `<g clip-path="url(#${id}bo)">${sl}</g>` : '';
   const yokes = back ? ['yoke'] : ['yokeL', 'yokeR'];
@@ -2205,7 +2205,7 @@ function renderLocker(keepScroll) {
         ${cfg.swoosh ? colorRow('Swoosh color', 'parts.swoosh', C.swoosh, cfg.parts.swoosh ? '<button class="mini" data-act="jcPartAuto" data-k="swoosh">Auto</button>' : '<span class="hint">auto</span>') : ''}
         <div class="lk-sub">Team logo on the sleeves <span class="hint">right as is, left mirrored</span></div>
         <div class="seg"><button class="tog ${cfg.sleeveLogo ? 'on' : ''}" data-act="jcSleeveLogo"><i></i>Logo on sleeves</button></div>
-        ${cfg.sleeveLogo ? range('Sleeve logo size', 'sleeveLogoSize', 40, 160, 5, cfg.sleeveLogoSize, '%') : ''}
+        ${cfg.sleeveLogo ? range('Sleeve logo size', 'sleeveLogoSize', 40, 160, 5, cfg.sleeveLogoSize, '%') + `<div class="seg"><button class="tog ${cfg.sleeveLogoFlipR ? 'on' : ''}" data-act="jcSleeveFlip" data-s="R"><i></i>Flip right sleeve</button><button class="tog ${cfg.sleeveLogoFlipL ? 'on' : ''}" data-act="jcSleeveFlip" data-s="L"><i></i>Flip left sleeve</button></div>` : ''}
         <div class="lk-sub">Team logo on the chest <span class="hint">drag it on the jersey to move it</span></div>
         <div class="seg"><button class="tog ${cfg.torsoLogo ? 'on' : ''}" data-act="jcTorsoLogo"><i></i>Logo on chest</button>${cfg.torsoLogo ? '<button class="mini" data-act="jcLogoCenter">Reset position</button>' : ''}</div>
         ${cfg.torsoLogo ? range('Logo size', 'logoSize', 40, 220, 5, cfg.logoSize, '%') + (jcView === 'back' ? '<div class="muted small">Switch to FRONT to see and move the logo.</div>' : '') : ''}
@@ -2610,6 +2610,7 @@ const actions = {
   jcLogoCenter: () => editJersey(c => { c.logoX = 150; c.logoY = 112; c.logoSize = 100; }),
   jcNumReset: () => editJersey(c => { c.sleeveNumY = 0; }),
   jcSwoosh: () => editJersey(c => { c.swoosh = !c.swoosh; }),
+  jcSleeveFlip: (d) => editJersey(c => { c['sleeveLogoFlip' + d.s] = !c['sleeveLogoFlip' + d.s]; }),
   jcSleeveLogo: () => editJersey(c => { c.sleeveLogo = !c.sleeveLogo; }),
   jcWord: () => { jcView = 'front'; editJersey(c => { c.showWord = !c.showWord; }); },
   jcSleeveStyle: (d) => editJersey(c => { c.sleeveStyle = d.k; }),

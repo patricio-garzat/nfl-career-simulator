@@ -125,7 +125,7 @@ const LV_EZ = {
   CLE: { bg: null, ends: [[{ t: { s: 'BROWNS', f: '#F8F9F7', o: '#FF3C00', w: 3, ff: 'Saira Extra Condensed', fw: 800, h: 62, n: 280 } }], [{ t: { s: 'CLEVELAND', f: '#F8F9F7', o: '#FF3C00', w: 3, ff: 'Saira Extra Condensed', fw: 800, h: 62, n: 360 } }]] },
   PIT: { bg: null, ends: [[{ t: { s: 'PITTSBURGH', f: '#FFB612', o: '#101820', w: 3, ff: 'Archivo Black', h: 46, n: 340, x: -34 } }, { l: { k: 'nfl', x: 228, y: 0, w: 50 } }], [{ t: { s: 'STEELERS', f: '#FFB612', o: '#101820', w: 3, ff: 'Archivo Black', h: 46, n: 300, x: -34 } }, { l: { k: 'nfl', x: 228, y: 0, w: 50 } }]] },
   HOU: { bg: '#03202F', ends: [[{ t: { s: 'TEXANS', f: '#FFFFFF', o: '#A71930', w: 3.5, ff: 'Russo One', h: 60, n: 330 } }]] },
-  IND: { bg: '#1A4FB0', ends: [[{ t: { s: 'INDIANAPOLIS', f: '#F2EFE8', ff: 'Archivo Black', h: 50, n: 440 } }], [{ t: { s: 'COLTS', f: '#F2EFE8', o: '#0B1D5B', w: 3, ff: 'Archivo Black', h: 70, n: 240 } }, { l: { k: 'afc', x: -205, y: 8, w: 40 } }, { l: { k: 'nfl', x: 205, y: 8, w: 40 } }]] },
+  IND: { bg: '#1A4FB0', ends: [[{ l: { k: 'img', src: 'assets/nfl/colts-wordmark.png', x: 0, y: 0, w: 250, h: 76, stretch: 1 } }]] },   // the COLTS wordmark in white on blue (stretched wide, as painted on a field)
   JAX: { bg: '#0A5B7B', ends: [[{ t: { s: 'JAGUARS', f: '#FFFFFF', ff: 'Archivo Black', h: 40, n: 330, y: 6 } }, { t: { s: 'JACKSONVILLE', f: '#E8F1F4', ff: 'Archivo Black', h: 16, n: 250, y: -30 } }]] },
   TEN: { bg: null, ends: [[{ t: { s: 'TITANS', f: '#0C2340', o: '#FFFFFF', w: 5, ff: 'Russo One', h: 66, n: 480, sh: ['#4B92DB', 4, 4] } }]] },
   DEN: { bg: null, ends: [[{ t: { s: 'BRONCOS', f: '#FB4F14', o: '#FFFFFF', w: 4, ff: 'Russo One', h: 60, n: 360 } }]] },
@@ -175,7 +175,7 @@ function lvEzItemsRaw(items, team) {
     }
     if (it.l) {
       const l = it.l, src = l.k === 'team' ? logoUrl(team.id) : l.k === 'nfl' ? NFL_LOGO : `https://a.espncdn.com/i/teamlogos/nfl/500/${l.k}.png`;   // afc / nfc from the ESPN CDN
-      const lh = l.h || l.w; return `<image href="${l.src || src}" x="${l.x - l.w / 2}" y="${l.y - lh / 2}" width="${l.w}" height="${lh}" opacity=".95" preserveAspectRatio="xMidYMid meet"${l.g ? ' style="filter:grayscale(1) brightness(1.25)"' : ''}/>`;
+      const lh = l.h || l.w; return `<image href="${l.src || src}" x="${l.x - l.w / 2}" y="${l.y - lh / 2}" width="${l.w}" height="${lh}" opacity=".95" preserveAspectRatio="${l.stretch ? 'none' : 'xMidYMid meet'}"${l.g ? ' style="filter:grayscale(1) brightness(1.25)"' : ''}/>`;
     }
     if (it.x === 'spark') return lvSpark(it.px, it.py, it.r);
     if (it.x === 'bolt') return lvBolt(it.px, it.py, it.r);

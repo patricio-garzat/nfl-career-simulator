@@ -789,6 +789,14 @@ function lvScoreboardHTML(L) {
   return `<div class="lv-bug" id="lvBug">${side(a, 'away')}<div class="bug-mid"><div class="bug-dd" id="lvBugDD">KICKOFF</div><div class="bug-brand"><img src="${NFL_LOGO}" alt="NFL"></div><div class="bug-clock"><span id="lvQ">1st Q</span><b id="lvClock">15:00</b></div></div>${side(h, 'home')}</div>`;
 }
 
+// background track by broadcast window: Thursday night, Sunday game day, Sunday night, Monday night
+function lvTrack(game) {
+  const n = String(game.slotName || ''), r = String(game.round || '');
+  if (/monday/i.test(n)) return 'assets/sounds/live-monday-night.mp3';
+  if (/thursday|thanksgiving/i.test(n)) return 'assets/sounds/live-thursday-night.mp3';
+  if (/night/i.test(n) || /super bowl/i.test(r + n)) return 'assets/sounds/live-sunday-night.mp3';
+  return 'assets/sounds/live-sunday-gameday.mp3';
+}
 async function openLiveGame(game, notes, season) {
   const myId = game.tm, oppId = game.opp, away = game.home ? oppId : myId, home = game.home ? myId : oppId, P = S.player;
   const myDir = game.home ? -1 : 1;                          // away team attacks to the right, home team to the left
@@ -807,6 +815,7 @@ async function openLiveGame(game, notes, season) {
       <div class="lv-log card" id="lvLog"></div>
     </div></div>`;
   document.body.appendChild(ov);
+  Snd.music(lvTrack(game), 0.16);
   const $ = id => document.getElementById(id), setScore = () => { $('lvScore_away').textContent = L.score.away; $('lvScore_home').textContent = L.score.home; };
   const setClock = (q, clock) => { $('lvQ').textContent = ['1st', '2nd', '3rd', '4th'][q - 1] + ' Q'; $('lvClock').textContent = clock; };
   const setBugDD = txt => { const el = $('lvBugDD'); if (el) el.textContent = txt; };
@@ -820,6 +829,7 @@ async function openLiveGame(game, notes, season) {
   tiles();
   ov.querySelectorAll('[data-lv-speed]').forEach(b => b.addEventListener('click', () => { L.speed = Number(b.dataset.lvSpeed); LV.speed = L.speed; ov.querySelectorAll('[data-lv-speed]').forEach(x => x.classList.toggle('on', x === b)); }));
   const finish = () => {
+    Snd.stopMusic(500);
     if (L.finished) return; L.finished = true; L.skipped = true;  (L.waits || []).splice(0).forEach(f => f()); if (L.cancelAnim) L.cancelAnim();
     const el = document.getElementById('lvOverlay'); if (el) el.remove();
     if (game.st !== 'OUT') { /* the box score is the truth */ }
@@ -831,6 +841,7 @@ async function openLiveGame(game, notes, season) {
   const bumpScore = side => { const el = $('lvScore_' + side); if (el) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } };
   const banner = async (text, cls, ms = 1500) => { const b = $('lvBanner'); if (!b || b.classList.contains('final')) return; b.className = 'lv-banner show ' + cls; b.textContent = text; await sleep(ms); if (b && !b.classList.contains('final')) b.className = 'lv-banner'; };
   const finalScreen = (skipped) => {
+    Snd.stopMusic(900);
     L.score = { away: game.home ? game.op : game.my, home: game.home ? game.my : game.op }; setScore();
     const el = document.getElementById('lvOverlay'); if (!el) return finish();
     const win = game.w; POS[P.pos].stats.forEach(x => { L.T[x.k] = (game.s || {})[x.k] || 0; }); tiles(); L.frozen = true; setClock(4, '0:00'); setBugDD('FINAL');

@@ -1215,7 +1215,7 @@ const Snd = (() => {
   }, { passive: true, capture: true }));
   document.addEventListener('visibilitychange', () => { if (!document.hidden && !muted && ctx && ctx.state !== 'running') revive(); });
   function setMuted(m) {
-    muted = m;
+    muted = m; if (typeof bg !== 'undefined' && bg) bg.muted = m;
     if (master) master.gain.setTargetAtTime(m ? 0 : VOLUME, ctx.currentTime, 0.05);
     if (!m) unlock();
   }
@@ -1228,7 +1228,22 @@ const Snd = (() => {
       const p = au.play(); if (p && p.catch) p.catch(() => { if (fallback) play(fallback); });
     } catch (e) { if (fallback) play(fallback); }
   }
-  return { play, file, unlock, setMuted, isMuted: () => muted };
+  // background music: one looping track at a time, quiet, faded in and out; follows the sound button
+  var bg = null, bgFade = 0;
+  function music(url, vol = 0.16) {
+    stopMusic(0);
+    try {
+      const au = new Audio(url); au.loop = true; au.volume = 0; au.muted = muted; au.preload = 'auto'; bg = au; bg._vol = vol;
+      const p = au.play(); if (p && p.catch) p.catch(() => {});
+      clearInterval(bgFade); let t = 0; bgFade = setInterval(() => { t += 50; if (bg !== au) return clearInterval(bgFade); au.volume = Math.min(vol, vol * t / 1800); if (t >= 1800) clearInterval(bgFade); }, 50);
+    } catch (e) { bg = null; }
+  }
+  function stopMusic(ms = 700) {
+    const au = bg; if (!au) return; bg = null; clearInterval(bgFade);
+    if (!ms) { try { au.pause(); } catch (e) { /* ignore */ } return; }
+    const v0 = au.volume; let t = 0; const iv = setInterval(() => { t += 50; au.volume = Math.max(0, v0 * (1 - t / ms)); if (t >= ms) { clearInterval(iv); try { au.pause(); } catch (e) { /* ignore */ } } }, 50);
+  }
+  return { play, file, music, stopMusic, unlock, setMuted, isMuted: () => muted };
 })();
 
 /* ---------------------------------------------------------------------

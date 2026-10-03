@@ -225,8 +225,8 @@ function lvFieldSVG(away, home) {
   }).join('');
   // yard numbers: 6 ft x 4 ft numerals (drawn 1.5x so they read on a small screen), base 12 yd from the sideline, clear of the line on both sides;
   // the 10-40 pairs carry a small arrow pointing at the nearest goal line. Far-side numbers are turned 180° so they read from the other sideline.
-  const NW = 17, NH = 25.5, GAP = 8, ARW = 11;
-  const digit = (ch, cx, y0, rot) => `<text x="${cx}" y="${y0 + NH}" text-anchor="middle" font-size="${NH / 0.7}" ${ch === '1' ? '' : `textLength="${NW}" lengthAdjust="spacingAndGlyphs"`} ${rot ? `transform="rotate(180 ${cx} ${y0 + NH / 2})"` : ''}>${ch}</text>`;
+  const NW = 17, NH = 22, GAP = 7, ARW = 10;   // NFL spec: numerals 6 ft x 4 ft (2 yd tall), base 12 yd from the sideline, in a Clarendon-style slab (many fields); Bevan is the closest free font
+  const digit = (ch, cx, y0, rot) => `<text x="${cx}" y="${y0 + NH}" text-anchor="middle" font-size="${NH / 0.72}" ${ch === '1' ? '' : `textLength="${NW}" lengthAdjust="spacingAndGlyphs"`} ${rot ? `transform="rotate(180 ${cx} ${y0 + NH / 2})"` : ''}>${ch}</text>`;
   const nums = [1, 2, 3, 4, 5, 4, 3, 2, 1].map((n, i) => {
     const X = lvX((i + 1) * 10), toLeft = i < 4, toRight = i > 4;
     const place = (y0, far) => {

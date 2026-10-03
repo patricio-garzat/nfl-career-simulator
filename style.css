@@ -1,3 +1,8 @@
+/* jersey fonts from fontspace.com (personal-use licenses) */
+@font-face { font-family: 'Old Sport Athletic'; src: url('assets/fonts/OldSportAthletic.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Jackport College'; src: url('assets/fonts/JackportCollege.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Jersey M54'; src: url('assets/fonts/JerseyM54.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Maldini'; src: url('assets/fonts/MaldiniBold.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
 
 /* ---------- Theme variables ---------- */
 :root { color-scheme: dark; --lime: #c5ff3a; --lime2: #7be83a; --soft: #cdd7ec; --soft2: #b5c0d6; --field: #0a111d; --toast: #1b2740; --btnbg: rgba(16, 24, 39, .85); --btnbg-h: rgba(40, 56, 86, .95);

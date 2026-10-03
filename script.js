@@ -1274,44 +1274,11 @@ const JC_PARTS = [['body', 'Body'], ['sleeveL', 'Left Sleeve'], ['sleeveR', 'Rig
 // cap = cap-height / font-size (calibrated once the fonts load, see jcCalibrate), wf = average glyph width / font-size
 const JC_FONTS = [
   { k: 'jets', label: 'NFL Jets', css: "'Saira Extra Condensed'", w: 900, cap: 0.70, wf: 0.36, glyph: true },   // numbers use the traced glyphs (fonts-jets.js); names use the closest font
-  { k: 'cond', label: 'Condensed', css: "'Barlow Condensed'", w: 800, cap: 0.70, wf: 0.46 },
-  { k: 'block', label: 'Block', css: "'Anton'", w: 400, cap: 0.73, wf: 0.46 },
-  { k: 'athletic', label: 'Athletic', css: "'Oswald'", w: 700, cap: 0.73, wf: 0.50 },
-  { k: 'varsity', label: 'Varsity', css: "'Graduate'", w: 400, cap: 0.70, wf: 0.66 },
-  { k: 'slab', label: 'Slab', css: "'Alfa Slab One'", w: 400, cap: 0.70, wf: 0.62 },
-  { k: 'tech', label: 'Tech', css: "'Teko'", w: 700, cap: 0.64, wf: 0.40 },
-  // approximations of the lettering each team wears (the real ones are custom, unlicensed typefaces): the closest free Google fonts
-  { k: 't_ari', label: 'Cardinals style', css: "'Russo One'", w: 400, cap: 0.70, wf: 0.68, team: true },
-  { k: 't_atl', label: 'Falcons style', css: "'Racing Sans One'", w: 400, cap: 0.64, wf: 0.61, team: true },
-  { k: 't_bal', label: 'Ravens style', css: "'Black Ops One'", w: 400, cap: 0.65, wf: 0.71, team: true },
-  { k: 't_buf', label: 'Bills style', css: "'Archivo Black'", w: 400, cap: 0.69, wf: 0.77, team: true },
-  { k: 't_car', label: 'Panthers style', css: "'Teko'", w: 700, cap: 0.64, wf: 0.51, team: true },
-  { k: 't_chi', label: 'Bears style', css: "'Bevan'", w: 400, cap: 0.78, wf: 0.84, team: true },
-  { k: 't_cin', label: 'Bengals style', css: "'Passion One'", w: 900, cap: 0.62, wf: 0.59, team: true },
-  { k: 't_cle', label: 'Browns style', css: "'Anton'", w: 400, cap: 0.86, wf: 0.47, team: true },
-  { k: 't_dal', label: 'Cowboys style', css: "'Oswald'", w: 700, cap: 0.81, wf: 0.53, team: true },
-  { k: 't_den', label: 'Broncos style', css: "'Staatliches'", w: 400, cap: 0.70, wf: 0.44, team: true },
-  { k: 't_det', label: 'Lions style', css: "'Titan One'", w: 400, cap: 0.71, wf: 0.68, team: true },
-  { k: 't_gb', label: 'Packers style', css: "'Rammetto One'", w: 400, cap: 0.78, wf: 0.86, team: true },
-  { k: 't_hou', label: 'Texans style', css: "'Chakra Petch'", w: 700, cap: 0.70, wf: 0.65, team: true },
-  { k: 't_ind', label: 'Colts style', css: "'Ultra'", w: 400, cap: 0.72, wf: 0.83, team: true },
-  { k: 't_jax', label: 'Jaguars style', css: "'Exo 2'", w: 900, cap: 0.69, wf: 0.66, team: true },
-  { k: 't_kc', label: 'Chiefs style', css: "'Alfa Slab One'", w: 400, cap: 0.78, wf: 0.78, team: true },
-  { k: 't_lv', label: 'Raiders style', css: "'Black Han Sans'", w: 400, cap: 0.75, wf: 0.70, team: true },
-  { k: 't_lac', label: 'Chargers style', css: "'Bungee'", w: 400, cap: 0.72, wf: 0.71, team: true },
-  { k: 't_lar', label: 'Rams style', css: "'Montserrat'", w: 900, cap: 0.70, wf: 0.75, team: true },
-  { k: 't_mia', label: 'Dolphins style', css: "'Lilita One'", w: 400, cap: 0.70, wf: 0.61, team: true },
-  { k: 't_min', label: 'Vikings style', css: "'Cinzel'", w: 900, cap: 0.70, wf: 0.75, team: true },
-  { k: 't_ne', label: 'Patriots style', css: "'Big Shoulders Display'", w: 900, cap: 0.80, wf: 0.48, team: true },
-  { k: 't_no', label: 'Saints style', css: "'Abril Fatface'", w: 400, cap: 0.70, wf: 0.67, team: true },
-  { k: 't_nyg', label: 'Giants style', css: "'Bebas Neue'", w: 400, cap: 0.70, wf: 0.39, team: true },
-  { k: 't_phi', label: 'Eagles style', css: "'Squada One'", w: 400, cap: 0.65, wf: 0.46, team: true },
-  { k: 't_pit', label: 'Steelers style', css: "'Graduate'", w: 400, cap: 0.75, wf: 0.67, team: true },
-  { k: 't_sf', label: '49ers style', css: "'Rye'", w: 400, cap: 0.76, wf: 0.73, team: true },
-  { k: 't_sea', label: 'Seahawks style', css: "'Rajdhani'", w: 700, cap: 0.64, wf: 0.54, team: true },
-  { k: 't_tb', label: 'Buccaneers style', css: "'Sigmar One'", w: 400, cap: 0.67, wf: 0.81, team: true },
-  { k: 't_ten', label: 'Titans style', css: "'Orbitron'", w: 900, cap: 0.72, wf: 0.82, team: true },
-  { k: 't_was', label: 'Commanders style', css: "'Fjalla One'", w: 400, cap: 0.83, wf: 0.48, team: true },
+  { k: 't_sf', label: '49ers', css: "'Rye'", w: 400, cap: 0.76, wf: 0.73 },
+  { k: 'oldsport', label: 'Old Sport Athletic', css: "'Old Sport Athletic'", w: 400, cap: 0.73, wf: 0.65 },       // fontspace.com fonts, in assets/fonts
+  { k: 'jackport', label: 'Jackport College', css: "'Jackport College'", w: 400, cap: 0.73, wf: 0.47 },
+  { k: 'jerseym54', label: 'Jersey M54', css: "'Jersey M54'", w: 400, cap: 0.77, wf: 0.51 },
+  { k: 'maldini', label: 'Maldini', css: "'Maldini'", w: 400, cap: 0.70, wf: 0.47 },
 ];
 const jcFont = k => JC_FONTS.find(f => f.k === k) || JC_FONTS[0];
 function jcCalibrate() { // measure the real cap height of each font so numbers always have the same visual height
@@ -1457,7 +1424,7 @@ function normJersey(c) {
   o.numSize = clamp(Number(o.numSize) || 100, 50, 150); o.nameSize = clamp(Number(o.nameSize) || 100, 50, 150); o.numY = clamp(Number(o.numY) || 0, -60, 70); o.numYFront = clamp(o.numYFront !== undefined && o.numYFront !== null && Number.isFinite(Number(o.numYFront)) ? Number(o.numYFront) : o.numY, -60, 70);   // number height: the front and the back are independent
   o.sideNumColor = /^#[0-9a-f]{6}$/i.test(o.sideNumColor) ? o.sideNumColor : ''; o.sideNumOutline = /^#[0-9a-f]{6}$/i.test(o.sideNumOutline) ? o.sideNumOutline : '';
   o.numOutlineW = clamp(Number(o.numOutlineW) || 0, 0, 8); o.nameOutlineW = clamp(Number(o.nameOutlineW) || 0, 0, 5);
-  if (!JC_FONTS.some(f => f.k === o.numFont)) o.numFont = 'cond'; if (!JC_FONTS.some(f => f.k === o.nameFont)) o.nameFont = 'cond';
+  if (!JC_FONTS.some(f => f.k === o.numFont)) o.numFont = 'jets'; if (!JC_FONTS.some(f => f.k === o.nameFont)) o.nameFont = 'jets';
   if (!o.numColor || !o.nameColor || !o.numOutline || !o.nameOutline) { const keep = o.textCustom; o.textCustom = false; autoText(o); o.textCustom = keep; }
   return o;
 }
@@ -1476,7 +1443,7 @@ function randomJersey(teamId, current) {
   if (!c.cuffs && rnd() < 0.3) c.cuffs = true;
   if (!c.hemTrim && rnd() < 0.18) c.hemTrim = true;
   if (rnd() < 0.15) c.collarContrast = false;
-  c.numFont = pick(['cond', 'cond', 'block', 'athletic']); c.nameFont = c.numFont; c.numOutlineW = pick([0, 3.2, 3.2, 4.5]);
+  c.numFont = pick(['jets', 'oldsport', 'jackport', 'jerseym54', 'maldini']); c.nameFont = c.numFont; c.numOutlineW = pick([0, 3.2, 3.2, 4.5]);
   c.sleeveStyle = pick(JC_SLEEVE_STYLES)[0]; c.sleeveThick = pick([90, 100, 120, 150]);
   if (current) { c.numSize = current.numSize; c.numY = current.numY; c.numYFront = current.numYFront; c.noSideNums = current.noSideNums; c.nameSize = current.nameSize; c.zp = current.zp; c.swoosh = current.swoosh; c.sleeveLogo = current.sleeveLogo; c.sleeveLogoFlipL = current.sleeveLogoFlipL; c.sleeveLogoFlipR = current.sleeveLogoFlipR; c.jockTag = current.jockTag; c.jockX = current.jockX; c.jockY = current.jockY; c.jockSize = current.jockSize; c.sleeveLogoSize = current.sleeveLogoSize; c.sleeveLogoRot = current.sleeveLogoRot; c.sleeveLogoSpread = current.sleeveLogoSpread; c.sleeveLogoY = current.sleeveLogoY; c.torsoLogo = current.torsoLogo; c.logoX = current.logoX; c.logoY = current.logoY; c.logoSize = current.logoSize; c.sleeveNums = current.sleeveNums; }
   return autoText(c);
@@ -2412,7 +2379,7 @@ const JC_TABS = [['colors', '🎨', 'Colors'], ['style', '👕', 'Style'], ['pat
 function renderLocker(keepScroll) {
   const ed0 = document.querySelector('.jc2-editor'), ey = ed0 ? ed0.scrollTop : 0, ay = app.scrollTop;
   const y = window.scrollY, P = S.player, id = S.teamId, t0 = TEAM[id], alt = jcAlt(), key = jcKey(), t = alt ? { name: alt.name } : TEAM[id], cfg = jerseyFor(key), C = jcColors(cfg), bg = S.jerseyBg || 'team';
-  const fontOpts = cur => { const o = f => `<option value="${f.k}" ${f.k === cur ? 'selected' : ''}>${f.label}</option>`; return `<optgroup label="Classic">${JC_FONTS.filter(f => !f.team).map(o).join('')}</optgroup><optgroup label="NFL team styles">${JC_FONTS.filter(f => f.team).map(o).join('')}</optgroup>`; };
+  const fontOpts = cur => JC_FONTS.map(f => `<option value="${f.k}" ${f.k === cur ? 'selected' : ''}>${f.label}</option>`).join('');
   const opt = (list, cur) => list.map(f => `<option value="${f.k}" ${f.k === cur ? 'selected' : ''}>${f.label}</option>`).join('');
   const chip = (act, k, l, on) => `<button class="mini ${on ? 'on' : ''}" data-act="${act}" data-k="${k}">${l}</button>`;
   const SW = jcSwatches(key);

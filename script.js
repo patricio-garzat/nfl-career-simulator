@@ -1829,8 +1829,15 @@ function applyCollegeFilter() {
   });
   const e = grid.querySelector('.cp-empty'); if (e) e.hidden = n > 0;
 }
-let form = { name: '', pos: 'WR', college: 'Alabama', age: 22, number: NUM_DEFAULT.WR, jerseyName: '' };
+let form = { name: '', pos: 'WR', college: 'Alabama', age: 22, number: NUM_DEFAULT.WR, jerseyName: '', youth: '' };
 let preview = null, rerolls = 3;
+// first team: the MFL (Monterrey Football League) youth club where you started as a kid (optional, just for the story)
+const youthChip = name => { const i = MFL_INFO[name]; return i ? `<span class="chip chip-col youth-chip" style="--yc:${i.c1}"><img class="col-logo xs" src="${mflLogo(i.slug)}" alt="">${esc(name)} <small>MFL</small></span>` : ''; };
+function youthRowHTML() {
+  const i = MFL_INFO[form.youth];
+  return i ? `<button type="button" class="youth-btn on" data-act="pickYouth" style="--yc:${i.c1};--yc2:${i.c2}"><img src="${mflLogo(i.slug)}" alt=""><div><b>${esc(form.youth)}</b><span>MFL · your first team</span></div><em>CHANGE</em></button><button type="button" class="mini youth-x" data-act="youthNone" title="Remove">✕</button>`
+    : `<button type="button" class="youth-btn" data-act="pickYouth"><span class="youth-ph">🧒</span><div><b>Choose your first team</b><span>MFL youth league · optional</span></div><em>PICK</em></button>`;
+}
 function renderCreate() {
   collegeDiv = 'ALL'; collegeLeague = '';
   setScreen(`<div class="wrap create">
@@ -1841,7 +1848,9 @@ function renderCreate() {
       <input class="input" data-model="name" maxlength="24" placeholder="e.g. Alex Johnson" value="${esc(form.name)}" autocomplete="off">
       <label class="lbl">Position</label>
       <div class="pos-grid">${Object.keys(POS).map(p => `<button class="pos-btn ${form.pos === p ? 'sel' : ''}" data-act="pickPos" data-pos="${p}"><b>${p}</b><span>${POS[p].name}</span></button>`).join('')}</div>
-      <label class="lbl">College <span class="hint">every NCAA program + Mexican ONEFA and LFA teams + the UFL</span></label>
+      <label class="lbl lbl-m">First Team <span class="hint">where you started as a kid</span></label>
+      <div class="youth-row" id="youthRow">${youthRowHTML()}</div>
+      <label class="lbl lbl-m">College <span class="hint">every NCAA program + Mexican ONEFA and LFA teams + the UFL</span></label>
       ${collegePickerHTML()}
       <div class="row3">
         <div><label class="lbl">Age</label><input class="input" type="number" min="21" max="25" data-model="age" value="${form.age}"></div>
@@ -1866,7 +1875,7 @@ function renderPreview() {
         ${ovrRing(P.ovr, 'big')}
         <div class="pc-id">
           <div class="pc-name">${esc(P.name)}</div>
-          <div class="chips">${posBadge(P.pos)}<span class="chip">${POS[P.pos].name}</span>${collegeChip(P.college)}<span class="chip">AGE ${P.age}</span></div>
+          <div class="chips">${posBadge(P.pos)}<span class="chip">${POS[P.pos].name}</span>${collegeChip(P.college)}${youthChip(P.youth)}<span class="chip">AGE ${P.age}</span></div>
           <div class="chips"><span class="chip ${P.dev === 'Normal' ? '' : 'gold'}">${P.dev === 'Normal' ? '' : '★ '}${P.dev} development</span><span class="chip">Projection: ${draftProjectionLabel(P)}</span></div>
         </div>
         <div class="pc-jersey">${jerseySVG(collegeJersey(P.college), jName(P), P.number, { noShield: true, backLogo: COLLEGE_INFO[P.college] ? collegeLogo(COLLEGE_INFO[P.college].id, 80) : '' })}</div>
@@ -2389,7 +2398,7 @@ function renderCareerComplete() {
     ${nflLogo('draft')}<div class="eyebrow">RETIREMENT</div>
     <h1 class="h-mega">CAREER COMPLETE</h1>
     <div class="cc-name">${esc(P.name)}</div>
-    <div class="cc-sub">${P.pos} — ${seasons.length} Season${seasons.length === 1 ? '' : 's'} · ${esc(P.college)}</div>
+    <div class="cc-sub">${P.pos} — ${seasons.length} Season${seasons.length === 1 ? '' : 's'} · ${esc(P.college)}${P.youth ? ' · started at ' + esc(P.youth) + ' (MFL)' : ''}</div>
     <div class="legacy ${score >= 45 ? 'hof' : ''}"><span>${score >= 45 ? '🏛️' : '🎽'}</span> ${tier}<small>Legacy score ${Math.round(score)}</small></div>
     <section class="frame-wrap">${frameHTML({ gold: score >= 45, final: true })}</section>
     <section class="card"><div class="eyebrow">CAREER STATS</div><div class="big-line">${cfg.careerLines(C).map(x => `<div><b>${fmtN(x.v)}</b><span>${x.l}</span></div>`).join('')}</div></section>
@@ -2475,12 +2484,19 @@ const actions = {
   /* title */
   toTitle: () => { closeModal(); renderTitle(); },
   startCareer: () => {
-    const go = () => { form = { name: '', pos: 'WR', college: 'Alabama', age: 22, number: NUM_DEFAULT.WR, jerseyName: '' }; renderCreate(); };
+    const go = () => { form = { name: '', pos: 'WR', college: 'Alabama', age: 22, number: NUM_DEFAULT.WR, jerseyName: '', youth: '' }; renderCreate(); };
     if (hasSave()) confirmBox('Start a new career?', 'Your saved career will be replaced as soon as you enter the draft.', 'NEW CAREER', go, true); else go();
   },
   continueCareer: () => { if (loadGame()) goHome(); else { toast('No save found'); renderTitle(); } },
   resetSave: () => confirmBox('Reset save?', 'This permanently deletes your saved career.', 'DELETE', () => { resetSave(); toast('Save deleted'); renderTitle(); }, true),
   closeModal: () => closeModal(),
+  pickYouth: () => {
+    openModal(`<h3 class="modal-h">YOUR FIRST TEAM</h3><p class="modal-p">Where did you play as a kid? <b>MFL</b> = Monterrey Football League.</p>
+      <div class="cp-grid youth-grid">${MFL_TEAMS.map(([slug, name, c1]) => `<button type="button" class="cp-tile ${name === form.youth ? 'on' : ''}" data-act="youthPick" data-n="${esc(name)}" style="--yc:${'#' + c1}"><img src="${mflLogo(slug)}" alt=""><span>${esc(name)}</span></button>`).join('')}</div>
+      <div class="row end"><button class="btn btn-ghost" data-act="youthNone">NO YOUTH TEAM</button><button class="btn btn-primary" data-act="closeModal">DONE</button></div>`, 'youth');
+  },
+  youthPick: (d) => { form.youth = d.n; const r = document.getElementById('youthRow'); if (r) r.innerHTML = youthRowHTML(); closeModal(); Snd.play('chime', 0.02); },
+  youthNone: () => { form.youth = ''; const r = document.getElementById('youthRow'); if (r) r.innerHTML = youthRowHTML(); closeModal(); },
   confirmYes: () => { const f = pendingConfirm; pendingConfirm = null; closeModal(); if (f) f(); },
 
   /* create */
@@ -2495,9 +2511,9 @@ const actions = {
     const age = clamp(parseInt(form.age, 10) || 22, 21, 25), num = parseInt(form.number, 10);
     if (!numberOk(form.pos, num)) { toast(`${form.pos} jersey numbers must be ${numberRule(form.pos)}`); const i = document.querySelector('[data-model="number"]'); if (i) i.focus(); return; }
     form.age = age; rerolls = 3;
-    preview = generatePlayer(name, form.pos, form.college, age); preview.number = num; preview.jerseyName = cleanJerseyName(form.jerseyName); renderPreview();
+    preview = generatePlayer(name, form.pos, form.college, age); preview.number = num; preview.jerseyName = cleanJerseyName(form.jerseyName); preview.youth = form.youth || ''; renderPreview();
   },
-  reroll: () => { if (!rerolls) return; rerolls--; const num = preview.number, jn = preview.jerseyName; preview = generatePlayer(preview.name, preview.pos, preview.college, preview.age); preview.number = num; preview.jerseyName = jn; renderPreview(); },
+  reroll: () => { if (!rerolls) return; rerolls--; const num = preview.number, jn = preview.jerseyName, yt = preview.youth; preview = generatePlayer(preview.name, preview.pos, preview.college, preview.age); preview.number = num; preview.jerseyName = jn; preview.youth = yt; renderPreview(); },
   backCreate: () => renderCreate(),
   enterDraft: () => {
     newCareer(preview);

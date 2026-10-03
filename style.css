@@ -716,3 +716,14 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 /* college season */
 .cs-sum { display: flex; align-items: center; gap: 12px; text-align: left; margin-bottom: 6px; } .cs-sum b { display: block; font-family: var(--head); font-size: 24px; letter-spacing: .05em; text-transform: uppercase; } .cs-sum span { color: var(--mut); font-size: 12px; letter-spacing: .08em; }
 .cs-stock { margin-top: 12px; text-align: center; }
+
+/* youth team (MFL) */
+.youth-row { display: flex; gap: 8px; align-items: stretch; } .youth-btn { flex: 1; display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 14px; border: 1.5px dashed var(--line); background: var(--w60); color: var(--text); cursor: pointer; text-align: left; min-width: 0; transition: border-color .15s, background .15s; } .youth-btn:hover { border-color: var(--lime); }
+.youth-btn > div { flex: 1; min-width: 0; } .youth-btn b { display: block; font-family: var(--head); font-size: 18px; letter-spacing: .05em; text-transform: uppercase; line-height: 1.1; } .youth-btn span { font-size: 11px; color: var(--mut); letter-spacing: .06em; } .youth-btn em { font-style: normal; font-size: 11px; letter-spacing: .14em; color: var(--lime); }
+.youth-btn img { width: 36px; height: 36px; object-fit: contain; flex: none; } .youth-ph { font-size: 26px; width: 36px; text-align: center; flex: none; }
+.youth-btn.on { border-style: solid; border-color: var(--yc); background: linear-gradient(100deg, color-mix(in srgb, var(--yc) 28%, transparent), var(--w60) 70%); } .youth-x { align-self: center; }
+.youth-chip { border-color: var(--yc, var(--line)); background: color-mix(in srgb, var(--yc, transparent) 18%, transparent); } .youth-chip small { opacity: .6; letter-spacing: .1em; margin-left: 2px; }
+.modal-card.youth { max-width: 520px; } .youth-grid { max-height: 52vh; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 4px; } .youth-grid .cp-tile { min-height: 78px; padding: 8px 4px; } .youth-grid .cp-tile span { font-size: 10.5px; } .youth-grid .cp-tile:hover, .youth-grid .cp-tile.on { border-color: var(--yc); background: color-mix(in srgb, var(--yc) 16%, transparent); } .youth-grid .cp-tile img { width: 40px; height: 40px; }
+@media (max-width: 720px) { .wrap.create .youth-btn { padding: 4px 10px; gap: 8px; border-radius: 12px; } .wrap.create .youth-btn img, .wrap.create .youth-ph { width: 28px; height: 28px; font-size: 20px; } .wrap.create .youth-btn b { font-size: 15px; } .wrap.create .youth-btn span { font-size: 10px; } }
+
+@media (max-width: 720px) { .wrap.create .lbl-m { display: none; } .wrap.create .cp-leagues { min-height: 76px; } .wrap.create .cp-league { padding: 2px 6px; } .wrap.create .cp-league img { height: 28px; width: 32px; } .wrap.create .cp-league b { font-size: 15px; } .wrap.create .cp-league span { font-size: 9px; } .wrap.create .cp-league em { display: none; } }

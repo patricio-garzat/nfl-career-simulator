@@ -89,7 +89,7 @@ function renderCollege() {
       <div class="hero-l">${csBadge(info, 'xl')}
         <div><div class="eyebrow">${esc(P.college).toUpperCase()} · STARTER</div>
           <h1 class="player-name">${esc(P.name)}</h1>
-          <div class="chips">${posBadge(P.pos)}<span class="chip">#${CS.num}</span><span class="chip">AGE ${P.age}</span><span class="chip gold">DRAFT: ${esc(draftProjectionLabel(P)).toUpperCase()}</span></div>
+          <div class="chips">${posBadge(P.pos)}<span class="chip">#${CS.num}</span><span class="chip">AGE ${P.age}</span>${youthChip(P.youth)}<span class="chip gold">DRAFT: ${esc(draftProjectionLabel(P)).toUpperCase()}</span></div>
         </div></div>
       ${ovrRing(P.ovr, 'big')}
     </header>

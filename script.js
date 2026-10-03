@@ -1419,7 +1419,7 @@ function normJersey(c) {
   o.torsoLogo = !!o.torsoLogo; o.logoX = clamp(Number(o.logoX) || 150, 8, 292); o.logoY = clamp(Number(o.logoY) || 112, 8, 337); o.logoSize = clamp(Number(o.logoSize) || 100, 40, 220);
   o.sleeveStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.sleeveStyle) ? o.sleeveStyle : 'even'; o.sleeveThick = clamp(Number(o.sleeveThick) || 100, 60, 200); o.sleeveNumY = clamp(Number(o.sleeveNumY) || 0, -50, 40);
   o.zp = jcNormZones(o.zp);
-  o.shCount = clamp(Math.round(Number(o.shCount) || 0), 0, 3); o.shStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.shStyle) ? o.shStyle : 'even'; o.shThick = clamp(Number(o.shThick) || 100, 60, 200); o.shPos = clamp(Number(o.shPos) || 0, -8, 72); o.jockTag = !!o.jockTag; o.jockX = clamp(Number(o.jockX) || 98, 10, 290); o.jockY = clamp(Number(o.jockY) || 322, 200, 340); o.jockSize = clamp(Number(o.jockSize) || 100, 40, 240); o.shAngle = clamp(Number(o.shAngle) || 0, -45, 45); o.sleevePos = clamp(Number(o.sleevePos) || 0, -8, 60);
+  o.shCount = clamp(Math.round(Number(o.shCount) || 0), 0, 3); o.shStyle = JC_SLEEVE_STYLES.some(x => x[0] === o.shStyle) ? o.shStyle : 'even'; o.shThick = clamp(Number(o.shThick) || 100, 60, 200); o.shPos = clamp(Number(o.shPos) || 0, -8, 72); o.nameBox = o.nameBox !== false; o.nameBoxFill = /^#[0-9a-f]{6}$/i.test(o.nameBoxFill) ? o.nameBoxFill : ''; o.nameY = clamp(Number(o.nameY) || 0, -30, 40); o.jockTag = !!o.jockTag; o.jockX = clamp(Number(o.jockX) || 98, 10, 290); o.jockY = clamp(Number(o.jockY) || 322, 200, 340); o.jockSize = clamp(Number(o.jockSize) || 100, 40, 240); o.shAngle = clamp(Number(o.shAngle) || 0, -45, 45); o.sleevePos = clamp(Number(o.sleevePos) || 0, -8, 60);
   o.showWord = o.showWord !== false; o.swoosh = !!o.swoosh; o.sleeveLogo = !!o.sleeveLogo; o.sleeveLogoFlipL = !!o.sleeveLogoFlipL; o.sleeveLogoFlipR = !!o.sleeveLogoFlipR; o.sleeveLogoSize = clamp(Number(o.sleeveLogoSize) || 100, 40, 160); o.sleeveLogoRot = clamp(Number(o.sleeveLogoRot) || 0, -45, 45); o.sleeveLogoSpread = clamp(Number(o.sleeveLogoSpread) || 0, -24, 24); o.sleeveLogoY = clamp(Number(o.sleeveLogoY) || 0, -30, 40); o.noSideNums = !!o.noSideNums; o.sleeveNums = !!o.sleeveNums && !o.noSideNums; o.parts = { ...(o.parts || {}) }; delete o.shoulderStripes; delete o.chestStripe; delete o.verticalStripe;
   const hx = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d; o.primary = hx(o.primary, '#FFFFFF'); o.secondary = hx(o.secondary, '#111418'); o.accent = hx(o.accent, '#FFFFFF');
   o.numSize = clamp(Number(o.numSize) || 100, 50, 150); o.nameSize = clamp(Number(o.nameSize) || 100, 50, 150); o.numY = clamp(Number(o.numY) || 0, -60, 70); o.numYFront = clamp(o.numYFront !== undefined && o.numYFront !== null && Number.isFinite(Number(o.numYFront)) ? Number(o.numYFront) : o.numY, -60, 70);   // number height: the front and the back are independent
@@ -1479,14 +1479,30 @@ function jcJetsRun(t) {
   String(t).split('').forEach(ch => { const g = JETS.glyphs[ch]; if (!g) return; if (parts.length) pen += JETS.gap; parts.push({ d: g.d, x: pen }); pen += g.w; });
   return { w: pen, parts };
 }
+// real width of a run of text (canvas), so the name plate wraps the name exactly
+let _jcMeasure = null;
+function jcTextW(t, size, css, weight, ls) {
+  try {
+    _jcMeasure = _jcMeasure || document.createElement('canvas').getContext('2d');
+    const c = _jcMeasure; c.font = `${weight} ${size}px ${css}, 'Arial Narrow', Impact, sans-serif`;
+    const lsOk = 'letterSpacing' in c; if (lsOk) c.letterSpacing = ls + 'px';
+    const w = c.measureText(t).width; return lsOk ? w : w + ls * t.length;
+  } catch (e) { return null; }
+}
 function jcTexts(c, view, name, number, word) {
   const f = jcFont(c.numFont), nf = jcFont(c.nameFont), digits = String(number).length;
   const capH = 80 * c.numSize / 100 * (digits === 1 ? 1.04 : 1), size = capH / f.cap, y = 171 + (view === 'back' ? c.numY : c.numYFront) + capH / 2;
   const out = [f.glyph ? { k: 'num', jets: true, run: jcJetsRun(number), cap: capH, t: String(number), x: UNI.meta.cx, y, fill: c.numColor, stroke: c.numOutlineW > 0 ? c.numOutline : null, sw: c.numOutlineW, maxW: 130 }
     : { k: 'num', t: String(number), x: UNI.meta.cx, y, size, css: f.css, w: f.w, wf: f.wf, fill: c.numColor, stroke: c.numOutlineW > 0 ? c.numOutline : null, sw: c.numOutlineW, ls: 0, maxW: 130 }];
   if (view === 'back') {
-    const nm = String(name || '').toUpperCase(), len = nm.length, capN = (len > 8 ? 19 - (len - 8) * 1.2 : 19) * c.nameSize / 100;
-    out.push({ k: 'name', t: nm, x: UNI.meta.cx, y: 97, size: capN / nf.cap, css: nf.css, w: nf.w, wf: nf.wf, fill: c.nameColor, stroke: c.nameOutlineW > 0 ? c.nameOutline : null, sw: c.nameOutlineW > 0 ? c.nameOutlineW : 2.4, ls: 1.5, maxW: 150 });
+    const nm = String(name || '').toUpperCase(), len = nm.length, capN = (len > 8 ? 19 - (len - 8) * 1.2 : 19) * c.nameSize / 100, ny = 97 + (c.nameY || 0), sizeN = capN / nf.cap, lsN = 1.5, maxWN = 150;
+    if (c.nameBox && len) {                                   // the name sits in a rectangle that wraps it with a small margin and grows / shrinks with its length
+      const real = jcTextW(nm, sizeN, nf.css, nf.w, lsN), w = Math.min(maxWN, real == null ? len * sizeN * nf.wf + (len - 1) * lsN : real), vis = Math.max(6, w - lsN);     // letter-spacing trails the last letter: the glyphs are centred without it
+      const padX = Math.max(3.5, capN * 0.3), padY = Math.max(2.6, capN * 0.2), body = jcColors(c).body, light = lum(c.nameColor) > 0.5;
+      const fill = c.nameBoxFill || (light ? mixHex(body, '#000000', 0.34) : mixHex(body, '#ffffff', 0.72));
+      out.push({ k: 'plate', x: UNI.meta.cx - lsN / 2, y: ny - capN - padY, w: vis + 2 * padX, h: capN + 2 * padY, fill, line: c.nameOutline && c.nameOutlineW > 0 ? c.nameOutline : c.nameColor });
+    }
+    out.push({ k: 'name', t: nm, x: UNI.meta.cx, y: ny, size: sizeN, css: nf.css, w: nf.w, wf: nf.wf, fill: c.nameColor, stroke: c.nameOutlineW > 0 ? c.nameOutline : null, sw: c.nameOutlineW > 0 ? c.nameOutlineW : 2.4, ls: lsN, maxW: maxWN });
   } else if (word && c.showWord !== false) {
     out.push({ k: 'word', t: String(word).toUpperCase(), x: UNI.meta.cx, y: 97, size: (7 * c.nameSize / 100) / nf.cap, css: nf.css, w: nf.w, wf: nf.wf, fill: c.nameColor, stroke: null, sw: 0, ls: 2.4, maxW: 130 });
   }
@@ -1526,6 +1542,7 @@ function jcShoulderTexts(c, view, number) {
   return [mk('L'), mk('R')];
 }
 const jcTextSVG = s => {
+  if (s.k === 'plate') return `<rect x="${(s.x - s.w / 2).toFixed(2)}" y="${s.y.toFixed(2)}" width="${s.w.toFixed(2)}" height="${s.h.toFixed(2)}" rx="1.4" fill="${s.fill}" stroke="${s.line}" stroke-width=".9"/>`;
   if (s.jets) {
     const k = s.cap / 100, w = s.run.w * k, sq = w > s.maxW ? s.maxW / w : 1;
     const attrs = `fill="${s.fill}" fill-rule="evenodd"${s.stroke ? ` stroke="${s.stroke}" stroke-width="${(s.sw / k).toFixed(2)}" paint-order="stroke" stroke-linejoin="round"` : ''}`;
@@ -1657,6 +1674,7 @@ async function jcDrawJersey(ctx, cfg, view, name, num, word, id, logoData, ox, o
     if (view === 'front') await drawCollarLogo(ctx, ox, oy, sc);
     jcTexts(cfg, view, name, num, word).concat(jcShoulderTexts(cfg, view, num)).forEach(s => {
       ctx.save();
+      if (s.k === 'plate') { ctx.fillStyle = s.fill; ctx.strokeStyle = s.line; ctx.lineWidth = 0.9 * sc; const rx = ox + (s.x - s.w / 2) * sc, ry = oy + s.y * sc; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(rx, ry, s.w * sc, s.h * sc, 1.4 * sc); else ctx.rect(rx, ry, s.w * sc, s.h * sc); ctx.fill(); ctx.stroke(); ctx.restore(); return; }
       if (s.clip) { ctx.translate(ox, oy); ctx.scale(sc, sc); ctx.clip(new Path2D(s.clip === 'bo' ? UNI[view].bodyOuter : UNI[view][s.clip])); ctx.setTransform(1, 0, 0, 1, 0, 0); }
       if (s.jets) {
         const k = s.cap / 100, w = s.run.w * k, sq = w > s.maxW ? s.maxW / w : 1;
@@ -2456,6 +2474,9 @@ function renderLocker(keepScroll) {
         <div class="jc-grid2"><label class="jc-sel"><span>Font</span><select class="input" data-jc="nameFont">${opt(JC_FONTS, cfg.nameFont)}</select></label>${range('Size', 'nameSize', 50, 150, 5, cfg.nameSize, '%')}</div>
         <div class="jc-colors stack">${colorRow('Name color', 'nameColor', cfg.nameColor)}${colorRow('Name outline', 'nameOutline', cfg.nameOutline)}</div>
         ${range('Outline width', 'nameOutlineW', 0, 5, 0.5, cfg.nameOutlineW)}
+        ${range('Move up ↕ down', 'nameY', -30, 40, 1, Math.round(cfg.nameY || 0))}
+        <div class="seg"><button class="tog ${cfg.nameBox ? 'on' : ''}" data-act="jcNameBox"><i></i>Name plate (rectangle)</button></div>
+        ${cfg.nameBox ? colorRow('Plate color', 'nameBoxFill', cfg.nameBoxFill || '#000000', cfg.nameBoxFill ? '<button class="mini" data-act="jcNameBoxAuto">Auto</button>' : '<span class="hint">auto</span>') : ''}
 </section>
 <section class="jc-card"><h4 class="jc-h">🔢 Number</h4>
         <div class="lk-num"><input class="input" type="number" min="0" max="99" value="${playerNumber()}" data-change="jerseyNumber" aria-label="Jersey number" style="max-width:110px"><button class="btn btn-ghost btn-sm" data-act="randNumber2">RANDOM #</button><span class="hint" id="numHint2">${P.pos} numbers: ${numberRule(P.pos)}</span></div>
@@ -2884,6 +2905,8 @@ const actions = {
   jcSwoosh: () => editJersey(c => { c.swoosh = !c.swoosh; }),
   jcSleeveFlip: (d) => editJersey(c => { c['sleeveLogoFlip' + d.s] = !c['sleeveLogoFlip' + d.s]; }),
   jcSleeveLogo: () => editJersey(c => { c.sleeveLogo = !c.sleeveLogo; }),
+  jcNameBox: () => { jcView = 'back'; editJersey(c => { c.nameBox = !c.nameBox; }); },
+  jcNameBoxAuto: () => editJersey(c => { c.nameBoxFill = ''; }),
   jcWord: () => { jcView = 'front'; editJersey(c => { c.showWord = !c.showWord; }); },
   jcSleeveStyle: (d) => editJersey(c => { c.sleeveStyle = d.k; }),
   jcShoulder: (d) => editJersey(c => { c.shCount = Number(d.k); }),

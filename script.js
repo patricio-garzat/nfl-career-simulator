@@ -1061,7 +1061,7 @@ function lastChanceOffer() {
    --------------------------------------------------------------------- */
 const Snd = (() => {
   const AC = window.AudioContext || window.webkitAudioContext;
-  const VOLUME = 0.9;
+  const VOLUME = 0.7;
   let ctx = null, master = null, noiseBuf = null, whiteBuf = null, muted = false;
   // the mute switch is NOT remembered between visits: a stray tap on the 🔇 button must never leave the game silent for good
   try { localStorage.removeItem('nfl_sound_muted'); } catch (e) { /* ignore */ }
@@ -1072,7 +1072,7 @@ const Snd = (() => {
     ctx = new AC();
     ctx.onstatechange = () => { if (!muted && ctx && ctx.state !== 'running' && !document.hidden) ctx.resume().catch(() => {}); };
     master = ctx.createGain(); master.gain.value = muted ? 0 : VOLUME;
-    const soften = ctx.createBiquadFilter(); soften.type = 'lowpass'; soften.frequency.value = 4800; soften.Q.value = 0.3; // takes the edge off everything
+    const soften = ctx.createBiquadFilter(); soften.type = 'lowpass'; soften.frequency.value = 3800; soften.Q.value = 0.3; // takes the edge off everything
     const comp = ctx.createDynamicsCompressor();
     master.connect(soften); soften.connect(comp); comp.connect(ctx.destination);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
@@ -1123,35 +1123,44 @@ const Snd = (() => {
   function applause(t, dur = 1.2, vol = 0.03) {
     for (let i = 0; i < Math.round(dur * 26); i++) noise(t + rnd() * dur, 0.025, { type: 'bandpass', f: rr(1100, 2600), q: 1.2, vol: rr(0.4, 1) * vol * 2.4, attack: 0.002, crisp: true });
   }
-  const P = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66]; // C major pentatonic-ish (C D E G A C D)
+  // ---- ASMR palette: soft textures (brushes, taps, paper, a faint wood knock). Nothing repeats the same pitch, and nothing sings a melody. ----
+  const PIT = [196, 220, 247, 262, 294];
+  // a soft finger/brush tap: a tiny band of noise at a random spot + a barely-there low knock
+  function soft(t, vol = 0.06) { noise(t, 0.035, { type: 'bandpass', f: rr(1300, 2600), q: 0.9, vol: vol * 2.4, attack: 0.002, crisp: true }); tone(rr(150, 200), t, 0.04, { vol: vol * 0.25, attack: 0.002, to: 110 }); }
+  // a brush over fabric / a breath: band-passed noise that slides up or down
+  function brush(t, dur = 0.35, vol = 0.04, up = true) { const lo = rr(600, 800), hi = rr(1500, 2100); noise(t, dur, { type: 'bandpass', f: up ? lo : hi, to: up ? hi : lo, q: 0.55, vol: vol * 3, attack: dur * 0.45 }); }
+  // a tiny glassy droplet at a random pitch (never the same twice)
+  function ping(t, vol = 0.02) { tone(rr(1500, 2700), t, 0.28, { vol, attack: 0.003, pan: rr(-0.4, 0.4) }); }
+  // one low, quiet bowl note for the big moments (random from a few low notes)
+  function hum(t, vol = 0.03) { const f = PIT[Math.floor(rnd() * PIT.length)]; tone(f, t, 2.2, { vol, attack: 0.25, pan: 0 }); tone(f * 2.01, t, 1.2, { vol: vol * 0.25, attack: 0.3, pan: 0 }); }
 
   const lib = {
-    click: t => tap(t, 0.16),
-    tick: t => tap(t, 0.09, 1100),
-    clock: t => { for (let i = 0; i < 4; i++) tap(t + i * 0.55, 0.05, i % 2 ? 900 : 1300); },
-    drum: t => thump(t),
-    pick: t => { thump(t, 0.2); thump(t + 0.3, 0.14); pluck(P[0], t + 0.7, 0.06); pluck(P[2], t + 0.85, 0.06); pluck(P[3], t + 1.0, 0.07); },
-    fanfare: t => { bowl(261.63, t, 0.05); [P[0], P[2], P[3], P[5]].forEach((f, i) => pluck(f, t + 0.1 + i * 0.16, 0.06)); },
-    bigFanfare: t => { bowl(261.63, t, 0.06); bowl(392, t + 0.3, 0.04); [P[0], P[2], P[3], P[5], P[4], P[5], P[6]].forEach((f, i) => pluck(f, t + 0.1 + i * 0.15, 0.06)); air(t + 0.2, 1.8, 0.045); applause(t + 1.3, 2.2, 0.028); },
-    roar: t => { air(t, 1.8, 0.05); applause(t + 0.2, 1.6, 0.026); },
-    cheer: t => applause(t, 1.0, 0.05),
-    whistle: t => { pluck(P[3], t, 0.045); pluck(P[5], t + 0.12, 0.045); },
-    horn: t => { [P[0], P[2], P[3]].forEach((f, i) => pluck(f, t + i * 0.1, 0.05)); },
-    td: t => { [P[0], P[2], P[3], P[5]].forEach((f, i) => pluck(f, t + i * 0.1, 0.06)); bowl(196, t, 0.05); applause(t + 0.3, 1.5, 0.026); },
-    win: t => { pluck(P[2], t, 0.05); pluck(P[3], t + 0.12, 0.055); },
-    lose: t => { pluck(P[2], t, 0.04); pluck(P[0], t + 0.16, 0.035); },
-    boo: t => tone(190, t, 0.7, { vol: 0.035, attack: 0.1, to: 140 }),
-    injury: t => { thump(t, 0.13); tone(147, t + 0.05, 0.8, { vol: 0.04, attack: 0.08, to: 110 }); },
-    chime: (t, f = 1046.5) => { tone(f, t, 1.6, { vol: 0.07, attack: 0.01 }); tone(f * 2.01, t, 0.8, { vol: 0.018, attack: 0.01 }); },
-    up: t => [P[0], P[1], P[2], P[3], P[5]].forEach((f, i) => pluck(f, t + i * 0.09, 0.05)),
-    down: t => { pluck(P[3], t, 0.04); pluck(P[1], t + 0.14, 0.035); },
-    whoosh: t => air(t, 0.8, 0.045),
-    cash: t => { pluck(1318.5, t, 0.035); pluck(1760, t + 0.08, 0.03); },
-    contract: t => { lib.cash(t); lib.fanfare(t + 0.3); applause(t + 1, 1.4, 0.024); },
-    seasonEnd: t => { bowl(196, t, 0.05); [P[2], P[3], P[5]].forEach((f, i) => pluck(f, t + 0.2 + i * 0.2, 0.05)); },
-    draftEnd: t => { lib.chime(t, 880); applause(t + 0.2, 1.2, 0.04); },
-    anthem: t => { [130.81, 196, 261.63, 329.63].forEach((f, i) => bowl(f, t + i * 0.9, 0.05)); },
-    phone: t => { pluck(880, t, 0.04); pluck(880, t + 0.5, 0.04); pluck(1046.5, t + 1.0, 0.04); },
+    click: t => soft(t, 0.05),
+    tick: t => soft(t, 0.03),
+    clock: t => { for (let i = 0; i < 4; i++) soft(t + i * 0.55, 0.025); },
+    drum: t => thump(t, 0.1),
+    pick: t => { thump(t, 0.12); brush(t + 0.25, 0.5, 0.035, true); ping(t + 0.7, 0.014); },
+    fanfare: t => { brush(t, 0.6, 0.04, true); ping(t + 0.35, 0.016); ping(t + 0.5, 0.012); hum(t + 0.2, 0.022); },
+    bigFanfare: t => { hum(t, 0.035); brush(t + 0.1, 1.2, 0.04, true); [0.4, 0.6, 0.85, 1.05].forEach(d => ping(t + d, 0.013)); air(t + 0.3, 1.6, 0.03); applause(t + 1.2, 2.2, 0.024); },
+    roar: t => { air(t, 1.8, 0.04); applause(t + 0.2, 1.6, 0.022); },
+    cheer: t => applause(t, 1.0, 0.04),
+    whistle: t => { brush(t, 0.22, 0.03, true); soft(t + 0.18, 0.03); },
+    horn: t => { thump(t, 0.07); brush(t + 0.05, 0.4, 0.03, true); },
+    td: t => { thump(t, 0.09); brush(t + 0.05, 0.6, 0.035, true); ping(t + 0.3, 0.014); applause(t + 0.3, 1.5, 0.022); },
+    win: t => { brush(t, 0.5, 0.035, true); ping(t + 0.3, 0.014); },
+    lose: t => { brush(t, 0.55, 0.03, false); },
+    boo: t => tone(rr(150, 190), t, 0.7, { vol: 0.02, attack: 0.15, to: 120 }),
+    injury: t => { thump(t, 0.09); brush(t + 0.05, 0.6, 0.025, false); },
+    chime: (t, f) => { ping(t, 0.02); hum(t, 0.015); },
+    up: t => { brush(t, 0.5, 0.035, true); ping(t + 0.3, 0.013); ping(t + 0.42, 0.01); },
+    down: t => { brush(t, 0.45, 0.03, false); },
+    whoosh: t => air(t, 0.8, 0.035),
+    cash: t => { soft(t, 0.04); ping(t + 0.06, 0.012); },
+    contract: t => { lib.cash(t); lib.fanfare(t + 0.3); applause(t + 1, 1.4, 0.02); },
+    seasonEnd: t => { hum(t, 0.03); brush(t + 0.15, 0.8, 0.03, false); },
+    draftEnd: t => { ping(t, 0.016); brush(t, 0.7, 0.03, true); applause(t + 0.2, 1.2, 0.03); },
+    anthem: t => { hum(t, 0.03); hum(t + 0.9, 0.025); },
+    phone: t => { soft(t, 0.04); soft(t + 0.5, 0.04); soft(t + 1.0, 0.04); },
     // ---- mini games: very quiet, single events (no loops), a little random pitch each time so it never feels repetitive ----
     mgSnap: t => { thump(t, 0.1); noise(t, 0.06, { type: 'lowpass', f: 900, vol: 0.06, crisp: true, attack: 0.002 }); },
     mgThrow: t => { air(t, 0.55, 0.03); tone(rr(300, 380), t, 0.3, { vol: 0.014, attack: 0.08, to: rr(520, 640) }); },
@@ -1159,13 +1168,13 @@ const Snd = (() => {
     mgKick: t => { thump(t, 0.2); noise(t, 0.12, { type: 'lowpass', f: 1500, vol: 0.07, crisp: true, attack: 0.002 }); air(t + 0.06, 0.9, 0.028); },
     mgHit: t => { thump(t, 0.15); noise(t, 0.09, { type: 'lowpass', f: 650, vol: 0.07, attack: 0.002 }); },
     mgSwish: t => air(t, 0.35, 0.03),
-    mgGood: (t, lvl = 0) => { pluck(P[Math.min(6, 1 + lvl)] * (rnd() < 0.5 ? 1 : 1.0), t, 0.045); if (lvl >= 2) pluck(P[Math.min(6, 3 + lvl)], t + 0.09, 0.03); },
+    mgGood: (t, lvl = 0) => { ping(t, 0.02); if (lvl >= 2) ping(t + 0.09, 0.012); },
     mgMiss: t => tone(rr(130, 165), t, 0.55, { vol: 0.035, attack: 0.06, to: 105 }),
     mgCrowd: (t, lvl = 1) => { noise(t, 1.1 * lvl, { type: 'bandpass', f: 420, to: 650, q: 0.6, vol: 0.022, attack: 0.45 }); applause(t + 0.25, 0.7 * lvl, 0.012); },
     mgTension: t => tone(115, t, 1.5, { vol: 0.025, attack: 0.7, to: 150 }),
     mgTick: t => tap(t, 0.04, rr(800, 1000)),
     mgPost: t => { tone(1318, t, 0.9, { vol: 0.03, attack: 0.002 }); tone(1980, t, 0.5, { vol: 0.012, attack: 0.002 }); noise(t, 0.05, { type: 'bandpass', f: 2200, q: 1.5, vol: 0.05, crisp: true, attack: 0.001 }); },
-    trade: t => { air(t, 0.7, 0.04); pluck(P[2], t + 0.3, 0.05); pluck(P[4], t + 0.45, 0.05); applause(t + 0.5, 1.0, 0.022); },
+    trade: t => { air(t, 0.7, 0.035); ping(t + 0.3, 0.014); ping(t + 0.45, 0.012); applause(t + 0.5, 1.0, 0.02); },
   };
 
   // browsers pause audio on their own (idle tab, 'interrupted' on Safari/iOS, a closed context): wake it up again, or rebuild it

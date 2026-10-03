@@ -274,7 +274,7 @@ function lvFieldSVG(away, home, sb) {
 // u = yards from the line of scrimmage towards the end zone the offense attacks, v = lateral yards (screen-down is positive)
 const LV_ME = { QB: 'QB', RB: 'RB', WR: 'WR1', TE: 'TE', OL: 'OL2', DL: 'DL2', LB: 'LB2', CB: 'CB1', S: 'S1', K: 'K' };
 const LV_PASS_KINDS = ['catch', 'incomplete', 'qbPass', 'qbInc', 'qbInt', 'pressure', 'sackAllowed', 'sack', 'int', 'pd'];
-const LV_SN = 1.6;                                           // script seconds between breaking the huddle and the snap (the clock does not run during it)
+const LV_SN = 2.5;                                           // script seconds between breaking the huddle and the snap (the clock does not run during it)
 const lvSgn = v => (v < 0 ? -1 : 1);
 const lvLabel = role => role.replace(/\d+$/, '');
 
@@ -318,11 +318,12 @@ function lvPlan(play) {
       S2: !pass ? [8.2, 6.5 * fl] : twoHigh ? [13.8, 8.5 * fl] : [8.8, 7.2 * fl],
     });
   }
-  const offKeys = Object.keys(F.off);
-  offKeys.forEach(r => {                                        // the huddle: linemen and backs gather behind the ball, receivers come in from the flanks
-    const q = F.pre[r] || F.off[r];
-    F.hud[r] = r.startsWith('OL') ? [-8 + rr(-0.5, 0.5), q[1] * 0.5] : r === 'QB' ? [-8.8, rr(-0.4, 0.4)] : r === 'K' ? [-11, -2] : [Math.min(q[0], -1) - 5, q[1] * 0.92 + rr(-0.5, 0.5)];
-  });
+  // the huddle: the offense starts as a tight ball behind the line (the QB at the open end, the others around it, the men who will line up on the left on the left side), then breaks to the formation
+  const hu = -Math.min(9.5, (play.los || 25) + 6), HR = 3.3, offKeys = Object.keys(F.off), rest = offKeys.filter(r => r !== 'QB').sort((a, b) => (F.pre[a] || F.off[a])[1] - (F.pre[b] || F.off[b])[1]), half = Math.ceil(rest.length / 2);
+  F.hc = [hu, 0];
+  const ring = (deg, r) => { const t = deg * Math.PI / 180; return [hu + Math.cos(t) * HR + rr(-0.1, 0.1), Math.sin(t) * HR + rr(-0.1, 0.1)]; };
+  if (F.off.QB) F.hud.QB = ring(0);
+  rest.forEach((r, i) => { const neg = i < half, n = neg ? half : rest.length - half, j = neg ? i : i - half, step = n > 1 ? 145 / (n - 1) : 0; F.hud[r] = ring(neg ? -170 + j * step : 25 + j * step); });
   Object.keys(F.def).forEach(r => { const q = F.def[r]; F.dst[r] = [q[0] + (r.startsWith('DL') ? rr(3, 4) : rr(2.5, 4.5)), q[1] * 1.05 + rr(-1, 1)]; });
   return F;
 }
@@ -339,7 +340,7 @@ function lvMakeActors(sc, play) {
   const actors = {}, svg = 'http://www.w3.org/2000/svg';
   const mk = (role, off) => {
     const q = (off ? F.hud : F.dst)[role], p = sc.P(q[0], q[1]), isMe = sc.meOnField && off === sc.meOff && role === sc.myRole;
-    const col = off ? sc.offCol : sc.defCol, id = role + (off ? '' : '_d'), face = (off ? sc.dir === 1 : sc.dir !== 1) ? 0 : Math.PI;
+    const col = off ? sc.offCol : sc.defCol, id = role + (off ? '' : '_d'), hc = off && F.hc ? sc.P(F.hc[0], F.hc[1]) : null, face = hc ? Math.atan2(hc.y - p.y, hc.x - p.x) : (off ? sc.dir === 1 : sc.dir !== 1) ? 0 : Math.PI;   // the huddle looks at its middle
     const el = document.createElementNS(svg, 'g'); el.setAttribute('class', 'lv-pl' + (isMe ? ' me' : ''));
     el.innerHTML = `<g class="lv-fc"><path d="M9 -5.2L16.5 0L9 5.2Z" fill="${isMe ? '#ffd23d' : '#fff'}" opacity=".92"/></g><circle r="${isMe ? 12.5 : 9.5}" fill="${col}" stroke="${isMe ? '#ffd23d' : '#fff'}" stroke-width="${isMe ? 3.5 : 2}"/>`
       + (isMe ? `<text y="3.6" text-anchor="middle" class="lv-pn">${playerNumber()}</text>` : `<text y="2.7" text-anchor="middle" class="lv-pr" fill="${contrastOn(col)}">${lvLabel(role)}</text>`);
@@ -469,8 +470,8 @@ function lvPlayScript(play, sc, A, T) {
 
   /* ---- before the snap: break the huddle, line up, (motion) ---- */
   const shadow = F.mot && F.cov === 'man' ? (F.mot === 'RB' ? 'LB1' : 'LB3') : null;
-  Object.keys(F.off).forEach(r => { const q = F.pre[r] || F.off[r]; T.move(r, to(q[0], q[1]), rr(0, 0.12), SN - (r === F.mot ? 0.9 : 0.5) - rr(0, 0.08), { prof: 1, pa: 0.2, pd: 0.25 }); });
-  defKeys.forEach(r => { const q = D(r); T.move(dd(r), to(q[0], q[1]), 0.1 + rr(0, 0.2), SN - (r === shadow ? 0.9 : 0.18), { prof: 1, pa: 0.3, pd: 0.4 }); });
+  Object.keys(F.off).forEach(r => { const q = F.pre[r] || F.off[r]; T.move(r, to(q[0], q[1]), 0.55 + rr(0, 0.18), SN - (r === F.mot ? 0.9 : 0.5) - rr(0, 0.08), { prof: 1, pa: 0.2, pd: 0.25 }); });
+  defKeys.forEach(r => { const q = D(r); T.move(dd(r), to(q[0], q[1]), 0.2 + rr(0, 0.3), SN - (r === shadow ? 0.9 : 0.18), { prof: 1, pa: 0.3, pd: 0.4 }); });
   if (F.mot) {
     const q = O(F.mot), pq = F.pre[F.mot]; M(F.mot, q, -0.7, -0.02, { prof: 1, pa: 0.3, pd: 0.3 });
     if (shadow) M(dd(shadow), [D(shadow)[0], D(shadow)[1] + (q[1] - pq[1]) * 0.85], -0.55, -0.02, { prof: 1, pa: 0.3, pd: 0.3 });   // man coverage follows the motion man, zone does not

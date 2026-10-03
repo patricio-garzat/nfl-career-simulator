@@ -1856,7 +1856,7 @@ const accentOf = t => (lum(t.c1) < 0.2 ? t.c2 : t.c1);
 const textOn = hex => (lum(hex) > 0.6 ? '#101820' : '#ffffff');
 // Team logos come from Sleeper's CDN (…/team_logos/nfl/<abbr>.png). If an image can't load (offline), the badge
 // falls back to the colored abbreviation chip. The NFL shield comes from ESPN's CDN.
-const logoUrl = id => `https://sleepercdn.com/images/team_logos/nfl/${id.toLowerCase()}.png`;
+const logoUrl = id => `assets/nfl-logos/${id}.svg`;   // vector logos from nfl.com: razor sharp at any size
 const NFL_LOGO = 'https://a.espncdn.com/i/teamlogos/leagues/500/nfl.png';
 const nflLogo = (cls = '') => `<img class="nfl-logo ${cls}" src="${NFL_LOGO}" alt="NFL" onerror="this.remove()">`;
 function badge(id, size = '') {

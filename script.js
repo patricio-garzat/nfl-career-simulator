@@ -2511,7 +2511,7 @@ function renderLocker(keepScroll) {
     <h2 class="h-xl title-logo">${badge(id, 'lg')}<span>NFL JERSEY CREATOR</span></h2>
     <div class="jc2">
       <section class="jc2-preview">
-        ${P.college || P.youth ? `<div class="jc-target"><span>JERSEY</span>${[['nfl', '🏈 ' + t0.nick], P.college ? ['college', '🎓 ' + P.college] : null, P.youth ? ['youth', '🧒 ' + P.youth] : null].filter(Boolean).map(([k, l]) => chip('jcTarget', k, esc(l), (alt ? jcTarget : 'nfl') === k)).join('')}</div>` : ''}
+        ${P.college || P.youth ? `<div class="jc-target"><span>JERSEY</span>${[['nfl', `<img class="col-logo xs" src="${logoUrl(S.teamId)}" alt="">${esc(t0.nick)}`], P.college ? ['college', collegeImg(P.college, 40, 'col-logo xs') + esc(P.college)] : null, P.youth && MFL_INFO[P.youth] ? ['youth', `<img class="col-logo xs" src="${mflLogo(MFL_INFO[P.youth].slug)}" alt="">${esc(P.youth)}`] : null].filter(Boolean).map(([k, l]) => chip('jcTarget', k, l, (alt ? jcTarget : 'nfl') === k)).join('')}</div>` : ''}
         <div class="jc2-bar">
           <div class="minis big">${chip('jcView', 'front', 'FRONT', jcView === 'front')}${chip('jcView', 'back', 'BACK', jcView === 'back')}</div>
           <div class="minis">${chip('jerseyBg', 'team', 'Team', bg === 'team')}${chip('jerseyBg', 'dark', 'Dark', bg === 'dark')}${chip('jerseyBg', 'light', 'Light', bg === 'light')}</div>

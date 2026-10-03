@@ -556,7 +556,7 @@ function startSeason() {
   if (S.carryInjury) { season.injury = S.carryInjury; S.carryInjury = null; }
   season.aiRes = genAiResults(S.teamId);
   season.style = Math.exp(gauss(0, 0.07)); // pass-heavy or run-heavy scheme this year
-  decInitSeason(season, S.seasons[S.seasons.length - 1]);
+  mgInitSeason(season);
   S.seasons.push(season);
   season.depth = buildDepth(S.teamId); season.role = curRoleKey(season);
   return season;
@@ -770,7 +770,6 @@ function executeTrade(o) {
   const ns = buildSchedule(to); // the new team's remaining opponents replace the old ones
   for (let j = p; j < se.schedule.length; j++) { se.schedule[j].oppId = ns[j].oppId; se.schedule[j].home = ns[j].home; }
   se.teamId = to; S.teamId = to; S.contract.teamId = to; S.contract.bias = o.bias;
-  if (se.m) se.m.chem = Math.min(se.m.chem, 42); // new locker room
   se.trade = { from, to, after: p, pkg: o.pkg }; se.traded = true; se.tradeOffers = []; se.depth = buildDepth(to); se.role = curRoleKey(se);
   S.trades = (S.trades || []).concat({ year: se.year, from, to, after: p, pkg: o.pkg });
   S.contracts.push({ ...S.contract, type: 'Trade', startYear: S.year });
@@ -812,7 +811,7 @@ function playGame(season) {
     if (inj.weeksLeft <= 0) { season.injury = null; notes.push(`✅ ${inj.name}: fully recovered. You are cleared to play.`); }
   } else if (rnd() > atSlot(PLAYP, pos, slot)) {
     st = 'OUT'; dnp = true; injNote = "Coach's decision"; // not dressed / did not play
-  } else if (rnd() < injuryChance(pos, P.age) * decMods(season).inj) {
+  } else if (rnd() < injuryChance(pos, P.age) * mgMods(season).inj) {
     hurt = rollInjury();
     season.injury = { name: hurt.name, weeks: hurt.weeks, weeksLeft: hurt.weeks };
     season.injuries.push({ name: hurt.name, weeks: hurt.weeks, wk, year: season.year });
@@ -820,7 +819,7 @@ function playGame(season) {
   }
 
   const myR = effRating(season, st !== 'OUT'), oppR = S.teamRatings[oppId];
-  const diff = myR - oppR + (season.rigged ? 18 : 0) + decMods(season).team;
+  const diff = myR - oppR + (season.rigged ? 18 : 0) + mgMods(season).team;
   const baseMy = clamp(Math.round(gauss(22.5 + diff * 0.225, 8.2)), 3, 56);
   let s = {}, fp = 0, rate = null;
   if (st !== 'OUT') {
@@ -829,7 +828,7 @@ function playGame(season) {
     const pass = clamp(Math.round(gauss(34.5 * (1 - gsc) * (season.style || 1), 5.2)), 20, 54);
     const tg = { pass, rush: clamp(Math.round(gauss(27 + gsc * 30 - 0.3 * (pass - 34.5), 4)), 14, 42) };
     const c = {
-      pos, s: sk, z: clamp((sk - 0.5) / 0.5, -1, 1), slot, mult, form: season.form * decMods(season).perf, tg,
+      pos, s: sk, z: clamp((sk - 0.5) / 0.5, -1, 1), slot, mult, form: season.form * mgMods(season).perf, tg,
       ym: clamp(1 + diff * 0.004, 0.88, 1.12), tm: clamp(1 + diff * 0.006, 0.85, 1.15), matchup: clamp(1 + diff * 0.006, 0.8, 1.2),
       a: n => clamp((P.attrs[n] - 40) / 55, 0, 1), pts: baseMy, snap: snapShare(pos, slot) * Math.min(1, mult),
     };
@@ -857,7 +856,7 @@ function playGame(season) {
     season.playoffGames.push(game);
     resolvePlayoffRound(season, win, game, notes);
   }
-  decAfterGame(season, game, notes);
+  mgAfterGame(season, game, notes);
   return { game, notes };
 }
 
@@ -1956,7 +1955,7 @@ function renderDashboard() {
         </div></div>
       ${ovrRing(P.ovr, 'big')}
     </header>
-    ${inj}${tradeBanner}${decBannerHTML(se)}
+    ${inj}${tradeBanner}${mgBannerHTML(se)}
     <div class="dash-grid">
       <div class="col">
         <section class="card">
@@ -1979,7 +1978,6 @@ function renderDashboard() {
       </div>
       <div class="col">
         <section class="card"><div class="card-h"><h3>ATTRIBUTES</h3></div><div class="attr-list">${attrBars(P)}</div></section>
-        <section class="card"><div class="card-h"><h3>MORALE &amp; FORM</h3></div>${decMetersHTML(se)}</section>
         ${depthCardHTML(se)}
         ${jerseyCardHTML()}
         <section class="card"><div class="card-h"><h3>CAREER</h3></div>
@@ -2010,7 +2008,7 @@ function showGameModal(game, notes, season) {
   const next = season.status !== 'done';
   openModal(`<div class="gm-head"><div class="eyebrow">${label} · ${game.home ? 'vs' : '@'} ${opp.name}</div>
     <div class="gm-res ${game.w ? 'w' : 'l'}">${game.w ? 'W' : 'L'} ${game.my}–${game.op}</div></div>${body}${nt}
-    <div class="row end"><button class="btn btn-ghost" data-act="closeModal">CLOSE</button>${offersOf(season).length && season.status === 'regular' ? '<button class="btn btn-secondary" data-act="viewTrades">TRADE CENTER</button>' : ''}${next && season.pending ? '<button class="btn btn-primary" data-act="openDecision">🎯 MAKE A DECISION ▸</button>' : next ? '<button class="btn btn-primary" data-act="simNextModal">NEXT GAME ▸</button>' : '<button class="btn btn-primary" data-act="seasonSummary">SEASON SUMMARY ▸</button>'}</div>`, 'game');
+    <div class="row end"><button class="btn btn-ghost" data-act="closeModal">CLOSE</button>${offersOf(season).length && season.status === 'regular' ? '<button class="btn btn-secondary" data-act="viewTrades">TRADE CENTER</button>' : ''}${next && season.mg ? '<button class="btn btn-primary" data-act="playMini">🎮 PLAY MINI GAME ▸</button>' : next ? '<button class="btn btn-primary" data-act="simNextModal">NEXT GAME ▸</button>' : '<button class="btn btn-primary" data-act="seasonSummary">SEASON SUMMARY ▸</button>'}</div>`, 'game');
   Snd.play('whistle');
   if (notes.some(n => n.includes('TRADE OFFER'))) Snd.play('phone', 1.1);
   if (notes.some(n => n.includes('DEPTH CHART'))) Snd.play('chime', 1.0);
@@ -2498,17 +2496,13 @@ const actions = {
   },
 
   /* dashboard */
-  openDecision: () => { closeModal(); openDecision(); },
-  decide: (d) => decideNow(d.k),
-  decDone: () => { closeModal(); renderDashboard(); },
+  playMini: () => { closeModal(); mgOpen(); },
   simNext: async () => {
     const se = curSeason(); if (se.status === 'done') return actions.seasonSummary();
-    if (se.pending) return openDecision();
     const r = playGame(se); saveGame(); renderDashboard(); await maybeCelebrate(se, r.game); showGameModal(r.game, r.notes, se);
   },
   watchLive: () => {
     if (busy) return; const se = curSeason(); if (se.status === 'done') return actions.seasonSummary();
-    if (se.pending) return openDecision();
     const r = playGame(se); saveGame();
     LV.done = async () => { renderDashboard(); await maybeCelebrate(se, r.game); showGameModal(r.game, r.notes, se); };
     openLiveGame(r.game, r.notes, se);
@@ -2518,7 +2512,6 @@ const actions = {
     const P = S.player, se = curSeason(), C = careerTotals(), car = POS[P.pos].career(C), completed = S.seasons.filter(x => x.complete).length;
     openModal(`<h3 class="modal-h">${esc(P.name)} · ${P.pos} · OVR ${P.ovr}</h3>
       <div class="attr-list">${attrBars(P)}</div>
-      ${decMetersHTML(se)}
       ${depthCardHTML(se)}
       <div class="tiles t3">${tile('SEASONS', S.seasons.length)}${tile(car[0].l.replace('Career ', '').toUpperCase(), car[0].v)}${tile(car[1].l.replace('Career ', '').toUpperCase(), car[1].v)}${tile('PRO BOWLS', awardCount('PB'))}${tile('SUPER BOWLS', awardCount('SB_CHAMP'))}${tile('EARNINGS', money(S.earnings), 'gold')}</div>
       <div class="muted small">${completed} completed season${completed === 1 ? '' : 's'} · ${S.contract.yearsLeft} yr left on contract</div>
@@ -2528,7 +2521,7 @@ const actions = {
     if (busy) return; busy = true;
     try {
       const se = curSeason();
-      if (se.pending) { openDecision(); return; }
+      if (se.mg) { mgOpen(); return; }
       if (se.status !== 'done') {
         const ov = document.createElement('div'); ov.className = 'sim-overlay';
         ov.innerHTML = `<div class="sim-box"><div class="eyebrow">SIMULATING ${se.year} SEASON</div><div class="sim-bar"><i></i></div><div class="sim-stage">REGULAR SEASON</div><div class="sim-feed"></div></div>`;
@@ -2544,10 +2537,10 @@ const actions = {
           if (se.status === 'playoffs' && stage.textContent !== 'PLAYOFFS') { stage.textContent = 'PLAYOFFS'; Snd.play('fanfare'); }
           const call = r.notes.find(n => n.includes('TRADE OFFER'));
           if (call) { paused = call; break; } // stop the sim so the user can answer the call
-          if (se.pending) { paused = 'DECISION'; break; } // a decision is waiting
+          if (se.mg) { paused = 'MINI'; break; } // a mini game is ready
           await sleep(110);
         }
-        if (paused === 'DECISION') { ov.remove(); saveGame(); renderDashboard(); openDecision(); return; }
+        if (paused === 'MINI') { ov.remove(); saveGame(); renderDashboard(); mgOpen(); return; }
         if (paused) {
           ov.remove(); saveGame(); renderDashboard();
           openModal(`<h3 class="modal-h">📞 TRADE OFFER</h3><p class="modal-p">${paused.replace('📞 TRADE OFFER — ', '')}</p>

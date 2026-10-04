@@ -110,9 +110,9 @@ function mgFieldInner(o) {
   // slab-style yard numbers, tops pointing to the middle of the field, with an arrow towards the nearest goal line
   const nh = 2.2 * ppy, num = (x, y, rot, v) => {
     const s = String(v), fs = nh / 0.71, gp = Math.max(1.4, ppy * 0.6);       // "3|0": a small gap each side of the yard line
-    return `<g transform="translate(${x} ${y}) rotate(${rot})" font-family="'Special Gothic Condensed One','Barlow Condensed',sans-serif" font-size="${fs.toFixed(1)}" fill="#fff" fill-opacity="${o.numOp || 0.5}"><text x="${-gp}" y="${nh / 2}" text-anchor="end">${s[0]}</text><text x="${gp}" y="${nh / 2}" text-anchor="start">${s[1]}</text></g>`;
+    return `<g transform="translate(${x} ${y}) rotate(${rot})" font-family="'Special Gothic Condensed One','Barlow Condensed',sans-serif" font-size="${fs.toFixed(1)}" fill="#fff" fill-opacity="${o.numOp || 0.95}"><text x="${-gp}" y="${nh / 2}" text-anchor="end">${s[0]}</text><text x="${gp}" y="${nh / 2}" text-anchor="start">${s[1]}</text></g>`;
   };
-  const arrow = (x, y, up) => `<polygon points="${x - nh * 0.34},${y + (up ? 0.3 : -0.3) * nh} ${x + nh * 0.34},${y + (up ? 0.3 : -0.3) * nh} ${x},${y + (up ? -0.35 : 0.35) * nh}" fill="#fff" fill-opacity="${o.numOp || 0.5}"/>`;
+  const arrow = (x, y, up) => `<polygon points="${x - nh * 0.34},${y + (up ? 0.3 : -0.3) * nh} ${x + nh * 0.34},${y + (up ? 0.3 : -0.3) * nh} ${x},${y + (up ? -0.35 : 0.35) * nh}" fill="#fff" fill-opacity="${o.numOp || 0.95}"/>`;
   for (let A = Math.ceil(Math.max(10, Amin) / 10) * 10; A <= Math.min(90, Amax); A += 10) {
     const v = A <= 50 ? A : 100 - A, y = yOf(A), up = A > 50;
     out += num(o.numL, y, 90, v) + num(o.numR, y, -90, v);
@@ -520,7 +520,7 @@ function mgRB(ctx, i, st) {
       const cy = Math.max(0, RY - me.y); world.style.transform = `translateY(${cy.toFixed(1)}px)`;
       const yd = Math.max(0, Math.round(best)), pts = yd; ydT.textContent = `${yd} YDS · ${ctx.rbPts + pts} PTS`;
       hole.setAttribute('opacity', clamp(1 - Math.max(0, t - 1.3) / 0.8, 0, 1).toFixed(2));
-      if (me.y <= GOALY - 14) return finish(true);
+      if (me.y <= GOALY - 30) return finish(true);
       if (t > 15) return finish(false, 'Time ran out.');
       raf = requestAnimationFrame(frame);
     };
@@ -646,7 +646,7 @@ function mgKick(ctx, i, st) {
   const s = 210 / dist, yE = 66, yG = yE + 10 * s, yB = yE + dist * s, hw = clamp(3.08 * s * 1.4, 15, 28), bx = 170 + (sc.hash || 0) * 3.08 * s;
   const sl = 170 - 26.65 * s, band = Math.min(sl, 2.4 * s), flagA = dir * Math.min(35, mph * 2.2), barH = 9, upH = 26;
   let aim = 0;
-  const field = mgFieldInner({ id: 'mgKg', w: 340, sl, band, y0: yE, y1: 300, yRef: yG, Aref: 100, ppy: s, Amin: Math.max(0, 100 - (300 - yG) / s), Amax: 100, numL: sl + 11 * s, numR: 340 - sl - 11 * s, numOp: 0.9 });
+  const field = mgFieldInner({ id: 'mgKg', w: 340, sl, band, y0: yE, y1: 300, yRef: yG, Aref: 100, ppy: s, Amin: Math.max(0, 100 - (300 - yG) / s), Amax: 100, numL: sl + 11 * s, numR: 340 - sl - 11 * s, numOp: 0.95 });
   const rows = mgCrowd(0, 8, 340, 6, T1, O1);
   const weather = sc.wx === 'rain' ? Array.from({ length: 40 }, (_, k) => `<line x1="${(k * 19) % 340}" y1="${(k * 37) % 220 - 20}" x2="${(k * 19) % 340 - 6}" y2="${(k * 37) % 220 + 4}" stroke="#bcd7ff" stroke-opacity=".5" stroke-width="1.2" class="mg-rain" style="animation-delay:${((k * 0.07) % 0.6).toFixed(2)}s"/>`).join('')
     : sc.wx === 'snow' ? Array.from({ length: 34 }, (_, k) => `<circle cx="${(k * 29) % 340}" cy="${(k * 41) % 260}" r="${1.2 + (k % 3) * 0.7}" fill="#fff" opacity=".8" class="mg-snow" style="animation-delay:${((k * 0.13) % 2).toFixed(2)}s"/>`).join('') : '';

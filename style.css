@@ -1245,10 +1245,10 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 
 /* the opening, centered layout: team logos on the sides, the broadcast logo of the window in the middle */
 .li-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr) minmax(0, 1fr); align-items: center; width: 100%; padding: 0 2.5vw; box-sizing: border-box; gap: 1vw; }
-.li-main .li-team img { width: clamp(54px, 11vmin, 120px); height: clamp(54px, 11vmin, 120px); }
+.li-main .li-team img { width: 80%; height: 80%; animation: none; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .5)); position: relative; z-index: 2; }
 .li-center { display: flex; flex-direction: column; align-items: center; gap: 1.6vh; min-width: 0; }
 .li-top { font-family: var(--head); font-size: clamp(10px, 1.6vw, 16px); letter-spacing: .42em; margin-right: -.42em; color: #e6ecf8; text-shadow: 0 2px 8px rgba(0, 0, 0, .8); opacity: 0; animation: liUp .5s 2.2s both; text-align: center; }
-.li-bc { position: relative; width: clamp(150px, min(36vmin, 28vw), 300px); animation: liBc .95s 2.5s cubic-bezier(.2, 1.25, .3, 1) both; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .5)); }
+.li-bc { position: relative; width: clamp(160px, min(40vmin, 29vw), 340px); animation: liBc .95s 2.5s cubic-bezier(.2, 1.25, .3, 1) both; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .5)); }
 .li-bc img { display: block; width: 100%; height: auto; }
 @keyframes liBc { 0% { opacity: 0; transform: scale(2.1); filter: blur(16px) drop-shadow(0 0 0 #000); } 45% { opacity: 1; } 100% { opacity: 1; transform: none; } }
 .li-bcshine { position: absolute; inset: 0; -webkit-mask-image: var(--m); mask-image: var(--m); -webkit-mask-size: 100% 100%; mask-size: 100% 100%; background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, .85) 50%, transparent 62%); background-size: 260% 100%; background-position: 130% 0; mix-blend-mode: screen; pointer-events: none; animation: liBcShine 1.3s 3.5s ease-in-out forwards; }
@@ -1258,5 +1258,26 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 @media (max-width: 720px) {
   .li-main { grid-template-columns: 1fr 1fr; row-gap: 3vh; padding: 0 4vw; }
   .li-center { grid-column: 1 / -1; order: -1; }
-  .li-bc { width: min(54vw, 30vh); } .li-main .li-team img { width: clamp(52px, 17vw, 90px); height: clamp(52px, 17vw, 90px); }
+  .li-bc { width: min(54vw, 30vh); } .li-badge { width: clamp(96px, 34vw, 160px); height: clamp(96px, 34vw, 160px); }
 }
+
+/* the opening, more design: big team badges (halo + spinning ring), watermark logos, speed streaks, a glowing seam, a field strip and a lower-third bar */
+.li-badge { position: relative; width: clamp(130px, 32vmin, 330px); height: clamp(130px, 32vmin, 330px); display: grid; place-items: center; animation: liSlam .6s .95s cubic-bezier(.2, 1.35, .3, 1) both; }
+.li-halo { position: absolute; inset: -14%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 255, 255, .5), rgba(255, 255, 255, .12) 55%, transparent 72%); animation: liPulse 2.4s ease-in-out infinite; }
+.li-team.away .li-halo { background: radial-gradient(closest-side, color-mix(in srgb, var(--a) 55%, #fff), color-mix(in srgb, var(--a) 40%, transparent) 55%, transparent 72%); } .li-team.home .li-halo { background: radial-gradient(closest-side, color-mix(in srgb, var(--h) 55%, #fff), color-mix(in srgb, var(--h) 40%, transparent) 55%, transparent 72%); }
+@keyframes liPulse { 0%, 100% { transform: scale(.94); opacity: .75; } 50% { transform: scale(1.06); opacity: 1; } }
+.li-ring { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, rgba(255, 255, 255, .95), rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, .6) 55%, rgba(255, 255, 255, 0) 80%, rgba(255, 255, 255, .95)); -webkit-mask: radial-gradient(closest-side, transparent 91%, #000 93%, #000 97%, transparent 99%); mask: radial-gradient(closest-side, transparent 91%, #000 93%, #000 97%, transparent 99%); animation: liSpin 5s linear infinite; }
+@keyframes liSpin { to { transform: rotate(360deg); } }
+.li-wm { position: absolute; top: 50%; width: 78vmin; height: 78vmin; object-fit: contain; opacity: .1; filter: grayscale(.2) brightness(1.4); transform: translateY(-50%); animation: liDrift 8s ease-in-out infinite alternate; pointer-events: none; }
+.li-panel.away .li-wm { left: -14vmin; } .li-panel.home .li-wm { right: -14vmin; }
+@keyframes liDrift { from { transform: translateY(-50%) scale(1); } to { transform: translateY(-50%) scale(1.12) rotate(3deg); } }
+.li-streaks { position: absolute; inset: 0; background: repeating-linear-gradient(115deg, transparent 0 46px, rgba(255, 255, 255, .06) 46px 49px, transparent 49px 120px); background-size: 240px 100%; animation: liStreak 1.8s linear infinite; }
+@keyframes liStreak { to { background-position: 240px 0; } }
+.li-seam { position: absolute; z-index: 2; top: -10%; bottom: -10%; left: 50%; width: 3px; margin-left: -1.5px; background: linear-gradient(180deg, transparent, #fff 20%, #fff 80%, transparent); box-shadow: 0 0 22px 4px rgba(255, 255, 255, .7); transform: skewX(-14deg) scaleY(0); animation: liSeam .7s .2s cubic-bezier(.2, .9, .2, 1) forwards; opacity: .85; }
+@keyframes liSeam { to { transform: skewX(-14deg) scaleY(1); } }
+.li-field { position: absolute; z-index: 1; left: -10%; right: -10%; bottom: -4%; height: 34%; background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .0) 0 26px, rgba(255, 255, 255, .22) 26px 29px), linear-gradient(180deg, transparent, rgba(0, 0, 0, .55)); transform: perspective(380px) rotateX(58deg); transform-origin: 50% 100%; -webkit-mask-image: linear-gradient(0deg, #000 30%, transparent); mask-image: linear-gradient(0deg, #000 30%, transparent); opacity: 0; animation: liFieldIn .9s .6s ease forwards; }
+@keyframes liFieldIn { to { opacity: .9; } }
+.li-when { display: inline-flex; align-items: stretch; margin-top: .6vh; font-size: clamp(11px, 1.7vw, 17px); letter-spacing: .16em; color: #fff; background: linear-gradient(90deg, color-mix(in srgb, var(--a) 70%, #000), #0b0f1a 50%, color-mix(in srgb, var(--h) 70%, #000)); border: 1px solid rgba(255, 255, 255, .28); border-radius: 3px; overflow: hidden; transform: skewX(-12deg); box-shadow: 0 6px 18px rgba(0, 0, 0, .5); }
+.li-when em { font-style: normal; font-weight: 800; background: #d0182f; padding: 6px 12px; letter-spacing: .2em; } .li-when { padding-right: 14px; align-items: center; gap: 12px; }
+.li-main .li-team b { font-size: clamp(12px, 1.9vw, 20px); } .li-main .li-team span { font-size: clamp(22px, 4.6vw, 54px); }
+@media (max-width: 720px) { .li-when { font-size: 11px; } .li-wm { width: 90vmin; height: 90vmin; } }

@@ -23,7 +23,7 @@ function mgMods(se) { let perf = 1; (se.buffs || []).forEach(b => { if (b.left >
 function mgAfterGame(se, game, notes) { mgEnsure(se); se.buffs.forEach(b => { b.left--; }); se.buffs = se.buffs.filter(b => b.left > 0); }
 const MG_META = {
   qb: P => ({ icon: '🏈', title: 'POCKET PRESENCE', how: 'Dodge the pass rush inside the pocket and press SPACE when the bar is in the green to throw to your WR. Wait too long and you get sacked.', legend: [['', '← → ↑ ↓ move', 'dodge the rush'], ['', 'SPACE', 'throw in the green'], ['', 'Too slow', 'SACK']] }),
-  rb: P => ({ icon: '🏃', title: 'RUSH FOR YARDS', how: 'Take the handoff, hit the hole the line opens, then keep dodging tacklers. Hold SPACE to run and use the arrows to turn. Every 5 yards is a point and a touchdown is worth 6 — your points raise your performance.', legend: [['', 'SPACE', 'run forward'], ['', '← →', 'turn'], ['', 'Every 5 yards', '1 point'], ['', 'Touchdown', '6 points']] }),
+  rb: P => ({ icon: '🏃', title: 'RUSH FOR YARDS', how: 'Take the handoff, hit the hole the line opens, then keep dodging tacklers. Hold SPACE to run and use the arrows to turn. Every yard is 0.2 points and a touchdown is worth 5 — your points raise your performance.', legend: [['', 'SPACE', 'run forward'], ['', '← →', 'turn'], ['', 'Every yard', '0.2 points'], ['', 'Touchdown', '5 points']] }),
   catch: P => ({ icon: '🙌', title: P.pos === 'TE' ? 'CATCH IT · SEAM' : 'CATCH IT · GO ROUTE', how: 'A three-play drive: catch to move the chains, and the last pass is for the touchdown. Run to where the ball will land.', legend: [['⌨️', 'Arrow keys / drag', 'move'], ['⭕', 'Ring', 'be there first']] }),
   kick: P => ({ icon: '🥅', title: 'KICK IT', how: 'Aim into the wind, stop the bar in the green.', legend: [['💨', 'Wind pushes', 'AIM AGAINST'], ['⏹', 'Power', 'GREEN']] }),
 };
@@ -170,6 +170,7 @@ document.addEventListener('keydown', e => {
   if (!document.querySelector('.mg-overlay')) return;
   if ([' ', 'Spacebar', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown'].includes(e.key) && !/^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '')) e.preventDefault();
 }, { capture: true });
+const mgPts = n => String(Math.round(n * 10) / 10);
 function mgOpen(env) {
   env = env || mgEnvNFL(); if (!env) return;
   const se = env.se; if (!se.mg || !MG_META[se.mg.kind]) return;
@@ -208,7 +209,7 @@ async function mgRun(ctx) {
     ctx.results.push(ok);
     ctx.combo = ok ? ctx.combo + 1 : 0;
     ctx.ov.querySelector(`.mg-pips [data-p="${i}"]`).className = ok ? 'ok' : 'bad';
-    ctx.ov.querySelector('#mgScore').textContent = ctx.kind === 'rb' ? `${ctx.rbPts || 0} PTS` : `${ctx.results.filter(Boolean).length}/3`;
+    ctx.ov.querySelector('#mgScore').textContent = ctx.kind === 'rb' ? `${mgPts(ctx.rbPts || 0)} PTS` : `${ctx.results.filter(Boolean).length}/3`;
     const cb = ctx.ov.querySelector('#mgCombo'); if (ctx.combo >= 2) { cb.hidden = false; cb.textContent = `🔥 x${ctx.combo}`; cb.classList.remove('pop'); void cb.offsetWidth; cb.classList.add('pop'); } else cb.hidden = true;
     if (ok) { Snd.play('mgGood', 0, Math.min(4, ctx.combo - 1)); mgFlash(ctx, true); } else { Snd.play('mgMiss', 0); mgFlash(ctx, false); }
     await sleep(i < 2 ? 1500 : 900);
@@ -217,15 +218,15 @@ async function mgRun(ctx) {
 }
 function mgFlash(ctx, good) { const s = ctx.stage; s.classList.remove('mg-good', 'mg-badflash'); void s.offsetWidth; s.classList.add(good ? 'mg-good' : 'mg-badflash'); if (good) { Snd.play('mgCrowd', 0.12, 1); burst(s, 14, [ctx.t.c1, ctx.t.c2, '#ffffff', '#ffd23d']); } }
 function mgFinish(ctx) {
-  const se = ctx.env.se, rbm = ctx.kind === 'rb', pts = ctx.rbPts || 0;
+  const se = ctx.env.se, rbm = ctx.kind === 'rb', pts = Math.round((ctx.rbPts || 0) * 10) / 10;
   const raw = rbm ? (pts >= 7 ? 3 : pts >= 4 ? 2 : pts >= 2 ? 1 : 0) : ctx.results.filter(Boolean).length, sc = rbm ? (pts < 2 ? 0 : pts < 4 ? 2 : pts < 7 ? 3 : pts < 11 ? 4 : 5) : MG_SC[raw], g = MG_GRADES[sc], good = sc >= 3;
   const extra = good && !rbm ? Math.min(0.04, ctx.perfects * 0.01) : 0, perf = rbm ? clamp(-0.04 + pts * 0.0125, -0.05, 0.12) : Math.min(0.12, g.perf + extra);
   const weekly = !!(se.mg && se.mg.weekly), gi = mgGamesIn(se), streak = weekly ? (se.mgTrainAt === gi - 1 && se.mgStreak ? se.mgStreak + 1 : 1) : 0;
   const wPerf = weekly ? (rbm ? clamp(0.008 + pts * 0.0055, 0.008, 0.07) : MG_WEEK_PERF[sc]) + Math.min(0.03, 0.005 * (streak - 1)) : 0;
-  const fx = rbm && !weekly ? `${pts} points → ${perf >= 0 ? '+' : '−'}${Math.abs(perf * 100).toFixed(1).replace(/\.0$/, '')}% performance all season · moves your rating` : weekly ? `${rbm ? pts + ' points → ' : ''}+${(wPerf * 100).toFixed(1).replace(/\.0$/, '')}% performance in your next game${streak > 1 ? ` · ${streak}-week training streak` : ''}` : `${perf > 0 ? '+' : '−'}${Math.abs(Math.round(perf * 100))}% performance all season · moves your rating`;
+  const fx = rbm && !weekly ? `${mgPts(pts)} points → ${perf >= 0 ? '+' : '−'}${Math.abs(perf * 100).toFixed(1).replace(/\.0$/, '')}% performance all season · moves your rating` : weekly ? `${rbm ? mgPts(pts) + ' points → ' : ''}+${(wPerf * 100).toFixed(1).replace(/\.0$/, '')}% performance in your next game${streak > 1 ? ` · ${streak}-week training streak` : ''}` : `${perf > 0 ? '+' : '−'}${Math.abs(Math.round(perf * 100))}% performance all season · moves your rating`;
   ctx.stage.innerHTML = `<div class="mg-res ${good ? 'good' : 'bad'}" style="background-image:radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, ${ctx.t.c1} 38%, transparent), transparent)">
     <img class="mg-intro-logo small" src="${ctx.t.logo}" alt="">
-    <div class="mg-grade">${g.n}</div><div class="mg-big">${rbm ? pts : raw}<small>${rbm ? ' PTS' : '/3'}</small></div>
+    <div class="mg-grade">${g.n}</div><div class="mg-big">${rbm ? mgPts(pts) : raw}<small>${rbm ? ' PTS' : '/3'}</small></div>
     <div class="mg-stars">${[0, 1, 2].map(i => `<span class="${i < raw ? 'on' : ''}">★</span>`).join('')}</div>
     ${ctx.perfects ? `<div class="mg-perf">✨ ${ctx.perfects} perfect play${ctx.perfects > 1 ? 's' : ''}</div>` : ''}
     <div class="mg-bonus ${good || weekly ? 'good' : 'bad'}">${good || weekly ? '⚡' : '⚠️'} ${fx}</div></div>`;
@@ -427,7 +428,7 @@ const mgHoldBtn = (key, label) => `<button class="mg-b mg-hold" data-hold="${key
 /* =====================================================================
    RB — RUSH FOR YARDS
    Same formation view as the QB game: the snap, the handoff, and you run: first through the HOLE the line opens, then keep going upfield dodging the linebackers and the secondary.
-   A first hit slows you down, a second one (or two defenders at once) brings you down. Every 5 yards is a point and a touchdown is 6; the points become the % your performance goes up.
+   A first hit slows you down, a second one (or two defenders at once) brings you down. Every yard is 0.2 points and a touchdown is 5; the points become the % your performance goes up.
    ===================================================================== */
 function mgRB(ctx, i, st) {
   const lv = MG_LV.indexOf(i), T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2, LOSY = 150, A0 = 40, GOALY = LOSY - (100 - A0) * 10, RY = 205;
@@ -489,10 +490,10 @@ function mgRB(ctx, i, st) {
     const cleanup = () => { ended = true; cancelAnimationFrame(raf); inp.dispose(); };
     const finish = async (td, why) => {
       if (ended) return; cleanup(); ctx.ctrl.innerHTML = '';
-      const yds = Math.max(0, Math.round(best)), pts = Math.floor(yds / 5) + (td ? 6 : 0); ctx.rbPts += pts;
+      const yds = Math.max(0, Math.round(best)), pts = Math.round((yds * 0.2 + (td ? 5 : 0)) * 10) / 10; ctx.rbPts = Math.round((ctx.rbPts + pts) * 10) / 10;
       const sx = me.x, sy = me.y + Math.max(0, RY - me.y);
       mgPop(ctx, 170, 120, td ? 'TOUCHDOWN!' : yds >= 10 ? 'BIG GAIN!' : yds >= 4 ? `+${yds} YDS` : 'TACKLED!', yds >= 4 || td ? 'good' : 'bad'); mgShake(ctx); Snd.play(td ? 'td' : yds >= 4 ? 'mgPat' : 'mgHit', td ? 0.05 : 0);
-      ctx.say(`${yds >= 4 || td ? '✅' : '❌'} ${td ? '<b>TOUCHDOWN!</b> ' : ''}${yds}-yard run · <b>+${pts} pts</b>${td ? ' (6 for the touchdown)' : ''}${why ? `<span class="mg-tip">${why}</span>` : ''}`, yds >= 4 || td ? 'good' : 'bad');
+      ctx.say(`${yds >= 4 || td ? '✅' : '❌'} ${td ? '<b>TOUCHDOWN!</b> ' : ''}${yds}-yard run · <b>+${mgPts(pts)} pts</b>${td ? ' (5 for the touchdown)' : ''}${why ? `<span class="mg-tip">${why}</span>` : ''}`, yds >= 4 || td ? 'good' : 'bad');
       if (yds >= 12 && !td) ctx.perfects++; if (td) ctx.perfects++;
       res(yds >= 4 || td);
     };
@@ -540,7 +541,7 @@ function mgRB(ctx, i, st) {
       put(me, dt, hd);
       // ---- camera, HUD, the end zone ----
       const cy = Math.max(0, RY - me.y); world.setAttribute('transform', `translate(0 ${cy.toFixed(1)})`);
-      const yd = Math.max(0, Math.round(best)), pts = Math.floor(yd / 5); ydT.textContent = `${yd} YDS · ${ctx.rbPts + pts} PTS`;
+      const yd = Math.max(0, Math.round(best)), pts = yd * 0.2; ydT.textContent = `${yd} YDS · ${mgPts(ctx.rbPts + pts)} PTS`;
       hole.setAttribute('opacity', clamp(1 - Math.max(0, t - 1.3) / 0.8, 0, 1).toFixed(2));
       if (me.y <= GOALY - 30) return finish(true);
       if (t > 15) return finish(false, 'Time ran out.');

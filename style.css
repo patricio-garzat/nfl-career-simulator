@@ -1105,3 +1105,21 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 @keyframes mgStepA { from { transform: translateY(-2px); } to { transform: translateY(2px); } } @keyframes mgStepB { from { transform: translateY(2px); } to { transform: translateY(-2px); } }
 
 .mg-btns.five #mgThrow { font-size: 17px; padding: 10px 2px; } .mg-btns.five #mgThrow small { display: block; margin: 0; font-size: 9px; }
+
+/* ---- calendar: bigger, cleaner game cards ---- */
+.cal-weeks { gap: 8px; padding: 4px 2px 16px; } .cal-wk { min-width: 48px; height: 48px; border-radius: 13px; font-size: 18px; } .cal-wk.po { padding: 0 18px; }
+.cal-range { font-size: 26px; margin: 6px 0 4px; }
+.cal-day { margin: 28px 0 8px; font-size: 19px; letter-spacing: .2em; color: var(--text); border-bottom: 2px solid var(--line2); padding-bottom: 8px; }
+.cal-slot { margin: 16px 0 10px; gap: 12px; } .cal-tag { font-size: 14px; padding: 5px 14px; } .cal-time { font-size: 15px; }
+.cal-list { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; }
+.cal-g2 { position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px 18px; padding: 16px 20px; border-radius: 18px; border: 1px solid var(--line2); background: linear-gradient(180deg, var(--w60), var(--w40)); overflow: hidden; transition: transform .15s, border-color .15s; }
+.cal-g2:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--text) 30%, transparent); }
+.cal-g2.me { border-color: var(--ta, var(--lime)); background: linear-gradient(100deg, color-mix(in srgb, var(--t1) 30%, transparent), var(--w50) 75%); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ta, var(--lime)) 45%, transparent); } .cal-g2.me::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--ta, var(--lime)); }
+.cg-teams { display: flex; flex-direction: column; gap: 12px; min-width: 0; } .cg-t { display: flex; align-items: center; gap: 14px; min-width: 0; } .cg-t .team-badge { flex: none; }
+.cg-n { min-width: 0; line-height: 1.1; } .cg-n small { display: block; font: 600 13px var(--head); letter-spacing: .08em; color: var(--mut); text-transform: uppercase; margin-bottom: 1px; } .cg-n b { display: block; font: 800 25px var(--head); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cg-t em { margin-left: auto; font: 800 italic 34px var(--head); } .cg-t.lose { opacity: .55; } .cg-t.win b, .cg-t.win em { color: var(--text); }
+.cg-sd { margin-left: auto; font: 700 10px var(--head); letter-spacing: .2em; color: var(--mut); opacity: .7; }
+.cg-meta { text-align: center; border-left: 1px solid var(--line2); padding: 4px 0 4px 18px; min-width: 100px; display: flex; flex-direction: column; align-items: center; gap: 3px; } .cg-meta b { font: 800 30px/1 var(--head); letter-spacing: .02em; } .cg-meta b.fin { font-size: 17px; letter-spacing: .24em; color: var(--mut); } .cg-meta small { font: 700 13px var(--head); letter-spacing: .14em; color: var(--mut); }
+.cal-g2 .cal-net { margin-top: 6px; padding: 2px 9px; border-radius: 99px; background: color-mix(in srgb, var(--ta, var(--lime)) 16%, transparent); font-size: 11px; letter-spacing: .12em; } .cal-g2 .cal-v { grid-column: 1 / -1; font-size: 12px; color: var(--mut); letter-spacing: .06em; border-top: 1px dashed var(--line2); padding-top: 8px; }
+.cal-m { padding: 12px 16px; } .cal-mo b { font-size: 21px; } .cal-md span { font-size: 17px; } .cal-mr { font-size: 22px; }
+@media (max-width: 700px) { .cal-list { grid-template-columns: 1fr; } .cal-g2 { padding: 13px 14px; gap: 6px 12px; } .cg-n b { font-size: 21px; } .cg-t em { font-size: 28px; } .cg-meta { min-width: 78px; padding-left: 12px; } .cg-meta b { font-size: 24px; } .cal-wk { min-width: 42px; height: 42px; font-size: 16px; } .cal-range { font-size: 21px; } }

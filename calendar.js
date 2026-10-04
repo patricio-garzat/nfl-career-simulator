@@ -351,13 +351,14 @@ const calRecAt = (se, id, wk) => {                                   // record e
   return `${w}-${n - w}`;
 };
 function calGameRow(se, g, wk, shown) {
-  const U = se.teamId, mine = g.u !== undefined || g.a === U || g.h === U, done = g.w != null && wk <= shown;
-  const side = id => {
-    const win = done && g.w === id, rec = wk <= shown + 1 ? calRecAt(se, id, wk) : '';
-    return `<div class="cal-t ${win ? 'win' : done ? 'lose' : ''}">${badge(id)}<div><b>${TEAM[id].nick}</b><small>${TEAM[id].city}${rec ? ' · ' + rec : ''}</small></div>${done ? `<em>${id === g.a ? g.pa : g.ph}</em>` : ''}</div>`;
+  const U = se.teamId, mine = g.u !== undefined || g.a === U || g.h === U, done = g.w != null && wk <= shown, w = calWhen(se.year, wk, g);
+  const row = (id, side) => {
+    const t = TEAM[id], win = done && g.w === id, rec = wk <= shown + 1 ? calRecAt(se, id, wk) : '', sc = id === g.a ? g.pa : g.ph;
+    return `<div class="cg-t ${side} ${win ? 'win' : done ? 'lose' : ''}">${badge(id, 'lg')}<div class="cg-n"><small>${esc(t.city)}${rec ? ' · ' + rec : ''}</small><b>${esc(t.nick)}</b></div>${done ? `<em>${sc}</em>` : `<span class="cg-sd">${side === 'away' ? 'AWAY' : 'HOME'}</span>`}</div>`;
   };
-  const w = calWhen(se.year, wk, g);
-  return `<div class="cal-g ${mine ? 'me' : ''}">${side(g.a)}<div class="cal-at">${done ? '<span>FINAL</span>' : `<span>@</span><small>${w.time}</small>`}${w.n ? `<i class="cal-net">${w.n}</i>` : ''}</div>${side(g.h)}${g.v ? `<div class="cal-v">📍 ${g.v}</div>` : ''}</div>`;
+  const tm = w.time.split(' ');
+  return `<div class="cal-g2 ${mine ? 'me' : ''}"><div class="cg-teams">${row(g.a, 'away')}${row(g.h, 'home')}</div>
+    <div class="cg-meta">${done ? '<b class="fin">FINAL</b>' : `<b>${tm[0]}</b><small>${tm[1] || ''} ET</small>`}${w.n ? `<i class="cal-net">${w.n}</i>` : ''}</div>${g.v ? `<div class="cal-v">📍 ${g.v}</div>` : ''}</div>`;
 }
 function renderCalendar() {
   const se = S.seasons[calSeasonIdx == null ? S.seasons.length - 1 : calSeasonIdx], team = TEAM[se.teamId];

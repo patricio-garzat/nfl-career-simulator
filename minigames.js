@@ -192,7 +192,7 @@ function mgOpen(env) {
 const mgSndVol = (key, def) => { let v = def; try { const x = parseInt(localStorage.getItem(key), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return 0.6 * Math.pow(v / 100, 1.6); };
 function mgAmbience() { Snd.crowd('assets/sounds/crowd-stadium.m4a', mgSndVol('nfl_crowd_vol', 35)); }
 // waits `ms` before the snap while the players' noise plays, so that second 4 of the clip lands on the snap
-async function mgPre(ctx, ms) { Snd.players('assets/sounds/players-huddle.mp3', mgSndVol('nfl_players_vol', 50), 1, Math.max(0, 4 - ms / 1000)); await sleep(ms); }
+async function mgPre(ctx, ms) { Snd.players('assets/sounds/players-huddle.mp3', mgSndVol('nfl_players_vol2', 62.12), 1, Math.max(0, 4 - ms / 1000)); await sleep(ms); }
 async function mgRun(ctx) {
   const fn = { qb: mgQB, rb: mgRB, catch: mgCatch, kick: mgKick }[ctx.kind], st = {};
   ctx.ctrl.innerHTML = ''; ctx.say('');

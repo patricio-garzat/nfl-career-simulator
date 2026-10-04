@@ -989,6 +989,8 @@ function lvIntroTitle(game) {
   const big = { mnf: 'MONDAY NIGHT', snf: n.toUpperCase().replace(/ ·.*$/, ''), tnf: n.toUpperCase(), gameday: 'GAME DAY' }[logo];
   return { top: [wk, hol].filter(Boolean).join(' · '), big, em: 'FOOTBALL', logo };
 }
+// the level of each window's song in the opening (0-1)
+const LV_SONG_VOL = { 'assets/sounds/live-thursday-night.m4a': 0.43, 'assets/sounds/live-sunday-gameday.m4a': 0.34, 'assets/sounds/live-sunday-night.mp3': 0.34, 'assets/sounds/live-monday-night.m4a': 0.34 };
 function lvIntro(ov, L, game, musicVol) {
   return new Promise(async resolve => {
     const away = TEAM[L.away], home = TEAM[L.home], ca = L.col[L.away] || away.c1, ch = L.col[L.home] || home.c1, T = lvIntroTitle(game);
@@ -1013,10 +1015,10 @@ function lvIntro(ov, L, game, musicVol) {
       <div class="li-flash"></div><div class="li-vignette"></div><button class="li-skip" type="button">SKIP ▸</button>`;
     ov.appendChild(el);
     const timers = []; let done = false; const at = (ms, f) => timers.push(setTimeout(f, ms));
-    if (au) Snd.musicEl(au, 0.34);                               // fixed level (the old music slider's saved value no longer applies)
+    if (au) Snd.musicEl(au, LV_SONG_VOL[song] || 0.34);                               // fixed level (the old music slider's saved value no longer applies)
     if (au && (blocked || au.paused) && !Snd.isMuted()) {       // Safari may refuse to start sound without a tap: offer one
       const b = document.createElement('button'); b.type = 'button'; b.className = 'li-sound'; b.textContent = 'TAP FOR SOUND'; el.appendChild(b);
-      b.addEventListener('click', e => { e.stopPropagation(); try { au.currentTime = 0; const q = au.play(); if (q && q.catch) q.catch(() => {}); } catch (x) { /* ignore */ } Snd.musicEl(au, 0.34); b.remove(); });
+      b.addEventListener('click', e => { e.stopPropagation(); try { au.currentTime = 0; const q = au.play(); if (q && q.catch) q.catch(() => {}); } catch (x) { /* ignore */ } Snd.musicEl(au, LV_SONG_VOL[song] || 0.34); b.remove(); });
     }
     at(250, () => Snd.play('introSwoosh')); at(1000, () => Snd.play('introImpact')); at(1550, () => Snd.play('whoosh')); at(2050, () => Snd.play('introSwoosh')); at(2500, () => Snd.play('introImpact')); at(3500, () => Snd.play('whoosh'));
     at(5900, () => Snd.stopMusic(2000));                         // the song fades out as the broadcast cuts to the field
@@ -1040,7 +1042,7 @@ async function openLiveGame(game, notes, season) {
   const label = game.k === 'PO' ? (game.round || 'PLAYOFFS') : `WEEK ${game.wk}`;
   const whenTxt = game.date && typeof calShort === 'function' ? ` · ${calShort(new Date(game.date + 'T00:00:00Z'))} · ${game.time} ET` : '';
   ov.innerHTML = `<div class="lv-wrap">
-    <div class="lv-top"><span class="lv-live"><i></i>LIVE</span><b>${label}</b><span class="muted">${TEAM[away].name} @ ${TEAM[home].name}${whenTxt}</span><div class="lv-ctrl"><label class="lv-vol" title="Crowd noise volume"><span>CROWD</span><input type="range" id="lvCrowd" min="0" max="100" step="1" value="35" aria-label="Crowd volume"></label><label class="lv-vol" title="Players on the field volume"><span>PLAYERS</span><input type="range" id="lvPlayers" min="0" max="100" step="1" value="50" aria-label="Players volume"></label><button class="mini on" data-lv-speed="1">1×</button><button class="mini" data-lv-speed="2">2×</button><button class="mini" data-lv-speed="4">4×</button><button class="btn btn-ghost btn-sm" id="lvSkip">SKIP ▸</button></div></div>
+    <div class="lv-top"><span class="lv-live"><i></i>LIVE</span><b>${label}</b><span class="muted">${TEAM[away].name} @ ${TEAM[home].name}${whenTxt}</span><div class="lv-ctrl"><label class="lv-vol" title="Crowd noise volume"><span>CROWD</span><input type="range" id="lvCrowd" min="0" max="100" step="1" value="35" aria-label="Crowd volume"></label><label class="lv-vol" title="Players on the field volume"><span>PLAYERS</span><input type="range" id="lvPlayers" min="0" max="100" step="1" value="62" aria-label="Players volume"></label><button class="mini on" data-lv-speed="1">1×</button><button class="mini" data-lv-speed="2">2×</button><button class="mini" data-lv-speed="4">4×</button><button class="btn btn-ghost btn-sm" id="lvSkip">SKIP ▸</button></div></div>
     ${lvScoreboardHTML(L)}
     <div class="lv-stage">${lvFieldSVG(away, home, /super bowl|^SB$/i.test(String(game.round || '')))}<div class="lv-banner" id="lvBanner"></div></div>
     <div class="lv-bottom">
@@ -1054,8 +1056,8 @@ async function openLiveGame(game, notes, season) {
   const crowdVol = () => { let v = 35; try { const x = parseInt(localStorage.getItem('nfl_crowd_vol'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
   L.startAmbience = () => { if (L.skipped || L.ambience) return; L.ambience = true; Snd.crowd('assets/sounds/crowd-stadium.m4a', vol(crowdVol())); };   // the crowd comes in as the opening ends
   const cv = ov.querySelector('#lvCrowd'); if (cv) { cv.value = crowdVol(); cv.addEventListener('input', () => { Snd.setCrowdVol(vol(cv.value)); try { localStorage.setItem('nfl_crowd_vol', cv.value); } catch (e) { /* ignore */ } }); }
-  const playersVol = () => { let v = 50; try { const x = parseInt(localStorage.getItem('nfl_players_vol'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
-  const pv = ov.querySelector('#lvPlayers'); if (pv) { pv.value = playersVol(); pv.addEventListener('input', () => { Snd.setPlayersVol(vol(pv.value)); try { localStorage.setItem('nfl_players_vol', pv.value); } catch (e) { /* ignore */ } }); }
+  const playersVol = () => { let v = 62.12; try { const x = parseInt(localStorage.getItem('nfl_players_vol2'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
+  const pv = ov.querySelector('#lvPlayers'); if (pv) { pv.value = playersVol(); pv.addEventListener('input', () => { Snd.setPlayersVol(vol(pv.value)); try { localStorage.setItem('nfl_players_vol2', pv.value); } catch (e) { /* ignore */ } }); }
   const $ = id => document.getElementById(id), setScore = () => { $('lvScore_away').textContent = L.score.away; $('lvScore_home').textContent = L.score.home; };
   const setClock = (q, clock) => { $('lvQ').innerHTML = `${q}<small>${['ST', 'ND', 'RD', 'TH'][q - 1]}</small>`; $('lvClock').textContent = clock; };
   const setBugDD = txt => { const el = $('lvBugDD'); if (el) el.innerHTML = esc(String(txt).toUpperCase()).replace(/(\d)(ST|ND|RD|TH)\b/g, '$1<small>$2</small>'); };

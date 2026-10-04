@@ -297,7 +297,7 @@ const mgHoldBtn = (key, label) => `<button class="mg-b mg-hold" data-hold="${key
    ===================================================================== */
 function mgRB(ctx, i, st) {
   const T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2, yds = [24, 28, 32, 36, 40][i], GOAL = yds * 10, RY = 205, XMIN = 26, XMAX = 314;
-  const vf = 62, vc = vf * (1 + 0.02 * i), LAT = 190;
+  const vf = 62, vc = vf * (1 + 0.02 * i), LAT = 190, IN = 15;    // IN: how far past the goal line he must be (whole body in the end zone) before it counts
   // defenders ahead, in rows
   const defs = []; let w = 92 + rr(0, 16);
   while (w < GOAL - 24) {
@@ -359,9 +359,9 @@ function mgRB(ctx, i, st) {
       els.forEach((e, k) => { const d = defs[k]; e.style.transform = `translate(${d.x}px,${-d.w}px) rotate(${d.hit ? 90 : 0}deg)`; e.style.opacity = d.hit ? 0.55 : 1; });
       me.style.transform = `translate(${R.x}px,${RY}px) rotate(${lean * 0.9}deg)`; ch.style.transform = `translate(${C.x}px,${RY + (R.w - C.w)}px)`;
       const gap = R.w - C.w; gapB.style.transform = `scaleY(${-clamp(gap / 90, 0.03, 1)})`; gapB.setAttribute('fill', gap < 28 ? '#ff5d5d' : gap < 55 ? '#ffd23d' : '#6dffbb');
-      ydT.textContent = `${Math.max(0, yds - Math.floor(R.w / 10))} YDS TO TD`;
-      if (R.w >= GOAL && !scored) { scored = true; Snd.play('td', 0.05); mgPop(ctx, 170, 100, 'TOUCHDOWN!', 'good'); }      // over the goal line: nobody can stop him now
-      if (R.w >= GOAL + 48) return end(true);                         // he runs into the end zone before the play is over
+      ydT.textContent = `${Math.max(0, Math.ceil((GOAL + IN - R.w) / 10))} YDS TO TD`;
+      if (R.w >= GOAL + IN && !scored) { scored = true; Snd.play('td', 0.05); mgPop(ctx, 170, 100, 'TOUCHDOWN!', 'good'); }      // his whole body is inside the end zone: now it is a touchdown (not before), and nobody can stop him
+      if (R.w >= GOAL + 50) return end(true);                         // he runs into the end zone before the play is over
       if (!scored && C.w >= R.w - 14 && Math.abs(C.x - R.x) < 20) return end(false);
       raf = requestAnimationFrame(frame);
     };

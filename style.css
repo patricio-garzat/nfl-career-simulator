@@ -577,7 +577,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 
   /* ---- create player: everything on one screen, the college list takes the free space and scrolls by itself ---- */
   .wrap.create { height: 100%; display: flex; flex-direction: column; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
-  .wrap.create > .eyebrow { display: none; } .wrap.create > .h-xl { font-size: 22px; margin: 0 0 6px; padding-right: 100px; }
+  .wrap.create .cr-top .eyebrow { display: none; } .wrap.create .cr-top > .cr-title > .h-xl { font-size: 22px; margin: 0 0 6px; padding-right: 100px; }
   .wrap.create .create-grid { flex: 1; min-height: 0; display: block; }
   .wrap.create .jersey-stage { display: none; }
   .wrap.create .form-card { height: 100%; display: flex; flex-direction: column; padding: 10px 12px; gap: 0; overflow: hidden; }
@@ -1161,3 +1161,31 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 }
 .youth-ph svg { width: 26px; height: 26px; display: block; margin: 0 auto; color: var(--mut); }
 .mg-go { line-height: 1; } .mg-go small { display: block; font-size: 10px; letter-spacing: .24em; opacity: .7; margin-top: 2px; font-weight: 600; }
+
+/* ---- create player, desktop: one screen, no page scroll. Player info on the left, your teams in the middle, the display case on the right ---- */
+.cr-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; } .cr-top .h-xl { margin-bottom: 8px; }
+@media (min-width: 721px) {
+  .wrap.create { max-width: 1380px; height: max(100dvh, 600px); box-sizing: border-box; display: flex; flex-direction: column; padding: 22px 28px 20px; }
+  .wrap.create .cr-top { flex: none; padding-right: 130px; } .wrap.create .cr-steps { margin: 0 0 10px; }
+  .wrap.create .create-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(300px, 1fr) minmax(360px, 1.3fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "ident teams" "jersey teams" "actions actions"; gap: 14px; align-items: stretch; }
+  .wrap.create .form-card { display: contents; }
+  .wrap.create .cr-sec { margin: 0; min-height: 0; padding: 12px 16px 14px; background: linear-gradient(180deg, var(--card2), var(--card)); box-shadow: var(--shadow); gap: 4px; overflow: hidden; }
+  .wrap.create .cr-ident { grid-area: ident; } .wrap.create .cr-jersey { grid-area: jersey; } .wrap.create .cr-teams { grid-area: teams; display: flex; flex-direction: column; }
+  .wrap.create .cr-actions { grid-area: actions; display: flex; justify-content: space-between; gap: 12px; margin: 0; } .wrap.create .cr-actions .btn { min-width: 190px; } .wrap.create .cr-actions .btn-primary { min-width: 280px; }
+  .wrap.create .jersey-stage { display: none; }
+  .wrap.create .lbl { margin-top: 8px; font-size: 12px; }
+  .wrap.create .pos-grid { gap: 8px; } .wrap.create .pos-btn { padding: 8px 4px; } .wrap.create .pos-btn b { font-size: 22px; } .wrap.create .pos-btn span { font-size: 10px; }
+  .wrap.create #collegeSec { flex: 1; min-height: 0; display: flex; flex-direction: column; } .wrap.create #collegeSec[hidden] { display: none; }
+  .wrap.create .college-pick { flex: 1; min-height: 0; } .wrap.create .cp-leagues { flex: 1; min-height: 0; grid-auto-rows: 1fr; } .wrap.create .cp-league { min-height: 0; padding: 10px 8px; } .wrap.create .cp-league img { height: min(76px, 11vh); }
+  .wrap.create .cp-grid { flex: 1; min-height: 0; max-height: none; overflow-y: auto; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+  .wrap.create .youth-note { flex: 1; overflow: auto; }
+}
+@media (min-width: 1100px) {
+  .wrap.create .create-grid { grid-template-columns: minmax(300px, 1fr) minmax(380px, 1.35fr) minmax(300px, .95fr); grid-template-areas: "ident teams vit" "jersey teams vit" "actions actions actions"; }
+  .wrap.create .jersey-stage.vitrine { display: flex; flex-direction: column; grid-area: vit; position: static; margin: 0; min-height: 0; padding: 16px 18px; overflow: hidden; }
+  .wrap.create .vitrine .vit-case { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 18px 8px 40px; }
+  .wrap.create .vitrine .stage-jersey { width: 100%; max-width: 360px; margin: 0 auto; }
+  .wrap.create .vitrine .create-college { margin: 2px 0 10px; font-size: 22px; } .wrap.create .vitrine .create-college .col-logo { width: 54px; height: 54px; }
+}
+@media (min-width: 721px) and (max-height: 780px) { .wrap.create .vitrine > .muted.small { display: none; } .wrap.create .vit-plaque { margin-top: 10px; } .wrap.create .cr-h { padding-bottom: 5px; } .wrap.create .cr-h span { display: none; } }
+@media (min-width: 721px) and (max-height: 700px) { .wrap.create .cr-steps { display: none; } .wrap.create .pos-btn span { display: none; } .wrap.create .pos-btn { padding: 5px 4px; } .wrap.create .cr-top .h-xl { font-size: 30px; } }

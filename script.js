@@ -2175,16 +2175,16 @@ function youthRowHTML() {
 function renderCreate() {
   collegeDiv = 'ALL'; collegeLeague = '';
   setScreen(`<div class="wrap create">
-    <div class="eyebrow">STEP 1 OF 2</div><h2 class="h-xl">CREATE YOUR PLAYER</h2><div class="cr-steps" aria-hidden="true"><i class="on"><b>1</b> Player</i><i><b>2</b> Pre-season</i></div>
+    <div class="cr-top"><div class="cr-title"><div class="eyebrow">STEP 1 OF 2</div><h2 class="h-xl">CREATE YOUR PLAYER</h2></div><div class="cr-steps" aria-hidden="true"><i class="on"><b>1</b> Player</i><i><b>2</b> Pre-season</i></div></div>
     <div class="create-grid">
     <div class="card form-card">
-      <section class="cr-sec"><div class="cr-h"><i>1</i><b>Identity</b><span>who you are and where you play</span></div>
+      <section class="cr-sec cr-ident"><div class="cr-h"><i>1</i><b>Identity</b><span>who you are and where you play</span></div>
       <label class="lbl">Player Name</label>
       <input class="input" data-model="name" maxlength="24" placeholder="e.g. Alex Johnson" value="${esc(form.name)}" autocomplete="off">
       <label class="lbl">Position <span class="hint pos-lg"><u class="o">Offense</u> · <u class="d">Defense</u> · <u class="k">Special teams</u></span></label>
       <div class="pos-grid">${Object.keys(POS).map(p => `<button class="pos-btn ${form.pos === p ? 'sel' : ''}" data-act="pickPos" data-pos="${p}"><b>${p}</b><span>${POS[p].name}</span></button>`).join('')}</div>
       </section>
-      <section class="cr-sec"><div class="cr-h"><i>2</i><b>Origins</b><span>your first team and your college</span></div>
+      <section class="cr-sec cr-teams"><div class="cr-h"><i>2</i><b>Your teams</b><span>your first team and your college</span></div>
       <label class="lbl lbl-m">First Team <span class="hint">where you started as a kid</span></label>
       <div class="youth-row" id="youthRow">${youthRowHTML()}</div>
       <div id="collegeSec" ${form.youth ? 'hidden' : ''}>
@@ -2193,7 +2193,7 @@ function renderCreate() {
       </div>
       <div class="youth-note" id="youthNote" ${form.youth ? '' : 'hidden'}>🧒 <b>You'll play a season with your first team.</b> Then 5 colleges (NCAA and ONEFA), the LFA and the UFL make you offers — and you pick where to go next. Leave First Team empty to choose a college right now.</div>
       </section>
-      <section class="cr-sec"><div class="cr-h"><i>3</i><b>Jersey</b><span>age, number and the name on your back</span></div>
+      <section class="cr-sec cr-jersey"><div class="cr-h"><i>3</i><b>Jersey</b><span>age, number and the name on your back</span></div>
       <div class="row3">
         <div><label class="lbl">Age</label><input class="input" type="number" min="21" max="25" data-model="age" value="${form.age}"></div>
         <div><label class="lbl">Jersey Number <span class="hint" id="numHint"></span></label><input class="input" type="number" min="0" max="99" data-model="number" value="${form.number}"></div>
@@ -2202,7 +2202,7 @@ function renderCreate() {
       <label class="lbl">Name on the Jersey <span class="hint">what the back says — separate from your player name</span></label>
       <input class="input" data-model="jerseyName" maxlength="12" placeholder="Defaults to your last name" value="${esc(form.jerseyName || '')}" autocomplete="off">
       </section>
-      <div class="row end"><button class="btn btn-ghost" data-act="toTitle">BACK</button><button class="btn btn-primary" data-act="genPlayer">GENERATE PLAYER</button></div>
+      <div class="row end cr-actions"><button class="btn btn-ghost" data-act="toTitle">BACK</button><button class="btn btn-primary" data-act="genPlayer">GENERATE PLAYER</button></div>
     </div>
     <div class="card jersey-stage vitrine" id="vitrine"><div class="eyebrow" id="stageEyebrow">YOUR COLLEGE JERSEY</div><div id="createCollege" class="create-college"></div>
       <div class="vit-case"><div class="vit-spot"></div><div id="createJersey" class="stage-jersey"></div><div class="vit-base"></div></div>

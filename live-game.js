@@ -978,7 +978,7 @@ function lvTrack(game) {
   return 'assets/sounds/live-sunday-gameday.m4a';
 }
 
-/* ---- the broadcast opening (about 7 seconds): team colors slide in, the logos slam down, the title of the window (GAME DAY / THURSDAY NIGHT FOOTBALL / ...) hits, with the song of that window underneath ---- */
+/* ---- the broadcast opening (about 8 seconds): team colors slide in, the logos slam down, the title of the window (GAME DAY / THURSDAY NIGHT FOOTBALL / ...) hits, with the song of that window underneath ---- */
 function lvIntroTitle(game) {
   const n = String(game.slotName || ''), r = String(game.round || '');
   const wk = game.k === 'PO' ? 'NFL PLAYOFFS' : `NFL · WEEK ${game.wk}`;
@@ -991,11 +991,17 @@ function lvIntroTitle(game) {
   return { top: wk, big: 'GAME DAY', em: /international/i.test(n) ? 'LONDON · INTERNATIONAL' : 'SUNDAY' };
 }
 function lvIntro(ov, L, game, musicVol) {
-  return new Promise(resolve => {
+  return new Promise(async resolve => {
     const away = TEAM[L.away], home = TEAM[L.home], ca = L.col[L.away] || away.c1, ch = L.col[L.home] || home.c1, T = lvIntroTitle(game);
     const when = game.date && typeof calShort === 'function' ? `${calShort(new Date(game.date + 'T00:00:00Z'))} · ${game.time} ET` : '';
     const side = (t, c, k) => `<div class="li-team ${k}"><img src="${logoUrl(t.id)}" alt="${t.id}"><b>${esc(t.city.toUpperCase())}</b><span>${esc(t.nick.toUpperCase())}</span></div>`;
     const sparks = Array.from({ length: 26 }, () => `<i style="left:${rr(2, 98).toFixed(1)}%;--d:${rr(2.4, 5.2).toFixed(1)}s;--l:${rr(0, 3.5).toFixed(1)}s;--s:${rr(2, 5).toFixed(1)}px"></i>`).join('');
+    // the song is started right away (inside the click) at volume 0; the opening begins the moment it is really playing (it waits up to 2 s), so the music is never late
+    const song = typeof lvTrack === 'function' ? lvTrack(game) : '';
+    const cover = document.createElement('div'); cover.className = 'lv-intro lv-intro-wait'; ov.appendChild(cover);
+    let au = null; if (song) { try { au = new Audio(song); au.preload = 'auto'; au.volume = 0; au.muted = Snd.isMuted(); const p0 = au.play(); if (p0 && p0.catch) p0.catch(() => {}); } catch (e) { au = null; } }
+    if (au) await new Promise(r => { const t = setTimeout(r, 2000); au.addEventListener('playing', () => { clearTimeout(t); r(); }, { once: true }); });
+    cover.remove();
     const el = document.createElement('div'); el.className = 'lv-intro'; el.id = 'lvIntro'; el.style.cssText = `--a:${ca};--h:${ch};--ta:${textOn(ca)};--th:${textOn(ch)}`;
     el.innerHTML = `<div class="li-beams"><i></i><i></i><i></i></div><div class="li-sparks">${sparks}</div>
       <div class="li-panel away"></div><div class="li-panel home"></div>
@@ -1004,17 +1010,16 @@ function lvIntro(ov, L, game, musicVol) {
       <div class="li-flash"></div><div class="li-vignette"></div><button class="li-skip" type="button">SKIP ▸</button>`;
     ov.appendChild(el);
     const timers = []; let done = false; const at = (ms, f) => timers.push(setTimeout(f, ms));
-    const song = typeof lvTrack === 'function' ? lvTrack(game) : '';
-    if (song) Snd.music(song, musicVol);
-    at(250, () => Snd.play('introSwoosh')); at(1000, () => Snd.play('introImpact')); at(1550, () => Snd.play('whoosh')); at(2500, () => Snd.play('introSwoosh')); at(3050, () => Snd.play('introImpact')); at(3800, () => Snd.play('whoosh'));
-    at(5200, () => Snd.stopMusic(1800));                         // the song fades out as the broadcast cuts to the field
+    if (au) Snd.musicEl(au, musicVol);
+    at(250, () => Snd.play('introSwoosh')); at(1000, () => Snd.play('introImpact')); at(1550, () => Snd.play('whoosh')); at(3000, () => Snd.play('introSwoosh')); at(3550, () => Snd.play('introImpact')); at(4300, () => Snd.play('whoosh'));
+    at(5900, () => Snd.stopMusic(2000));                         // the song fades out as the broadcast cuts to the field
     const end = fast => {
       if (done) return; done = true; timers.forEach(clearTimeout); if (fast) Snd.stopMusic(450);
       el.classList.add('out'); setTimeout(() => el.remove(), fast ? 250 : 950);
       if (L.startAmbience) L.startAmbience(); resolve();
     };
-    at(6000, () => { if (L.startAmbience) { L.startAmbience(); L.startAmbience = null; } });
-    at(7000, () => end(false));
+    at(6800, () => { if (L.startAmbience) { L.startAmbience(); L.startAmbience = null; } });
+    at(8000, () => end(false));
     el.querySelector('.li-skip').addEventListener('click', e => { e.stopPropagation(); end(true); }); el.addEventListener('click', () => end(true));
     (L.waits = L.waits || []).push(() => { if (!done) { done = true; timers.forEach(clearTimeout); el.remove(); resolve(); } });
   });

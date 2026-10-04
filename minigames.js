@@ -64,7 +64,7 @@ const mgFlares = (id, w = 340) => [[18, 8], [w / 3, 2], [w * 2 / 3, 2], [w - 18,
 const MG_UNI = {
   NO: { f: '#FFFFFF', h: '#D3BC8D' }, NE: { h: '#9AA3AD' }, NYJ: { h: '#125740' }, LAC: { h: '#FFFFFF' },
   BAL: { f: '#241773', h: '#000000' }, LAR: { f: '#003594', h: '#003594', s: '#FFA300' }, MIN: { f: '#4F2683', h: '#4F2683', s: '#FFC62F' },
-  MIA: { h: '#FFFFFF', s: '#F26A24' }, KC: { h: '#FFFFFF' }, PIT: { f: '#FFFFFF', h: '#101010', s: '#FFB612' },
+  CIN: { f: '#FFFFFF', h: '#FB4F14', s: '#000000' }, MIA: { h: '#FFFFFF', s: '#F26A24' }, KC: { h: '#FFFFFF' }, PIT: { f: '#FFFFFF', h: '#101010', s: '#FFB612' },
 };
 function mgUniOf(t, nfl) { const u = (nfl && MG_UNI[t.id]) || {}; t.uf = u.f || t.c1; t.uh = u.h || t.c2; t.us = u.s || ''; }
 const mgHel = t => t.uh + (t.us ? '/' + t.us : '');

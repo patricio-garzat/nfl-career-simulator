@@ -124,12 +124,23 @@ function mgFieldInner(o) {
 function mgEndZone(ctx, x, y, w, h, k) {
   const team = ctx.o, d = ctx.env.nfl && typeof LV_EZ !== 'undefined' ? LV_EZ[team.id] : null, cid = 'mgEz' + Math.random().toString(36).slice(2, 7), cx = x + w / 2, cy = y + h / 2;
   if (!d) {
-    const n = w > 240 ? 3 : 1, lg = Math.min(h * 0.62, 56);
+    const n = w > 240 ? 3 : 1, lg = Math.min(h * 0.8, 92);
     return `<g><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${team.c1}"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#mgStripe)" opacity=".2"/>${Array.from({ length: n }, (_, i) => `<image href="${team.logo}" x="${cx + (i - (n - 1) / 2) * w * 0.3 - lg / 2}" y="${cy - lg / 2}" width="${lg}" height="${lg}" opacity=".92" preserveAspectRatio="xMidYMid meet"/>`).join('')}</g>`;
   }
   const items = d.ends[0], local = (d.deco === 'tiger' ? lvTiger() : '') + (d.deco === 'band' ? '<rect x="-270" y="-50" width="540" height="7" fill="#fff" opacity=".85"/>' : '')
-    + (d.deco === 'sband' ? '<rect x="-270" y="-50" width="540" height="9" fill="#101010" opacity=".92"/><rect x="-270" y="-39" width="540" height="2" fill="#D3BC8D"/>' : '') + lvEzItems(items, team, d.ey);
-  return `<defs><clipPath id="${cid}"><rect x="${x}" y="${y}" width="${w}" height="${h}"/></clipPath></defs><g clip-path="url(#${cid})"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#2d8647"/>${d.bg ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${d.bg}" opacity="${d.op || 0.94}"/>` : ''}<g transform="translate(${cx} ${cy}) scale(${k})">${local}</g></g>`;
+    + (d.deco === 'sband' ? '<rect x="-270" y="-50" width="540" height="9" fill="#101010" opacity=".92"/><rect x="-270" y="-39" width="540" height="2" fill="#D3BC8D"/>' : '') + ''; const ez = mgEzExtent(items), fit = Math.max(k * (typeof lvEzScale === 'function' ? lvEzScale(items, d.ey) : 1), Math.min((w * 0.47) / ez.x, (h * 0.44) / ez.y, 2.6)), art = lvEzItemsRaw(items, team);
+  return `<defs><clipPath id="${cid}"><rect x="${x}" y="${y}" width="${w}" height="${h}"/></clipPath></defs><g clip-path="url(#${cid})"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#2d8647"/>${d.bg ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${d.bg}" opacity="${d.op || 0.94}"/>` : ''}<g transform="translate(${cx} ${cy}) scale(${k})">${local}</g><g transform="translate(${cx} ${cy}) scale(${fit.toFixed(3)})">${art}</g></g>`;
+}
+// half-width / half-height of what an end zone design paints (to scale it up to fill the mini game end zone)
+function mgEzExtent(items) {
+  let ex = 0, ey = 0;
+  items.forEach(it => {
+    if (it.t) { ex = Math.max(ex, Math.abs(it.t.x || 0) + it.t.n / 2); ey = Math.max(ey, Math.abs(it.t.y || 0) + it.t.h / 2 + (it.t.w || 0) / 2); }
+    else if (it.l) { ex = Math.max(ex, Math.abs(it.l.x) + it.l.w / 2); ey = Math.max(ey, Math.abs(it.l.y) + (it.l.h || it.l.w) / 2); }
+    else if (it.x === 'rule') { ex = Math.max(ex, it.n / 2); ey = Math.max(ey, Math.abs(it.py) + (it.th || 3.2) / 2); }
+    else if (it.px !== undefined) { ex = Math.max(ex, Math.abs(it.px) + it.r); ey = Math.max(ey, Math.abs(it.py) + it.r); }
+  });
+  return { x: ex || 1, y: ey || 1 };
 }
 // the grass texture over an end zone (the pattern twice, plus a mowing stripe), so the painted end zone reads as turf like the rest of the field
 const mgEzGrass = (pat, x, y, w, h) => `<g pointer-events="none"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${pat})"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${pat})" opacity=".85"/><rect x="${x}" y="${y + h / 2}" width="${w}" height="${h / 2}" fill="#fff" opacity=".05"/></g>`;
@@ -140,7 +151,7 @@ function mgField(ctx, w, h, id, yRef, Aref, opt = {}) {
   const inner = mgFieldInner({ id: id + 'g', w, sl: 14, y0: 0, y1: h, yRef, Aref, ppy, Amin: Aref - (h - yRef) / ppy - 1, Amax: Aref + yRef / ppy + 1, numL: 50, numR: w - 50 });
   const mid = yOf(50);
   return `<defs>${mgGrassPat(id + 'g')}</defs><rect width="${w}" height="${h}" rx="14" fill="#1d6c3d"/>${inner}
-    ${mid > 20 && mid < h - 20 ? `<image href="${(ctx.env.nfl && typeof NFL_MID_LOGO !== 'undefined' && NFL_MID_LOGO[t.id]) || t.logo}" x="${w / 2 - 44}" y="${mid - 44}" width="88" height="88" opacity=".88" preserveAspectRatio="xMidYMid meet"/>` : ''}
+    ${mid > 20 && mid < h - 20 ? `<image href="${(ctx.env.nfl && typeof NFL_MID_LOGO !== 'undefined' && NFL_MID_LOGO[t.id]) || t.logo}" x="${w / 2 - 44}" y="${mid - 44}" width="88" height="88" opacity=".88" preserveAspectRatio="xMidYMid meet" transform="rotate(90 ${w / 2} ${mid})"/>` : ''}
     ${opt.crowd === false ? '' : `<rect width="${w}" height="16" rx="8" fill="#050810" opacity=".75"/><rect y="${h - 14}" width="${w}" height="14" rx="7" fill="#050810" opacity=".75"/><g class="mg-crowd">${mgCrowd(0, 4, w, 2, t.c1, o.c1)}</g><g class="mg-crowd">${mgCrowd(0, h - 11, w, 2, t.c1, t.c2)}</g>`}`;
 }
 
@@ -418,7 +429,7 @@ function mgRB(ctx, i, st) {
     <rect width="340" height="300" rx="14" fill="#2b7d47"/>
     <g id="mgRW" style="transform:translateY(0px)">
       ${mgFieldInner({ id: gid, w: 340, sl: 14, y0: GOALY - 112, y1: 340, yRef: LOSY, Aref: A0, ppy: 10, Amin: A0 - 16, Amax: 100, numL: 50, numR: 290 })}
-      <image href="${(ctx.env.nfl && typeof NFL_MID_LOGO !== 'undefined' && NFL_MID_LOGO[ctx.t.id]) || ctx.t.logo}" x="126" y="${LOSY - (50 - A0) * 10 - 44}" width="88" height="88" opacity=".88" preserveAspectRatio="xMidYMid meet"/>
+      <image href="${(ctx.env.nfl && typeof NFL_MID_LOGO !== 'undefined' && NFL_MID_LOGO[ctx.t.id]) || ctx.t.logo}" x="126" y="${LOSY - (50 - A0) * 10 - 44}" width="88" height="88" opacity=".88" preserveAspectRatio="xMidYMid meet" transform="rotate(90 170 ${LOSY - (50 - A0) * 10})"/>
       ${mgEndZone(ctx, 14, GOALY - 100, 312, 100, 0.6)}${mgEzGrass(gid, 14, GOALY - 100, 312, 100)}
       <line x1="14" x2="326" y1="${GOALY}" y2="${GOALY}" stroke="#fff" stroke-width="3.4"/><line x1="14" x2="326" y1="${GOALY - 100}" y2="${GOALY - 100}" stroke="#fff" stroke-width="3.4"/>
       ${mgPylon(14, GOALY)}${mgPylon(326, GOALY)}${mgPylon(14, GOALY - 100)}${mgPylon(326, GOALY - 100)}

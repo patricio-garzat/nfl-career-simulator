@@ -136,7 +136,7 @@ function mgOpen(env) {
   const P = env.P, kind = se.mg.kind, t = env.t, opp = env.o, meta = MG_META[kind](P);
   const ov = document.createElement('div'); ov.className = 'mg-overlay'; ov.style.cssText = `${env.theme};--o1:${opp.c1 || '#444'};--o2:${opp.c2 || '#fff'}`;
   ov.innerHTML = `<div class="mg-bgart"><img class="a" src="${t.logo}" alt=""><img class="b" src="${opp.logo}" alt=""></div><div class="mg-wrap">
-    <div class="mg-top"><span class="mg-tag">🎮 ${se.mg.weekly ? `WEEK ${mgGamesIn(se) + 1} TRAINING` : 'PRESEASON CAMP'}</span><button class="mini mg-skip" data-mg="skip">SKIP</button></div>
+    <div class="mg-top"><span class="mg-tag">${se.mg.weekly ? `WEEK ${mgGamesIn(se) + 1} TRAINING` : 'PRESEASON CAMP'}</span><button class="mini mg-skip" data-mg="skip">SKIP</button></div>
     <div class="mg-board"><div class="mg-team me"><img src="${t.logo}" alt=""><div><small>YOU</small><b>${esc(t.nick || t.name)}</b></div></div><div class="mg-bt"><b>${esc(meta.title)}</b><span>${esc(P.name)} · ${P.pos} · #${env.number}</span></div><div class="mg-team op"><img src="${opp.logo}" alt=""><div><small>VS</small><b>${esc(opp.nick || opp.name)}</b></div></div></div>
     <div class="mg-pips">${[0, 1, 2].map(i => `<span data-p="${i}">${mgFootball()}</span>`).join('')}<em id="mgScore">0/3</em><b class="mg-combo" id="mgCombo" hidden></b></div>
     <div class="mg-stage" id="mgStage"></div><div class="mg-msg" id="mgMsg"></div><div class="mg-ctrl" id="mgCtrl"></div></div>`;
@@ -145,8 +145,8 @@ function mgOpen(env) {
   const ctx = { env, number: env.number, ov, stage, msg, ctrl, t, o: opp, P, kind, alive: () => ov.isConnected, say: (h, cls = '') => { msg.className = 'mg-msg ' + cls; msg.innerHTML = h; }, results: [], perfects: 0, combo: 0 };
   MGX = ctx;
   stage.innerHTML = `<div class="mg-intro" style="background-image:radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, ${t.c1} 40%, transparent), transparent)">
-    <div class="mg-jersey-big">${env.jersey ? env.jersey('front') : ''}</div><div class="mg-bigicon">${meta.icon}</div><h2>${esc(meta.title)}</h2><p>${esc(meta.how)}</p>
-    <div class="mg-legend">${meta.legend.map(([i, a, b]) => `<span>${i} ${a}${b ? ` <b>→ ${b}</b>` : ''}</span>`).join('')}</div><p class="mg-sub">3 levels · your grade sets ${MGX && MGX.env.se.mg && MGX.env.se.mg.weekly ? 'your next game' : 'the whole season'}</p></div>`;
+    <img class="mg-intro-logo" src="${t.logo}" alt=""><h2>${esc(meta.title)}</h2><p>${esc(meta.how)}</p>
+    <div class="mg-legend">${meta.legend.map(([i, a, b]) => `<span>${i === '🔴' ? '<i class="mg-dot r"></i>' : i === '🟢' ? '<i class="mg-dot g"></i>' : ''}${a}${b ? ` <b>→ ${b}</b>` : ''}</span>`).join('')}</div><p class="mg-sub">3 levels · your grade sets ${MGX && MGX.env.se.mg && MGX.env.se.mg.weekly ? 'your next game' : 'the whole season'}</p></div>`;
   ctrl.innerHTML = `<button class="btn btn-primary btn-xl" data-mg="start">START</button>`;
   Snd.play('mgCrowd', 0.05);
 }

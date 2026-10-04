@@ -72,7 +72,7 @@ const mgGuy = (x, y, f, t, o = {}) => {
     <radialGradient id="${id}h" cx="36%" cy="30%" r="80%"><stop offset="0" stop-color="${lt(t)}"/><stop offset=".5" stop-color="${t}"/><stop offset="1" stop-color="${dk(t)}"/></radialGradient></defs>
     ${o.you ? `<circle r="${15 * s}" fill="rgba(255,210,61,.18)" stroke="#ffd23d" stroke-width="2" class="mg-you"/>` : ''}
     <ellipse cx="${(2.4 * s).toFixed(1)}" cy="${(3.2 * s).toFixed(1)}" rx="${(11.5 * s).toFixed(1)}" ry="${(7.4 * s).toFixed(1)}" fill="#000" opacity=".34"/>
-    <g ${o.down ? 'transform="rotate(180)"' : ''}>
+    <g class="mg-body" ${o.down ? 'transform="rotate(180)"' : ''}>
       <ellipse class="mg-lg l" cx="${(-4.2 * s).toFixed(1)}" cy="${(6.2 * s).toFixed(1)}" rx="${(2.7 * s).toFixed(1)}" ry="${(3.4 * s).toFixed(1)}" fill="#2a3040" stroke="#0a0d14" stroke-width=".7"/>
       <ellipse class="mg-lg r" cx="${(4.2 * s).toFixed(1)}" cy="${(6.2 * s).toFixed(1)}" rx="${(2.7 * s).toFixed(1)}" ry="${(3.4 * s).toFixed(1)}" fill="#2a3040" stroke="#0a0d14" stroke-width=".7"/>
       <ellipse class="mg-ar l" cx="${(-10.6 * s).toFixed(1)}" cy="${(0.8 * s).toFixed(1)}" rx="${(2.5 * s).toFixed(1)}" ry="${(4.3 * s).toFixed(1)}" fill="${dk(f)}" stroke="${line}" stroke-width=".6" stroke-opacity=".7"/>
@@ -247,18 +247,25 @@ function mgQB(ctx, i, st) {
   const lv = MG_LV.indexOf(i), T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2, LOSY = 150, flip = rnd() < 0.5, mx = x => (flip ? 340 - x : x);
   const nR = [2, 3, 4][lv], rushIdx = [2, 1, 3, 0].slice(0, nR), tMax = [6.4, 5.8, 5.2][lv], vq = 92, vr = [50, 58, 66][lv], zone = [0.28, 0.22, 0.17][lv], sp = [0.85, 1.0, 1.15][lv];
   const pT = rr(0.34, 0.68), B = { x0: 52, x1: 288, y0: 184, y1: 286 };
-  const olX = [104, 137, 170, 203, 236], dlX = [118, 150, 190, 222];
+  // ---- the formation: 5 linemen, QB, 3 receivers, a back and a tight end against 4 linemen, 2 linebackers, 3 corners/nickel and 2 safeties ----
+  const olHome = [[104, 166], [137, 166], [170, 166], [203, 166], [236, 166]], olCup = [[100, 184], [135, 176], [170, 172], [205, 176], [240, 184]], pair = [0, 1, 3, 4];    // DL k is blocked by OL pair[k] (the center helps wherever the rush wins)
+  const dlX = [118, 150, 190, 222], lbHome = [[132, 118], [208, 118]], lbZone = [[108, 96], [232, 96]], sfHome = [[96, 92], [244, 92]];
   const wrs = [{ P: [[36, 154], [36, 112], [96, 58]], T: [0, 1, 2.7] }, { P: [[304, 154], [304, 92], [262, 96]], T: [0, 1.2, 2.4] }, { P: [[250, 162], [250, 104], [190, 66]], T: [0, 1.1, 2.8] }];
-  const wrAt = (w, t) => { const P = w.P, T = w.T; if (t <= 0) return [mx(P[0][0]), P[0][1]]; for (let k = 0; k < P.length - 1; k++) if (t <= T[k + 1]) { const u = (t - T[k]) / (T[k + 1] - T[k]); return [mx(P[k][0] + (P[k + 1][0] - P[k][0]) * u), P[k][1] + (P[k + 1][1] - P[k][1]) * u]; } const e = P[P.length - 1]; return [mx(e[0]), e[1]]; };
-  const gid = 'mgPr' + (++mgGid);
+  const teR = { P: [[268, 164], [300, 138], [322, 104]], T: [0, 0.9, 2.1] };
+  const sm = u => u * u * (3 - 2 * u);
+  const route = (w, t) => { const P = w.P, T = w.T; if (t <= 0) return [mx(P[0][0]), P[0][1]]; for (let k = 0; k < P.length - 1; k++) if (t <= T[k + 1]) { const u = sm((t - T[k]) / (T[k + 1] - T[k])); return [mx(P[k][0] + (P[k + 1][0] - P[k][0]) * u), P[k][1] + (P[k + 1][1] - P[k][1]) * u]; } const e = P[P.length - 1]; return [mx(e[0]), e[1]]; };
+  const gid = 'mgPr' + (++mgGid), G = (c1, c2, o) => mgGuy(0, 0, c1, c2, o);
   ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><defs><radialGradient id="${gid}" cx="50%" cy="60%" r="65%"><stop offset=".55" stop-color="#ff2d2d" stop-opacity="0"/><stop offset="1" stop-color="#ff2d2d" stop-opacity=".8"/></radialGradient></defs>
     ${mgField(ctx, 340, 300, 'mgQ', LOSY, 33, { crowd: false })}
     <line x1="14" x2="326" y1="${LOSY}" y2="${LOSY}" stroke="#4aa8ff" stroke-width="2.6" stroke-opacity=".9"/>
     <path d="M${wrs[0].P.map(p => `${mx(p[0])} ${p[1]}`).join(' L')}" stroke="#ffd23d" stroke-width="2" stroke-dasharray="5 6" fill="none" opacity=".55" class="mg-route"/>
-    ${olX.map((x, k) => mgGuy(x, 166, T1, T2, { s: 0.92, cls: 'mg-ol', attrs: `id="mgOL${k}"` })).join('')}
-    ${dlX.map((x, k) => mgGuy(0, 0, O1, O2, { s: 0.92, down: true, run: rushIdx.includes(k), cls: 'mg-rbd', attrs: `id="mgDL${k}"` })).join('')}
-    ${wrs.map((w, k) => mgGuy(0, 0, T1, T2, { s: 0.98, run: true, cls: 'mg-rbd', attrs: `id="mgWR${k}"` })).join('')}
-    ${wrs.map((w, k) => mgGuy(0, 0, O1, O2, { s: 0.98, down: true, run: true, cls: 'mg-rbd', attrs: `id="mgCB${k}"` })).join('')}
+    ${olHome.map((p, k) => G(T1, T2, { s: 0.92, cls: 'mg-rbd', attrs: `id="mgOL${k}"` })).join('')}
+    ${dlX.map((x, k) => G(O1, O2, { s: 0.92, down: true, run: rushIdx.includes(k), cls: 'mg-rbd', attrs: `id="mgDL${k}"` })).join('')}
+    ${lbHome.map((p, k) => G(O1, O2, { s: 0.92, down: true, run: true, cls: 'mg-rbd', attrs: `id="mgLB${k}"` })).join('')}
+    ${sfHome.map((p, k) => G(O1, O2, { s: 0.92, down: true, run: true, cls: 'mg-rbd', attrs: `id="mgSF${k}"` })).join('')}
+    ${wrs.map((w, k) => G(O1, O2, { s: 0.98, down: true, run: true, cls: 'mg-rbd', attrs: `id="mgCB${k}"` })).join('')}
+    ${wrs.map((w, k) => G(T1, T2, { s: 0.98, run: true, cls: 'mg-rbd', attrs: `id="mgWR${k}"` })).join('')}
+    ${G(T1, T2, { s: 0.95, run: true, cls: 'mg-rbd', attrs: 'id="mgTE"' })}${G(T1, T2, { s: 0.95, run: true, cls: 'mg-rbd', attrs: 'id="mgRB"' })}
     <g id="mgTgt"><circle r="17" fill="none" stroke="#ffd23d" stroke-width="2.4" stroke-dasharray="4 4" class="mg-landring"/><text y="-22" text-anchor="middle" font-size="9.5" font-weight="800" fill="#ffd23d" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke" font-family="Barlow Condensed, sans-serif" letter-spacing=".12em">TARGET</text></g>
     <g id="mgQBg" class="mg-rbd">${mgGuy(0, 0, T1, T2, { s: 1.05, you: true, run: true, num: ctx.number })}</g>
     <g id="mgBallG">${mgBall(0, 0, 0.62, 0, 'mgBallEl')}</g>
@@ -266,11 +273,18 @@ function mgQB(ctx, i, st) {
   ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-power"><div class="mg-py" style="left:${(pT - 0.2) * 100}%;width:40%"></div><div class="mg-pz" style="left:${(pT - zone / 2) * 100}%;width:${zone * 100}%"></div><i id="mgPI"></i></div><div class="mg-btns five">${mgHoldBtn('l', '◀')}${mgHoldBtn('u', '▲')}${mgHoldBtn('d', '▼')}${mgHoldBtn('r', '▶')}<button class="mg-b big" id="mgThrow" style="--c:#c5ff3a">THROW <small>SPACE</small></button></div>`;
   ctx.say('Move in the pocket · press <b>SPACE</b> when the bar is in the green');
   return new Promise(async res => {
-    const el = id => ctx.stage.querySelector('#' + id), put = (e, x, y) => { e.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`; };
-    const Q = { x: 170, y: 220 }, qE = el('mgQBg'), ballE = el('mgBallEl'), press = el('mgPress'), pi = ctx.ctrl.querySelector('#mgPI'), tgt = el('mgTgt');
-    const rush = rushIdx.map((k, j) => ({ k, bx: dlX[k], x: dlX[k], y: 142, free: false, t: [1.9, 1.55, 1.25][lv] + j * [0.75, 0.6, 0.45][lv] + rr(0, 0.35), e: el('mgDL' + k) }));
-    const dls = dlX.map((x, k) => ({ x, e: el('mgDL' + k) })), cbs = wrs.map((w, k) => ({ x: mx(w.P[0][0]), y: w.P[0][1] - 18, e: el('mgCB' + k) })), wre = wrs.map((w, k) => el('mgWR' + k));
-    dls.forEach(d => put(d.e, d.x, 142)); put(qE, Q.x, Q.y); wrs.forEach((w, k) => { const p = wrAt(w, 0); put(wre[k], p[0], p[1]); put(cbs[k].e, cbs[k].x, cbs[k].y); });
+    const q = id => ctx.stage.querySelector('#' + id), ang = (dx, dy) => Math.atan2(dx, -dy) * 180 / Math.PI;
+    // a player: sprite + position + the way he faces (0 = up the screen, 180 = down)
+    const P = (id, x, y, f0) => { const e = q(id); return { e, b: e.querySelector('.mg-body'), x, y, f: f0, px: x, py: y }; };
+    const put = (p, dt, face) => { p.e.style.transform = `translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px)`; if (face == null) { const dx = p.x - p.px, dy = p.y - p.py; if (dx * dx + dy * dy > 0.04) face = ang(dx, dy); } if (face != null) { const d = ((face - p.f + 540) % 360) - 180; p.f += d * Math.min(1, dt * 12); p.b.setAttribute('transform', `rotate(${p.f.toFixed(0)})`); } p.px = p.x; p.py = p.y; };
+    const Q = { x: 170, y: 206, vx: 0, vy: 0 }, qb = P('mgQBg', Q.x, Q.y, 0), ballE = q('mgBallEl'), press = q('mgPress'), tgt = q('mgTgt'), pi = ctx.ctrl.querySelector('#mgPI');
+    const ol = olHome.map((h, k) => ({ ...P('mgOL' + k, h[0], h[1], 0), hx: h[0], hy: h[1], push: 0, beat: 0 }));
+    const dl = dlX.map((x, k) => ({ ...P('mgDL' + k, x, 142, 180), hx: x, rush: rushIdx.includes(k), contact: 0, free: false, tf: 0, mv: 0, ox: 0, speed: 0, chip: 0 }));
+    rushIdx.forEach((k, j) => { dl[k].tf = [1.9, 1.55, 1.25][lv] + j * [0.75, 0.6, 0.45][lv] + rr(0, 0.35); dl[k].mv = pick([-1, 1, 0]); });
+    const lb = lbHome.map((h, k) => ({ ...P('mgLB' + k, h[0], h[1], 180) })), sf = sfHome.map((h, k) => ({ ...P('mgSF' + k, h[0], h[1], 180) }));
+    const wr = wrs.map((w, k) => { const p = route(w, 0); return { ...P('mgWR' + k, p[0], p[1], 0) }; }), cb = wrs.map((w, k) => { const p = route(w, 0); return { ...P('mgCB' + k, p[0], p[1] - 17, 180) }; });
+    const te = { ...P('mgTE', mx(teR.P[0][0]), teR.P[0][1], 0) }, rb = { ...P('mgRB', mx(150), 246, 0), state: 0, tt: 0, tgt: null };
+    const all0 = [qb, ...ol, ...dl, ...lb, ...sf, ...wr, ...cb, te, rb]; all0.forEach(p => put(p, 1, p.f));
     await sleep(650); if (!ctx.alive()) return res(false);
     const inp = mgInput(ctx);
     const bar = ctx.ctrl.querySelector('.mg-timer i'); if (bar) { bar.style.transition = 'none'; bar.style.width = '100%'; void bar.offsetWidth; bar.style.transition = `width ${tMax}s linear`; bar.style.width = '0%'; }
@@ -287,7 +301,8 @@ function mgQB(ctx, i, st) {
     const doThrow = async () => {
       if (ended) return; const v = marker(), perr = Math.abs(v - pT), close = minD; cleanup(); ctx.ctrl.innerHTML = '';
       const inGreen = perr <= zone / 2, inYellow = perr <= 0.2, perfect = inGreen && perr <= zone * 0.2 && close > 50;
-      const tw = wrAt(wrs[0], t + 0.55), wx = tw[0], wy = tw[1]; Snd.play('mgThrow', 0);
+      const tw = route(wrs[0], t + 0.55), wx = tw[0], wy = tw[1]; Snd.play('mgThrow', 0);
+      qb.e.querySelector('.mg-body').setAttribute('transform', `rotate(${ang(wx - Q.x, wy - Q.y).toFixed(0)})`);
       await fly(Q.x, Q.y - 6, wx, wy - 6, 560, 26); if (!ctx.alive()) return res(false);
       if (inGreen) {
         const yds = Math.max(2, Math.round((LOSY - wy) / 10 + rr(0, 3)));
@@ -306,20 +321,56 @@ function mgQB(ctx, i, st) {
     const onKey = e => { if (e.code === 'Space' || e.key === ' ') { e.preventDefault(); if (!e.repeat) doThrow(); } };
     document.addEventListener('keydown', onKey);
     ctx.ov.querySelector('#mgThrow').addEventListener('pointerdown', ev => { ev.preventDefault(); doThrow(); });
+    const ease = u => u * u * (3 - 2 * u), toward = (p, tx, ty, sp2, dt) => { const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy) || 1, st2 = Math.min(d, sp2 * dt); p.x += dx / d * st2; p.y += dy / d * st2; return d; };
     const frame = now => {
       if (ended) return; if (!ctx.alive()) { cleanup(); return; }
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
+      // ---- the quarterback: a short drop-back at the snap, then you steer him ----
       let vx = inp.k.r - inp.k.l, vy = inp.k.d - inp.k.u; if (inp.tx !== null) { vx = inp.tx - Q.x; vy = inp.ty - Q.y; if (Math.hypot(vx, vy) < 6) { vx = 0; vy = 0; } }
-      const m = Math.hypot(vx, vy); if (m > 0) { Q.x = clamp(Q.x + vx / m * vq * dt, B.x0, B.x1); Q.y = clamp(Q.y + vy / m * vq * dt, B.y0, B.y1); }
-      put(qE, Q.x, Q.y); ballE.setAttribute('transform', `translate(${Q.x.toFixed(1)} ${(Q.y - 9).toFixed(1)}) rotate(90) scale(0.62)`);
-      minD = 999;
-      rush.forEach(r => {
-        if (!r.free) { if (t >= r.t) { r.free = true; mgPop(ctx, r.x, r.y - 14, 'BLITZ!', 'bad'); } else { r.x = r.bx + Math.sin(t * 13 + r.k) * 1.8; r.y = 143 + Math.cos(t * 11 + r.k) * 1.2; } }
-        else { const dx = Q.x - r.x, dy = Q.y - r.y, d = Math.hypot(dx, dy) || 1, step = vr * dt * (d < 60 ? 1.06 : 1); r.x += dx / d * step + Math.sin(t * 9 + r.k) * 0.25; r.y += dy / d * step; minD = Math.min(minD, d); }
-        put(r.e, r.x, r.y);
+      const m = Math.hypot(vx, vy), ox = Q.x, oy = Q.y;
+      if (m > 0) { Q.x = clamp(Q.x + vx / m * vq * dt, B.x0, B.x1); Q.y = clamp(Q.y + vy / m * vq * dt, B.y0, B.y1); } else if (t < 0.6) Q.y = Math.min(Q.y + 26 * dt, 222);
+      Q.vx = (Q.x - ox) / dt; Q.vy = (Q.y - oy) / dt; qb.x = Q.x; qb.y = Q.y; put(qb, dt, ang(wr[0].x - Q.x, wr[0].y - Q.y));        // he keeps his eyes on the target while he steps around
+      ballE.setAttribute('transform', `translate(${Q.x.toFixed(1)} ${(Q.y - 9).toFixed(1)}) rotate(90) scale(0.62)`);
+      // ---- the line: the tackles kick-slide back into a cup, then every lineman fights his man; beaten linemen get walked back ----
+      const u0 = ease(Math.min(1, t / 0.5));
+      ol.forEach((o, k) => { const c = olCup[k]; o.hx = olHome[k][0] + (c[0] - olHome[k][0]) * u0; o.hy = olHome[k][1] + (c[1] - olHome[k][1]) * u0; });
+      dl.forEach((d, k) => {
+        const ob = pair[k] == null ? null : ol[pair[k]];
+        if (!d.rush) {                                                         // a blocked lineman: pushes, gives ground, never wins
+          if (ob) { ob.push = Math.min(10, 2.2 * t); d.x = ob.hx + Math.sin(t * 7 + k) * 1.6; d.y = ob.hy + ob.push - 13 + Math.cos(t * 6 + k) * 1.1; } else { d.x = d.hx + Math.sin(t * 6) * 1.5; d.y = 144 + Math.cos(t * 5) * 1; }
+          return;
+        }
+        if (!d.free) {
+          if (t < 0.4) { const u = ease(t / 0.4), cx = ob ? ob.hx : d.hx, cy = ob ? ob.hy - 13 : 150; d.x = d.hx + (cx - d.hx) * u; d.y = 142 + (cy - 142) * u; }          // get-off: close the cushion
+          else { if (ob) { ob.push = Math.min(14, 3.4 * (t - 0.2)); d.x = ob.hx + Math.sin(t * 9 + k) * 2 + d.ox; d.y = ob.hy + ob.push - 13 + Math.cos(t * 8 + k) * 1.2; } }
+          if (t >= d.tf) { d.free = true; d.t0 = t; mgPop(ctx, d.x, d.y - 14, d.mv === 0 ? 'BULL RUSH!' : d.mv < 0 ? 'SWIM!' : 'SPIN!', 'bad'); }
+          return;
+        }
+        // beaten block: a swim / spin move to the outside (a bull rush just runs through), then a curved chase that leads the quarterback
+        const age = t - d.t0, side = d.x < 170 ? -1 : 1;
+        if (age < 0.3 && d.mv !== 0) { d.x += side * (d.mv === 1 ? 62 : 46) * dt; d.y += 18 * dt; }
+        d.speed = Math.min(vr * (d.chip > 0 ? 0.45 : 1), d.speed + vr * 2.2 * dt * (d.chip > 0 ? 0.5 : 1));
+        const aimX = Q.x + Q.vx * 0.3, aimY = Q.y + Q.vy * 0.3, dist = toward(d, aimX, aimY, d.speed, dt);
+        minD = Math.min(minD, Math.hypot(d.x - Q.x, d.y - Q.y)); if (ob) { ob.beat = Math.min(1, age / 0.35); }
+        d.chip = Math.max(0, d.chip - dt);
       });
-      dls.forEach(d => { if (!rush.some(r => r.e === d.e)) put(d.e, d.x + Math.sin(t * 8 + d.x) * 1.4, 142 + Math.cos(t * 7 + d.x) * 1); });
-      wrs.forEach((w, k) => { const p = wrAt(w, t); put(wre[k], p[0], p[1]); const c = cbs[k]; c.x += (p[0] - c.x) * Math.min(1, dt * 4.5); c.y += (p[1] - 17 - c.y) * Math.min(1, dt * 4.5); put(c.e, c.x, c.y); if (k === 0) put(tgt, p[0], p[1]); });
+      dl.forEach(d => put(d, dt, d.rush && d.free ? null : 180));
+      minD = Math.min(999, ...dl.filter(d => d.free).map(d => Math.hypot(d.x - Q.x, d.y - Q.y)), 999);
+      ol.forEach((o, k) => { const kd = dl.find((d, j) => pair[j] === k && d.free); let x = o.hx, y = o.hy + o.push; if (kd) { const s = (kd.x < o.hx ? 1 : -1) * 12 * o.beat; x += s; y += 6 * o.beat; }
+        if (k === 2) { const fr = dl.filter(d => d.free).sort((a, b) => Math.hypot(a.x - Q.x, a.y - Q.y) - Math.hypot(b.x - Q.x, b.y - Q.y))[0]; if (fr) x += clamp((fr.x - o.hx) * 0.35, -26, 26) * Math.min(1, (t - 1) / 0.6); }
+        o.x += (x - o.x) * Math.min(1, dt * 14); o.y += (y - o.y) * Math.min(1, dt * 14); const eng = dl.find((d, j) => pair[j] === k); put(o, dt, kd ? ang(kd.x - o.x, kd.y - o.y) : 0); });
+      // ---- linebackers drop into shallow zones, safeties settle deep and drift to the throw side, corners shadow the receivers at a cushion ----
+      lb.forEach((p, k) => { const z = lbZone[k], u = ease(Math.min(1, t / 1.0)), w = route(wrs[k === 0 ? 2 : 1], t); p.x = lbHome[k][0] + (z[0] - lbHome[k][0]) * u + Math.sin(t * 2 + k) * 2 + (w[0] - z[0]) * 0.12 * u; p.y = lbHome[k][1] + (z[1] - lbHome[k][1]) * u; put(p, dt, ang(Q.x - p.x, Q.y - p.y)); });
+      sf.forEach((p, k) => { const w = route(wrs[k === 0 ? 0 : 1], t); p.x += ((sfHome[k][0] * 0.6 + w[0] * 0.4) - p.x) * Math.min(1, dt * 1.6); p.y += ((sfHome[k][1] - 4 * Math.min(1, t)) - p.y) * Math.min(1, dt * 1.4); put(p, dt, ang(Q.x - p.x, Q.y - p.y)); });
+      // ---- receivers run their routes with an eased break; the corners mirror them a step late ----
+      wr.forEach((p, k) => { const r = route(wrs[k], t); p.x = r[0]; p.y = r[1]; put(p, dt); const c = cb[k], cu = Math.min(1, dt * 4.2); c.x += (p.x - c.x) * cu; c.y += (p.y - 17 - c.y) * cu; put(c, dt, ang(p.x - c.x, p.y - c.y)); if (k === 0) { tgt.style.transform = `translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px)`; } });
+      { const r = route(teR, t); te.x = r[0]; te.y = r[1]; put(te, dt); }
+      // ---- the back: steps up and picks up the most dangerous rusher, then leaks out to the flat ----
+      { const thr = dl.filter(d => d.free).sort((a, b) => Math.hypot(a.x - Q.x, a.y - Q.y) - Math.hypot(b.x - Q.x, b.y - Q.y))[0];
+        if (rb.state === 0) { if (t > 0.5 && thr) { rb.state = 1; rb.tgt = thr; rb.tt = t; } else { rb.x += (mx(150) - rb.x) * dt * 3; rb.y += (222 - rb.y) * dt * 1.2; } }
+        if (rb.state === 1) { const d = toward(rb, rb.tgt.x, rb.tgt.y + 12, 78, dt); if (d < 16) { rb.tgt.chip = 0.5; rb.tgt.speed *= 0.82; } if (t - rb.tt > 1.6) rb.state = 2; }
+        if (rb.state === 2) toward(rb, mx(300), 196, 60, dt);
+        put(rb, dt, rb.state === 1 && rb.tgt ? ang(rb.tgt.x - rb.x, rb.tgt.y - rb.y) : null); }
       const v = marker(); pi.style.left = (v * 100) + '%';
       press.setAttribute('opacity', clamp(1 - minD / 95, 0, 0.7).toFixed(2));
       if (minD < 15) return sack('A rusher got to you.'); if (t >= tMax) return sack('You held it too long.');

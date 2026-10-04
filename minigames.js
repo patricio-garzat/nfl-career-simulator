@@ -165,6 +165,11 @@ function mgEnvNFL(force) {
     jersey: view => jerseySVG(jerseyFor(tid), jName(P), playerNumber(), { view, teamId: tid, word: TEAM[tid].nick }) };
 }
 let MGX = null;
+// while a mini game is open, SPACE and the arrow keys never scroll the page (also during the countdown before the snap, before the game itself listens to the keys)
+document.addEventListener('keydown', e => {
+  if (!document.querySelector('.mg-overlay')) return;
+  if ([' ', 'Spacebar', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown'].includes(e.key) && !/^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '')) e.preventDefault();
+}, { capture: true });
 function mgOpen(env) {
   env = env || mgEnvNFL(); if (!env) return;
   const se = env.se; if (!se.mg || !MG_META[se.mg.kind]) return;

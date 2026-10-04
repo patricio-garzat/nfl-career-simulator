@@ -1291,3 +1291,5 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .li-sbt b { font-family: var(--head); font-weight: 800; font-size: clamp(26px, 4.6vw, 52px); letter-spacing: .12em; background: linear-gradient(180deg, #fff6c8, #ffd23d 55%, #c98a10); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 3px 10px rgba(0, 0, 0, .7)); }
 .li-sbt span { font-family: var(--head); font-size: clamp(11px, 1.8vw, 18px); letter-spacing: .5em; margin-right: -.5em; color: #fff; margin-top: 6px; text-shadow: 0 2px 8px rgba(0, 0, 0, .8); }
 @keyframes liPulseC { 0%, 100% { transform: translate(-50%, -50%) scale(.94); opacity: .75; } 50% { transform: translate(-50%, -50%) scale(1.06); opacity: 1; } }
+
+.mg-overlay { overscroll-behavior: contain; } html:has(.mg-overlay), body:has(.mg-overlay) { overflow: hidden; }

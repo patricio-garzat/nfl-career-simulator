@@ -512,22 +512,35 @@ function mgKick(ctx, i, st) {
     <g id="mgAim" ${sc.shaky ? 'class="mg-shaky"' : ''}><line id="mgAimL" x1="${bx}" y1="${yB}" x2="170" y2="${yE}" stroke="#ffd23d" stroke-width="2" stroke-dasharray="5 5"/><circle id="mgAimC" cx="170" cy="${yE - barH - 4}" r="6" fill="none" stroke="#ffd23d" stroke-width="2.5"/></g>
     ${mgGuy(bx - 15, yB + 12, T1, T2, { s: 1.15, you: true })}${mgGuy(bx + 13, yB + 3, T1, T2, { s: 0.95 })}<ellipse id="mgSh" rx="6" ry="3" fill="#000" opacity=".38" cx="${bx}" cy="${yB}"/><g id="mgBallG">${mgBall(bx, yB - 1, 0.5, 90, 'mgBallEl')}</g><g id="mgFx"></g></svg><div class="mg-call">${sc.name} · ${MG_LV.indexOf(i) + 1}/3</div>`;
   const aimX = a => 170 + a * hw * 2;
-  ctx.ctrl.innerHTML = `<div class="mg-aim"><span>AIM</span><input type="range" min="-100" max="100" value="0" id="mgAimIn"></div><div class="mg-btns one"><button class="mg-b big" id="mgKickGo" style="--c:#ffd23d">🦵 KICK</button></div>`;
-  ctx.say(sc.shaky ? '<b>Everything on the line…</b> steady your aim' : 'Aim <b>into</b> the wind');
+  ctx.ctrl.innerHTML = `<div class="mg-aim"><span>AIM</span><input type="range" min="-100" max="100" value="0" id="mgAimIn"></div><div class="mg-btns one"><button class="mg-b big" id="mgKickGo" style="--c:#ffd23d">🦵 KICK <small>SPACE</small></button></div>`;
+  ctx.say(sc.shaky ? '<b>Everything on the line…</b> steady your aim · ← → aim · SPACE kick' : 'Aim <b>into</b> the wind · <b>← →</b> aim · <b>SPACE</b> kick');
   if (sc.shaky) Snd.play('mgTension', 0.05);
   const inp = ctx.ov.querySelector('#mgAimIn'), setAim = () => { aim = inp.value / 100; const x = aimX(aim); ctx.stage.querySelector('#mgAimL').setAttribute('x2', x); ctx.stage.querySelector('#mgAimC').setAttribute('cx', x); };
   inp.addEventListener('input', setAim);
+  // keyboard: ← → move the aim, SPACE kicks and then stops the power bar
+  let phase = 'aim', stopFn = null;
+  const kd = e => {
+    if (!ctx.alive()) { document.removeEventListener('keydown', kd); return; }
+    if (e.code === 'Space' || e.key === ' ') {
+      e.preventDefault(); if (e.repeat) return;
+      if (phase === 'aim') { const go = ctx.ov.querySelector('#mgKickGo'); if (go && !go.disabled) go.click(); } else if (phase === 'power' && stopFn) stopFn(e);
+      return;
+    }
+    const dx = (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') ? -1 : (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') ? 1 : 0;
+    if (dx && phase === 'aim') { e.preventDefault(); inp.value = clamp(Number(inp.value) + dx * (e.repeat ? 4 : 3), -100, 100); setAim(); }
+  };
+  document.addEventListener('keydown', kd);
   return new Promise(res => {
     ctx.ov.querySelector('#mgKickGo').addEventListener('click', async () => {
-      if (!ctx.alive()) return; ctx.ov.querySelector('#mgKickGo').disabled = true; inp.disabled = true;
+      if (!ctx.alive()) return; ctx.ov.querySelector('#mgKickGo').disabled = true; inp.disabled = true; phase = 'power';
       const z = sc.zone;
-      ctx.ctrl.innerHTML = `<div class="mg-power"><div class="mg-py" style="left:${(pT - 0.2) * 100}%;width:40%"></div><div class="mg-pz" style="left:${(pT - z / 2) * 100}%;width:${z * 100}%"></div><i id="mgPI"></i></div><div class="mg-btns one"><button class="mg-b big" id="mgStop" style="--c:#c5ff3a">⏹ STOP</button></div>`;
-      ctx.say('<b>Stop the bar in the green!</b>', 'go');
+      ctx.ctrl.innerHTML = `<div class="mg-power"><div class="mg-py" style="left:${(pT - 0.2) * 100}%;width:40%"></div><div class="mg-pz" style="left:${(pT - z / 2) * 100}%;width:${z * 100}%"></div><i id="mgPI"></i></div><div class="mg-btns one"><button class="mg-b big" id="mgStop" style="--c:#c5ff3a">⏹ STOP <small>SPACE</small></button></div>`;
+      ctx.say('<b>Stop the bar in the green!</b> · SPACE', 'go');
       const pi = ctx.ov.querySelector('#mgPI'), t0 = performance.now(), sp = (0.95 + i * 0.12) * (sc.shaky ? 1.18 : 1); let raf = 0;
       const val = () => { const ph = ((performance.now() - t0) / 1000 * sp) % 2; return ph < 1 ? ph : 2 - ph; };
       const upd = () => { if (!ctx.alive()) return; pi.style.left = (val() * 100) + '%'; raf = requestAnimationFrame(upd); }; raf = requestAnimationFrame(upd);
       const stop = async ev => {
-        ev.preventDefault(); ctx.stage.removeEventListener('pointerdown', stop); cancelAnimationFrame(raf); const p = val(), perr = Math.abs(p - pT); ctx.ctrl.innerHTML = '';
+        ev.preventDefault(); phase = 'done'; document.removeEventListener('keydown', kd); ctx.stage.removeEventListener('pointerdown', stop); cancelAnimationFrame(raf); const p = val(), perr = Math.abs(p - pT); ctx.ctrl.innerHTML = '';
         const shake = sc.shaky ? (rnd() - 0.5) * 0.5 : 0;
         const lateral = aim * 2 + drift + shake + (rnd() - 0.5) * 0.22 * (1 + 3 * perr) + (p < pT ? -0.1 : 0.1) * perr * 2, al = Math.abs(lateral);
         const short = p < pT - 0.2, over = p > pT + 0.2;
@@ -556,7 +569,7 @@ function mgKick(ctx, i, st) {
         const tip = (wide || upright) ? '<span class="mg-tip">The wind pushed it — aim against the arrow.</span>' : (short || over) ? '<span class="mg-tip">Stop the bar inside the green.</span>' : '';
         ctx.say(`${ok ? '✅' : '❌'} ${txt}${tip}`, ok ? 'good' : 'bad'); res(ok);
       };
-      ctx.ov.querySelector('#mgStop').addEventListener('pointerdown', stop, { once: true }); ctx.stage.addEventListener('pointerdown', stop);
+      stopFn = stop; ctx.ov.querySelector('#mgStop').addEventListener('pointerdown', stop, { once: true }); ctx.stage.addEventListener('pointerdown', stop);
     }, { once: true });
   });
 }

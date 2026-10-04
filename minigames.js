@@ -67,7 +67,7 @@ let mgGid = 0;
 const mgGuy = (x, y, f, t, o = {}) => {
   const s = o.s || 1, id = 'mgG' + (++mgGid), dk = c => mixHex(c, '#000000', 0.38), lt = c => mixHex(c, '#ffffff', 0.38), line = mgStroke(f), hl = mgStroke(t), tr = lum(f) > 0.55 ? dk(f) : lt(f);
   const num = o.num != null && o.num !== '' ? `<text y="${(2.1 * s).toFixed(1)}" text-anchor="middle" font-size="${(5.6 * s).toFixed(1)}" font-weight="800" font-family="Barlow Condensed, sans-serif" fill="#fff" stroke="rgba(0,0,0,.65)" stroke-width="${(1.1 * s).toFixed(1)}" paint-order="stroke" transform="${o.down ? '' : ''}">${esc(String(o.num))}</text>` : '';
-  return `<g class="mg-guy ${o.cls || ''}${o.run ? ' mg-run' : ''}" ${o.attrs || ''} style="transform:translate(${x}px,${y}px)">
+  return `<g class="mg-guy ${o.cls || ''}${o.run ? ' mg-run' : ''}" ${o.attrs || ''} transform="translate(${x} ${y})">
     <defs><radialGradient id="${id}j" cx="38%" cy="30%" r="85%"><stop offset="0" stop-color="${lt(f)}"/><stop offset=".55" stop-color="${f}"/><stop offset="1" stop-color="${dk(f)}"/></radialGradient>
     <radialGradient id="${id}h" cx="36%" cy="30%" r="80%"><stop offset="0" stop-color="${lt(t)}"/><stop offset=".5" stop-color="${t}"/><stop offset="1" stop-color="${dk(t)}"/></radialGradient></defs>
     ${o.you ? `<circle r="${15 * s}" fill="rgba(255,210,61,.18)" stroke="#ffd23d" stroke-width="2" class="mg-you"/>` : ''}
@@ -288,7 +288,7 @@ function mgQB(ctx, i, st) {
     const q = id => ctx.stage.querySelector('#' + id), ang = (dx, dy) => Math.atan2(dx, -dy) * 180 / Math.PI;
     // a player: sprite + position + the way he faces (0 = up the screen, 180 = down)
     const P = (id, x, y, f0) => { const e = q(id); return { e, b: e.querySelector('.mg-body'), x, y, f: f0, px: x, py: y }; };
-    const put = (p, dt, face) => { p.e.style.transform = `translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px)`; if (face == null) { const dx = p.x - p.px, dy = p.y - p.py; if (dx * dx + dy * dy > 0.04) face = ang(dx, dy); } if (face != null) { const d = ((face - p.f + 540) % 360) - 180; p.f += d * Math.min(1, dt * 12); p.b.setAttribute('transform', `rotate(${p.f.toFixed(0)})`); } p.px = p.x; p.py = p.y; };
+    const put = (p, dt, face) => { p.e.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`); if (face == null) { const dx = p.x - p.px, dy = p.y - p.py; if (dx * dx + dy * dy > 0.04) face = ang(dx, dy); } if (face != null) { const d = ((face - p.f + 540) % 360) - 180; p.f += d * Math.min(1, dt * 12); p.b.setAttribute('transform', `rotate(${p.f.toFixed(0)})`); } p.px = p.x; p.py = p.y; };
     const Q = { x: 170, y: 206, vx: 0, vy: 0 }, qb = P('mgQBg', Q.x, Q.y, 0), ballE = q('mgBallEl'), press = q('mgPress'), tgt = q('mgTgt'), pi = ctx.ctrl.querySelector('#mgPI');
     const ol = olHome.map((h, k) => ({ ...P('mgOL' + k, h[0], h[1], 0), hx: h[0], hy: h[1], push: 0, beat: 0 }));
     const dl = dlX.map((x, k) => ({ ...P('mgDL' + k, x, 142, 180), hx: x, rush: rushIdx.includes(k), contact: 0, free: false, tf: 0, mv: 0, ox: 0, speed: 0, chip: 0 }));
@@ -375,7 +375,7 @@ function mgQB(ctx, i, st) {
       lb.forEach((p, k) => { const z = lbZone[k], u = ease(Math.min(1, t / 1.0)), w = route(wrs[k === 0 ? 2 : 1], t); p.x = lbHome[k][0] + (z[0] - lbHome[k][0]) * u + Math.sin(t * 2 + k) * 2 + (w[0] - z[0]) * 0.12 * u; p.y = lbHome[k][1] + (z[1] - lbHome[k][1]) * u; put(p, dt, ang(Q.x - p.x, Q.y - p.y)); });
       sf.forEach((p, k) => { const w = route(wrs[k === 0 ? 0 : 1], t); p.x += ((sfHome[k][0] * 0.6 + w[0] * 0.4) - p.x) * Math.min(1, dt * 1.6); p.y += ((sfHome[k][1] - 4 * Math.min(1, t)) - p.y) * Math.min(1, dt * 1.4); put(p, dt, ang(Q.x - p.x, Q.y - p.y)); });
       // ---- receivers run their routes with an eased break; the corners mirror them a step late ----
-      wr.forEach((p, k) => { const r = route(wrs[k], t); p.x = r[0]; p.y = r[1]; put(p, dt); const c = cb[k], cu = Math.min(1, dt * 4.2); c.x += (p.x - c.x) * cu; c.y += (p.y - 17 - c.y) * cu; put(c, dt, ang(p.x - c.x, p.y - c.y)); if (k === 0) { tgt.style.transform = `translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px)`; } });
+      wr.forEach((p, k) => { const r = route(wrs[k], t); p.x = r[0]; p.y = r[1]; put(p, dt); const c = cb[k], cu = Math.min(1, dt * 4.2); c.x += (p.x - c.x) * cu; c.y += (p.y - 17 - c.y) * cu; put(c, dt, ang(p.x - c.x, p.y - c.y)); if (k === 0) { tgt.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`); } });
       { const r = route(teR, t); te.x = r[0]; te.y = r[1]; put(te, dt); }
       // ---- the back: steps up and picks up the most dangerous rusher, then leaks out to the flat ----
       { const thr = dl.filter(d => d.free).sort((a, b) => Math.hypot(a.x - Q.x, a.y - Q.y) - Math.hypot(b.x - Q.x, b.y - Q.y))[0];
@@ -427,7 +427,7 @@ function mgRB(ctx, i, st) {
   const gid = 'mgRBg', G = (c1, c2, o) => mgGuy(0, 0, c1, c2, o);
   ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><defs>${mgGrassPat(gid)}</defs>
     <rect width="340" height="300" rx="14" fill="#2b7d47"/>
-    <g id="mgRW" style="transform:translateY(0px)">
+    <g id="mgRW">
       ${mgFieldInner({ id: gid, w: 340, sl: 14, y0: GOALY - 112, y1: 340, yRef: LOSY, Aref: A0, ppy: 10, Amin: A0 - 16, Amax: 100, numL: 50, numR: 290 })}
       <image href="${(ctx.env.nfl && typeof NFL_MID_LOGO !== 'undefined' && NFL_MID_LOGO[ctx.t.id]) || ctx.t.logo}" x="126" y="${LOSY - (50 - A0) * 10 - 44}" width="88" height="88" opacity=".88" preserveAspectRatio="xMidYMid meet" transform="rotate(90 170 ${LOSY - (50 - A0) * 10})"/>
       ${mgEndZone(ctx, 14, GOALY - 100, 312, 100, 0.6)}${mgEzGrass(gid, 14, GOALY - 100, 312, 100)}
@@ -452,7 +452,7 @@ function mgRB(ctx, i, st) {
   return new Promise(async res => {
     const q = id => ctx.stage.querySelector('#' + id), ang = (dx, dy) => Math.atan2(dx, -dy) * 180 / Math.PI;
     const P = (id, x, y, f0) => { const e = q(id); return { e, b: e.querySelector('.mg-body'), x, y, f: f0, px: x, py: y }; };
-    const put = (p, dt, face) => { p.e.style.transform = `translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px)`; if (face == null) { const dx = p.x - p.px, dy = p.y - p.py; if (dx * dx + dy * dy > 0.04) face = ang(dx, dy); } if (face != null) { const d = ((face - p.f + 540) % 360) - 180; p.f += d * Math.min(1, dt * 12); p.b.setAttribute('transform', `rotate(${p.f.toFixed(0)})`); } p.px = p.x; p.py = p.y; };
+    const put = (p, dt, face) => { p.e.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`); if (face == null) { const dx = p.x - p.px, dy = p.y - p.py; if (dx * dx + dy * dy > 0.04) face = ang(dx, dy); } if (face != null) { const d = ((face - p.f + 540) % 360) - 180; p.f += d * Math.min(1, dt * 12); p.b.setAttribute('transform', `rotate(${p.f.toFixed(0)})`); } p.px = p.x; p.py = p.y; };
     const world = q('mgRW'), ydT = q('mgYd'), hole = q('mgHole'), ballE = q('mgBallEl');
     const me = P('mgMeG', 170, 232, 0), qb = P('mgQBg', 170, 181, 0);
     me.b.insertAdjacentHTML('beforeend', `<path d="M-4.5 -17 L0 -24 L4.5 -17 Z" fill="#ffd23d" stroke="rgba(0,0,0,.6)" stroke-width="1" stroke-linejoin="round"/><g id="mgCarry" style="display:none">${mgBall(9.5, -2.5, 0.56, 90)}</g>`); const carry = q('mgCarry');
@@ -528,7 +528,7 @@ function mgRB(ctx, i, st) {
       if (hitBy && stun <= 0) { stun = 0.6; hitT = t; hits++; mgPop(ctx, me.x, Math.max(30, me.y + Math.max(0, RY - me.y) - 22), 'HIT!', 'bad'); Snd.play('mgHit', 0); const dxh = me.x - hitBy.x; hitBy.x -= (dxh >= 0 ? 8 : -8); hitBy.y += 6; }
       put(me, dt, hd);
       // ---- camera, HUD, the end zone ----
-      const cy = Math.max(0, RY - me.y); world.style.transform = `translateY(${cy.toFixed(1)}px)`;
+      const cy = Math.max(0, RY - me.y); world.setAttribute('transform', `translate(0 ${cy.toFixed(1)})`);
       const yd = Math.max(0, Math.round(best)), pts = yd; ydT.textContent = `${yd} YDS · ${ctx.rbPts + pts} PTS`;
       hole.setAttribute('opacity', clamp(1 - Math.max(0, t - 1.3) / 0.8, 0, 1).toFixed(2));
       if (me.y <= GOALY - 30) return finish(true);
@@ -566,14 +566,14 @@ function mgCatch(ctx, i, st) {
   const spot = a => (a > 50 ? `${ctx.o.id} ${Math.round(100 - a)}` : a === 50 ? 'MIDFIELD' : `${ctx.t.id} ${Math.round(a)}`), ord = n => ['', '1ST', '2ND', '3RD', '4TH'][n] || n + 'TH';
   const board = `${ord(down)} & ${gl <= 10 ? 'GOAL' : toGo} · ${spot(A)}`, yOfA = a => yRef - (a - A) * ppy;
   const ezTop = yOfA(110), fdY = A + toGo < 100 ? yOfA(A + toGo) : null;
-  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><rect width="340" height="300" rx="14" fill="#2b7d47"/><g id="mgWorld" style="transform:translateY(0px)">${mgField(ctx, 340, 300, 'mgC', yRef, A, { crowd: false })}
+  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><rect width="340" height="300" rx="14" fill="#2b7d47"/><g id="mgWorld">${mgField(ctx, 340, 300, 'mgC', yRef, A, { crowd: false })}
     ${yOfA(100) > 0 ? mgEndZone(ctx, 14, Math.max(-60, ezTop), 312, yOfA(100) - Math.max(-60, ezTop), 0.6) + mgEzGrass('mgCg', 14, Math.max(-60, ezTop), 312, yOfA(100) - Math.max(-60, ezTop)) + `<line x1="14" x2="326" y1="${yOfA(100)}" y2="${yOfA(100)}" stroke="#fff" stroke-width="3.4"/>${ezTop > -4 ? `<line x1="14" x2="326" y1="${ezTop}" y2="${ezTop}" stroke="#fff" stroke-width="3.4"/>${mgPylon(14, ezTop)}${mgPylon(326, ezTop)}` : ''}${mgPylon(14, yOfA(100))}${mgPylon(326, yOfA(100))}` : ''}
     <line x1="14" x2="326" y1="${yRef}" y2="${yRef}" stroke="#4aa8ff" stroke-width="2.8" stroke-opacity=".9"/>${fdY != null && fdY > 24 ? `<line x1="14" x2="326" y1="${fdY}" y2="${fdY}" stroke="#ffd23d" stroke-width="2.8" stroke-opacity=".95"/>` : ''}</g>
     <path id="mgPath" d="M${B0.x} ${B0.y} L${L.x} ${L.y}" stroke="#fff" stroke-opacity=".85" stroke-width="2.6" stroke-dasharray="4 6" stroke-linecap="round" fill="none"/>
-    <g id="mgLand" style="transform:translate(${L.x}px,${L.y}px)"><circle r="20" fill="${td ? '#ffd23d' : T2}" fill-opacity=".2" stroke="${td ? '#ffd23d' : '#c5ff3a'}" stroke-width="3" class="mg-landring"/><circle r="7" fill="none" stroke="#fff" stroke-opacity=".8" stroke-dasharray="2 3"/>${td ? '<text y="4" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke">TD</text>' : ''}</g>
+    <g id="mgLand" transform="translate(${L.x} ${L.y})"><circle r="20" fill="${td ? '#ffd23d' : T2}" fill-opacity=".2" stroke="${td ? '#ffd23d' : '#c5ff3a'}" stroke-width="3" class="mg-landring"/><circle r="7" fill="none" stroke="#fff" stroke-opacity=".8" stroke-dasharray="2 3"/>${td ? '<text y="4" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke">TD</text>' : ''}</g>
     ${D ? mgGuy(0, 0, O1, O2, { s: 1.17, down: true, cls: 'mg-defn', attrs: 'id="mgDefn"' }) : ''}
     ${mgGuy(Q.x, Q.y, T1, T2, { s: 1.17 })}
-    <g id="mgMe" style="transform:translate(${R.x}px,${R.y}px)">${mgGuy(0, 0, T1, T2, { s: 1.3, you: true, run: true, num: ctx.number })}<text y="-18" text-anchor="middle" font-size="9" font-weight="800" fill="#ffd23d" font-family="Barlow Condensed, sans-serif" letter-spacing=".12em" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke">YOU</text></g>
+    <g id="mgMe" transform="translate(${R.x} ${R.y})">${mgGuy(0, 0, T1, T2, { s: 1.3, you: true, run: true, num: ctx.number })}<text y="-18" text-anchor="middle" font-size="9" font-weight="800" fill="#ffd23d" font-family="Barlow Condensed, sans-serif" letter-spacing=".12em" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke">YOU</text></g>
     <ellipse id="mgShadow" rx="7" ry="4" fill="#000" opacity=".35" cx="${B0.x}" cy="${B0.y}"/><g id="mgBallG">${mgBall(B0.x, B0.y, 1, 0, 'mgBallEl')}</g>
     <g id="mgHud"><rect x="60" y="6" width="220" height="28" rx="14" fill="rgba(5,8,16,.74)" stroke="rgba(255,255,255,.22)"/><text x="170" y="26" text-anchor="middle" font-size="18" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" letter-spacing=".05em">${board}</text></g>
     <g id="mgFx"></g></svg><div class="mg-call">${te ? 'TE' : 'WR'} · <b>${route}</b> · ${lv + 1}/3</div>`;
@@ -609,18 +609,18 @@ function mgCatch(ctx, i, st) {
       // you move
       let vx = inp.k.r - inp.k.l, vy = inp.k.d - inp.k.u; if (inp.tx !== null) { vx = inp.tx - R.x; vy = inp.ty - R.y; const m = Math.hypot(vx, vy); if (m < 6) { vx = 0; vy = 0; } }
       const m = Math.hypot(vx, vy); if (m > 0) { R.x = clamp(R.x + vx / m * VR * dt, 16, 324); R.y = clamp(R.y + vy / m * VR * dt, 34, 286); }
-      me.style.transform = `translate(${R.x}px,${R.y}px)`;
+      me.setAttribute('transform', `translate(${R.x} ${R.y})`);
       // the wind nudges the ball mid-air
       if (adj && !adjusted && u >= adj.ta) { adjusted = true; P1 = { x: B0.x + (L.x - B0.x) * adj.ta, y: B0.y + (L.y - B0.y) * adj.ta }; cur = { ...L2 }; mgPop(ctx, cur.x, cur.y - 30, '💨 WIND!', 'bad'); Snd.play('mgSwish', 0); }
       const bp = adjusted ? { x: P1.x + (cur.x - P1.x) * ((u - adj.ta) / (1 - adj.ta)), y: P1.y + (cur.y - P1.y) * ((u - adj.ta) / (1 - adj.ta)) } : { x: B0.x + (L.x - B0.x) * u, y: B0.y + (L.y - B0.y) * u };
       const h = Math.sin(Math.PI * u) * 22; ball.setAttribute('transform', `translate(${bp.x.toFixed(1)} ${(bp.y - h).toFixed(1)}) rotate(${(u * 720).toFixed(0)}) scale(${(1 + h / 70).toFixed(2)})`); shadow.setAttribute('cx', bp.x.toFixed(1)); shadow.setAttribute('cy', bp.y.toFixed(1)); shadow.setAttribute('rx', (7 - h / 14).toFixed(1));
-      landG.style.transform = `translate(${cur.x}px,${cur.y}px)`; pathEl.setAttribute('d', adjusted ? `M${P1.x} ${P1.y} L${cur.x} ${cur.y}` : `M${B0.x} ${B0.y} L${L.x} ${L.y}`);
+      landG.setAttribute('transform', `translate(${cur.x} ${cur.y})`); pathEl.setAttribute('d', adjusted ? `M${P1.x} ${P1.y} L${cur.x} ${cur.y}` : `M${B0.x} ${B0.y} L${L.x} ${L.y}`);
       // the defender races to the same spot
-      if (Dp) { const dx = cur.x - Dp.x, dy = cur.y - Dp.y, dm = Math.hypot(dx, dy); if (dm > 12) { Dp.x += dx / dm * VD * dt; Dp.y += dy / dm * VD * dt; } dEl.style.transform = `translate(${Dp.x}px,${Dp.y}px)`; }
+      if (Dp) { const dx = cur.x - Dp.x, dy = cur.y - Dp.y, dm = Math.hypot(dx, dy); if (dm > 12) { Dp.x += dx / dm * VD * dt; Dp.y += dy / dm * VD * dt; } dEl.setAttribute('transform', `translate(${Dp.x} ${Dp.y})`); }
       if (u >= 1) return finish();
       raf = requestAnimationFrame(frame);
     };
-    if (dEl) dEl.style.transform = `translate(${D.x}px,${D.y}px)`;
+    if (dEl) dEl.setAttribute('transform', `translate(${D.x} ${D.y})`);
     raf = requestAnimationFrame(frame);
   });
 }

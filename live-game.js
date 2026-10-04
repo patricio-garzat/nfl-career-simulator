@@ -872,8 +872,8 @@ function lvStatLine(T) { const cfg = POS[S.player.pos], lines = cfg.line(T); ret
 function lvScoreboardHTML(L) {
   // broadcast score bug (the Illustrator ScoreBug design): away block | down & distance (in the color of the team with the ball) over quarter + clock | home block.
   // Each team block wears the team color; the middle top block takes the color of whoever has the ball.
-  const side = (t, s) => { const c = (L.col && L.col[t.id]) || t.c1; return `<div class="sb-side ${s}" style="--c:${c};--t:${textOn(c)}"><img class="sb-logo" src="${logoUrl(t.id)}" alt="${t.id}"><span class="lv-score sb-score" id="lvScore_${s}">0</span><i class="lv-poss" id="lvPoss_${s}"></i></div>`; };
-  return `<div class="sb" id="lvBug" style="--pc:#1d2a44;--pt:#fff">${side(TEAM[L.away], 'away')}<div class="sb-mid"><div class="sb-dd" id="lvBugDD">KICKOFF</div><div class="sb-clk"><span class="sb-q" id="lvQ">1<small>ST</small></span><i class="sb-bar"></i><b class="sb-time" id="lvClock">15:00</b></div></div>${side(TEAM[L.home], 'home')}</div>`;
+  const side = (t, s) => { const c = (L.col && L.col[t.id]) || t.c1; return `<div class="scb-side ${s}" style="--c:${c};--t:${textOn(c)}"><img class="scb-logo" src="${logoUrl(t.id)}" alt="${t.id}"><span class="lv-score scb-score" id="lvScore_${s}">0</span><i class="lv-poss" id="lvPoss_${s}"></i></div>`; };
+  return `<div class="scb" id="lvBug" style="--pc:#1d2a44;--pt:#fff">${side(TEAM[L.away], 'away')}<div class="scb-mid"><div class="scb-dd" id="lvBugDD">KICKOFF</div><div class="scb-clk"><span class="scb-q" id="lvQ">1<small>ST</small></span><i class="scb-bar"></i><b class="scb-time" id="lvClock">15:00</b></div></div>${side(TEAM[L.home], 'home')}</div>`;
 }
 
 // background track by broadcast window: Thursday night, Sunday game day, Sunday night, Monday night

@@ -2512,11 +2512,13 @@ function tradeAnalysis(se, o) {
   const nw = tradeLineup(o.teamId, pos, P.ovr, o.bias);
   const sCur = snapShare(pos, cur.slot), sNew = snapShare(pos, nw.slot), strCur = S.teamRatings[S.teamId], strNew = S.teamRatings[o.teamId];
   const kicker = !D.n;
-  let score = 100 * (sNew - sCur) * 0.9 + clamp((strNew - strCur) / 10, -3, 3) * 6;
+  const dTeam = strNew - strCur;
+  let score = 100 * (sNew - sCur) * 0.9 + clamp(dTeam / 10, -2, 2) * 4;               // your role comes first; the team around you only tips the balance
   if (!kicker) { if (cur.slot > D.starters && nw.slot <= D.starters) score += 15; if (cur.slot <= D.starters && nw.slot > D.starters) score -= 20; }
-  const key = score >= 25 ? 'great' : score >= 8 ? 'good' : score > -8 ? 'side' : score > -25 ? 'back' : 'bad';
+  const key = score >= 25 ? 'great' : score >= 8 ? 'good' : score > -12 ? 'side' : score > -28 ? 'back' : 'bad';
   const label = { great: 'GREAT MOVE', good: 'GOOD MOVE', side: 'SIDEWAYS', back: 'STEP BACK', bad: 'BAD IDEA' }[key];
-  const sub = { great: 'a clear upgrade for you', good: 'worth thinking about', side: 'not much changes', back: 'you would lose ground', bad: 'you would be worse off' }[key];
+  const sameRole = !kicker && nw.slot === cur.slot;
+  const sub = { great: 'a clear upgrade for you', good: 'worth thinking about', side: sameRole ? (dTeam >= 3 ? 'same role on a stronger team' : dTeam <= -3 ? 'same role, but a weaker team' : 'not much changes') : 'not much changes', back: 'you would lose ground', bad: 'you would be worse off' }[key];
   const reasons = [];
   const above = nw.list[nw.slot - 2], aboveCur = cur.list[cur.slot - 2];
   if (!kicker) {

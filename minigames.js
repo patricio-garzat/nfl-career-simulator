@@ -253,15 +253,15 @@ function mgQB(ctx, i, st) {
   const line = [[148, 134], [196, 134]];                                            // the two key defenders start on the line and then pick their men
   const fin = [QB_COVER[shut], lv === 0 ? [170, 56] : QB_NEAR[open]];              // final spots: one is glued to a receiver, the other is far from the open man
   const pre = switchy ? [QB_COVER[open], QB_NEAR[shut]] : fin;                      // level 3 shows the opposite picture first
-  const defs = fin.map((f, k) => mgGuy(mx(line[k][0]), line[k][1], '#e04b4b', '#4a1010', { s: 1.25, down: true, cls: 'mg-d', attrs: `data-p="${mx(pre[k][0])},${pre[k][1]}" data-f="${mx(f[0])},${f[1]}"` })).join('');
-  const dl = [140, 158, 182, 200].map(x => mgGuy(x, 118, '#b83a3a', '#4a1010', { s: 1.0, down: true })).join(''), ol = [134, 152, 170, 188, 206].map(x => mgGuy(x, 146, T1, T2, { s: 1.0 })).join('');
+  const defs = fin.map((f, k) => mgGuy(mx(line[k][0]), line[k][1], '#e04b4b', '#4a1010', { s: 0.98, down: true, cls: 'mg-d', attrs: `data-p="${mx(pre[k][0])},${pre[k][1]}" data-f="${mx(f[0])},${f[1]}"` })).join('');
+  const dl = [140, 158, 182, 200].map(x => mgGuy(x, 118, '#b83a3a', '#4a1010', { s: 0.78, down: true })).join(''), ol = [134, 152, 170, 188, 206].map(x => mgGuy(x, 146, T1, T2, { s: 0.78 })).join('');
   const marker = c => `<marker id="mgA${c.slice(1)}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`;
   const routes = Object.entries(QB_R).map(([k, g]) => `<path d="M${g.route.map(p => `${mx(p[0])} ${p[1]}`).join(' L')}" stroke="${g.c}" stroke-width="2.4" stroke-dasharray="6 5" fill="none" marker-end="url(#mgA${g.c.slice(1)})" opacity=".9" class="mg-route"/>`).join('');
-  const tgs = Object.entries(QB_R).map(([k, g]) => { const x = mx(g.x), y = g.y; return `<g class="mg-tg" data-pick="${k}" style="cursor:pointer"><circle cx="${x}" cy="${y}" r="26" fill="transparent"/>${mgGuy(x, y, T1, T2, { s: 1.5 })}<text x="${x}" y="${y + 25}" text-anchor="middle" font-size="12" font-weight="800" fill="${g.c}" font-family="Barlow Condensed, sans-serif" letter-spacing=".08em" stroke="rgba(0,0,0,.6)" stroke-width="2.6" paint-order="stroke">${g.l}</text></g>`; }).join('');
+  const tgs = Object.entries(QB_R).map(([k, g]) => { const x = mx(g.x), y = g.y; return `<g class="mg-tg" data-pick="${k}" style="cursor:pointer"><circle cx="${x}" cy="${y}" r="26" fill="transparent"/>${mgGuy(x, y, T1, T2, { s: 1.17 })}<text x="${x}" y="${y + 25}" text-anchor="middle" font-size="12" font-weight="800" fill="${g.c}" font-family="Barlow Condensed, sans-serif" letter-spacing=".08em" stroke="rgba(0,0,0,.6)" stroke-width="2.6" paint-order="stroke">${g.l}</text></g>`; }).join('');
   const ringAt = (p, c) => `<circle cx="${mx(p[0])}" cy="${p[1]}" r="20" fill="none" stroke="${c}" stroke-width="3.2" stroke-dasharray="5 4"/>`;
   const rings = `<g id="mgRings" opacity="0" style="transition:opacity .35s">${ringAt([QB_R[open].x, QB_R[open].y], '#6dffbb')}${ringAt(QB_COVER[shut], '#ff5d5d')}</g>`;
   ctx.stage.innerHTML = `<svg class="mg-svg" viewBox="0 0 340 250">${mgField(ctx, 340, 250, 'mgQ', 132, 33, { crowd: false })}<defs>${marker('#ffd23d')}${marker('#c5ff3a')}</defs>
-    <line x1="0" x2="340" y1="132" y2="132" stroke="#4aa8ff" stroke-width="2.5" stroke-opacity=".85"/>${routes}${dl}${defs}${ol}${tgs}${rings}${mgGuy(170, 168, T1, T2, { s: 1.5, you: true, cls: 'mg-qb', num: ctx.number })}
+    <line x1="0" x2="340" y1="132" y2="132" stroke="#4aa8ff" stroke-width="2.5" stroke-opacity=".85"/>${routes}${dl}${defs}${ol}${tgs}${rings}${mgGuy(170, 168, T1, T2, { s: 1.17, you: true, cls: 'mg-qb', num: ctx.number })}
     <g id="mgBallG">${mgBall(170, 168, 0.85, 0, 'mgBallEl')}</g><g id="mgFx"></g></svg><div class="mg-call">FIND THE OPEN MAN · ${lv + 1}/3</div>`;
   ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns two">${Object.entries(QB_R).map(([k, g]) => `<button class="mg-b" data-pick="${k}" style="--c:${g.c}">${g.l}</button>`).join('')}</div>`;
   ctx.say('The defense is getting set…');
@@ -329,7 +329,7 @@ function mgRB(ctx, i, st) {
     for (let k = 0; k < n; k++) { let x, tries = 0; do { x = rr(XMIN + 8, XMAX - 8); tries++; } while (xs.some(q => Math.abs(q - x) < 64) && tries < 20); xs.push(x); defs.push({ w, x, bx: x, type: i >= 1 && rnd() < 0.28 + 0.08 * i ? 'slide' : (i >= 2 && rnd() < 0.22 ? 'track' : 'stand'), ph: rnd() * 6.28, hit: false }); }
   }
   const start = 100 - yds, yOfA = A => -(A - start) * 10;   // you start on the opponent's (yds)-yard line; 10 px per yard, upfield = up
-  const dsvg = defs.map((d, k) => mgGuy(0, 0, O1, O2, { s: 1.7, down: true, cls: 'mg-rbd', attrs: `data-k="${k}"` })).join('');
+  const dsvg = defs.map((d, k) => mgGuy(0, 0, O1, O2, { s: 1.3, down: true, cls: 'mg-rbd', attrs: `data-k="${k}"` })).join('');
   ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><defs>${mgGrassPat('mgRGp')}<linearGradient id="mgRG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d6c3d"/><stop offset="1" stop-color="#12502b"/></linearGradient>${mgLights('mgRL', T1)}</defs>
     <rect width="340" height="300" rx="14" fill="url(#mgRG)"/>
     <g id="mgRW" style="transform:translate(0px,${RY}px)">
@@ -341,8 +341,8 @@ function mgRB(ctx, i, st) {
       ${mgPylon(14, -GOAL)}${mgPylon(326, -GOAL)}${mgPylon(14, -GOAL - 100)}${mgPylon(326, -GOAL - 100)}
       <line x1="14" x2="326" y1="0" y2="0" stroke="#4aa8ff" stroke-width="3" stroke-opacity=".85"/>${dsvg}</g>
     <defs><pattern id="mgStripe" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="14" fill="#fff"/></pattern></defs>
-    <g id="mgChaser" class="mg-chaser"><circle r="17" fill="rgba(255,60,60,.16)" class="mg-you" style="stroke:#ff5d5d;stroke-width:2"/>${mgGuy(0, 0, O1, O2, { s: 1.7, run: true })}</g>
-    <g id="mgMe">${mgGuy(0, 0, T1, T2, { s: 1.7, you: true, run: true, num: ctx.number })}${mgBall(0, -2, 0.6, 90)}</g>
+    <g id="mgChaser" class="mg-chaser"><circle r="17" fill="rgba(255,60,60,.16)" class="mg-you" style="stroke:#ff5d5d;stroke-width:2"/>${mgGuy(0, 0, O1, O2, { s: 1.3, run: true })}</g>
+    <g id="mgMe">${mgGuy(0, 0, T1, T2, { s: 1.3, you: true, run: true, num: ctx.number })}${mgBall(0, -2, 0.6, 90)}</g>
     <g id="mgHud"><rect x="104" y="20" width="132" height="30" rx="15" fill="rgba(5,8,16,.7)" stroke="rgba(255,255,255,.2)"/><text id="mgYd" x="170" y="41" text-anchor="middle" font-size="20" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif">${yds} YDS TO TD</text>
       <rect x="10" y="60" width="10" height="130" rx="5" fill="rgba(255,255,255,.12)"/><rect id="mgGap" x="10" y="190" width="10" height="130" rx="5" fill="#6dffbb" style="transform-origin:15px 190px;transform:scaleY(-1)"/><text x="15" y="204" text-anchor="middle" font-size="8" fill="#fff" fill-opacity=".7" font-family="Barlow Condensed, sans-serif" letter-spacing=".1em">GAP</text></g>
     <g id="mgFx"></g></svg><div class="mg-call">RUSH FOR THE TD · ${yds} yds out · ${MG_LV.indexOf(i) + 1}/3</div>`;
@@ -424,9 +424,9 @@ function mgCatch(ctx, i, st) {
     <line x1="14" x2="326" y1="${yRef}" y2="${yRef}" stroke="#4aa8ff" stroke-width="2.8" stroke-opacity=".9"/>${fdY != null && fdY > 24 ? `<line x1="14" x2="326" y1="${fdY}" y2="${fdY}" stroke="#ffd23d" stroke-width="2.8" stroke-opacity=".95"/>` : ''}</g>
     <path id="mgPath" d="M${B0.x} ${B0.y} L${L.x} ${L.y}" stroke="#fff" stroke-opacity=".85" stroke-width="2.6" stroke-dasharray="4 6" stroke-linecap="round" fill="none"/>
     <g id="mgLand" style="transform:translate(${L.x}px,${L.y}px)"><circle r="20" fill="${td ? '#ffd23d' : T2}" fill-opacity=".2" stroke="${td ? '#ffd23d' : '#c5ff3a'}" stroke-width="3" class="mg-landring"/><circle r="7" fill="none" stroke="#fff" stroke-opacity=".8" stroke-dasharray="2 3"/>${td ? '<text y="4" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke">TD</text>' : ''}</g>
-    ${D ? mgGuy(0, 0, O1, O2, { s: 1.5, down: true, cls: 'mg-defn', attrs: 'id="mgDefn"' }) : ''}
-    ${mgGuy(Q.x, Q.y, T1, T2, { s: 1.5 })}
-    <g id="mgMe" style="transform:translate(${R.x}px,${R.y}px)">${mgGuy(0, 0, T1, T2, { s: 1.7, you: true, run: true, num: ctx.number })}<text y="-18" text-anchor="middle" font-size="9" font-weight="800" fill="#ffd23d" font-family="Barlow Condensed, sans-serif" letter-spacing=".12em" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke">YOU</text></g>
+    ${D ? mgGuy(0, 0, O1, O2, { s: 1.17, down: true, cls: 'mg-defn', attrs: 'id="mgDefn"' }) : ''}
+    ${mgGuy(Q.x, Q.y, T1, T2, { s: 1.17 })}
+    <g id="mgMe" style="transform:translate(${R.x}px,${R.y}px)">${mgGuy(0, 0, T1, T2, { s: 1.3, you: true, run: true, num: ctx.number })}<text y="-18" text-anchor="middle" font-size="9" font-weight="800" fill="#ffd23d" font-family="Barlow Condensed, sans-serif" letter-spacing=".12em" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke">YOU</text></g>
     <ellipse id="mgShadow" rx="7" ry="4" fill="#000" opacity=".35" cx="${B0.x}" cy="${B0.y}"/><g id="mgBallG">${mgBall(B0.x, B0.y, 1, 0, 'mgBallEl')}</g>
     <g id="mgHud"><rect x="60" y="6" width="220" height="28" rx="14" fill="rgba(5,8,16,.74)" stroke="rgba(255,255,255,.22)"/><text x="170" y="26" text-anchor="middle" font-size="18" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" letter-spacing=".05em">${board}</text></g>
     <g id="mgFx"></g></svg><div class="mg-call">${te ? 'TE' : 'WR'} · <b>${route}</b> · ${lv + 1}/3</div>`;
@@ -516,7 +516,7 @@ function mgKick(ctx, i, st) {
     : sc.wx === 'snow' ? Array.from({ length: 34 }, (_, k) => `<circle cx="${(k * 29) % 340}" cy="${(k * 41) % 260}" r="${1.2 + (k % 3) * 0.7}" fill="#fff" opacity=".8" class="mg-snow" style="animation-delay:${((k * 0.13) % 2).toFixed(2)}s"/>`).join('') : '';
   const streaks = mph >= 6 && sc.wx !== 'dome' ? Array.from({ length: Math.min(8, Math.round(mph / 2)) }, (_, k) => `<line x1="${dir > 0 ? 0 : 340}" y1="${120 + k * 20}" x2="${dir > 0 ? 38 : 302}" y2="${120 + k * 20}" stroke="#fff" stroke-opacity=".22" stroke-width="1.4" stroke-linecap="round" class="mg-streak" style="--dx:${dir * 340}px;animation-duration:${(1.8 - Math.min(1, mph / 22)).toFixed(2)}s;animation-delay:${(k * 0.25).toFixed(2)}s"/>`).join('') : '';
   const sideDots = Array.from({ length: 7 }, (_, k) => `<circle cx="${sl - band - 5 - (k % 2) * 4}" cy="${yG + 30 + k * 9}" r="2.2" fill="${k % 2 ? T1 : T2}" opacity=".8"/><circle cx="${340 - sl + band + 5 + (k % 2) * 4}" cy="${yG + 30 + k * 9}" r="2.2" fill="${k % 2 ? O1 : O2}" opacity=".8"/>`).join('');
-  const los = yB - 7 * s, line = (n, y, f, t, down) => Array.from({ length: n }, (_, k) => mgGuy(170 + (k - (n - 1) / 2) * Math.max(8, s * 1.9), y, f, t, { s: 0.62, down })).join('');
+  const los = yB - 7 * s, line = (n, y, f, t, down) => Array.from({ length: n }, (_, k) => mgGuy(170 + (k - (n - 1) / 2) * Math.max(8, s * 1.9), y, f, t, { s: 0.48, down })).join('');
   ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><defs>${mgGrassPat('mgKg')}<pattern id="mgStripe" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="14" fill="#fff"/></pattern><linearGradient id="mgStands" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a0f20"/><stop offset="1" stop-color="#1a2342"/></linearGradient></defs>
     <rect width="340" height="300" rx="14" fill="#1d6c3d"/>${field}
     <rect width="340" height="${yE - band}" fill="url(#mgStands)"/><g class="mg-crowd">${rows}</g>
@@ -534,7 +534,7 @@ function mgKick(ctx, i, st) {
     <g transform="translate(6 272)"><rect width="64" height="22" rx="11" fill="rgba(5,8,16,.62)"/><text x="32" y="16" text-anchor="middle" font-size="13" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif">${dist}<tspan font-size="8.5" fill-opacity=".75" letter-spacing=".12em"> YD FG</tspan></text></g>
     ${streaks}${weather}
     <g id="mgAim" ${sc.shaky ? 'class="mg-shaky"' : ''}><line id="mgAimL" x1="${bx}" y1="${yB}" x2="170" y2="${yE}" stroke="#ffd23d" stroke-width="2" stroke-dasharray="5 5"/><circle id="mgAimC" cx="170" cy="${yE - barH - 4}" r="6" fill="none" stroke="#ffd23d" stroke-width="2.5"/></g>
-    ${mgGuy(bx - 15, yB + 12, T1, T2, { s: 1.15, you: true, num: ctx.number })}${mgGuy(bx + 13, yB + 3, T1, T2, { s: 0.95 })}<ellipse id="mgSh" rx="6" ry="3" fill="#000" opacity=".38" cx="${bx}" cy="${yB}"/><g id="mgBallG">${mgBall(bx, yB - 1, 0.5, 90, 'mgBallEl')}</g><g id="mgFx"></g></svg><div class="mg-call">${sc.name} · ${MG_LV.indexOf(i) + 1}/3</div>`;
+    ${mgGuy(bx - 15, yB + 12, T1, T2, { s: 0.9, you: true, num: ctx.number })}${mgGuy(bx + 13, yB + 3, T1, T2, { s: 0.74 })}<ellipse id="mgSh" rx="6" ry="3" fill="#000" opacity=".38" cx="${bx}" cy="${yB}"/><g id="mgBallG">${mgBall(bx, yB - 1, 0.5, 90, 'mgBallEl')}</g><g id="mgFx"></g></svg><div class="mg-call">${sc.name} · ${MG_LV.indexOf(i) + 1}/3</div>`;
   const aimX = a => 170 + a * hw * 2;
   ctx.ctrl.innerHTML = `<div class="mg-aim"><span>AIM</span><input type="range" min="-100" max="100" value="0" id="mgAimIn"></div><div class="mg-btns one"><button class="mg-b big" id="mgKickGo" style="--c:#ffd23d">🦵 KICK <small>SPACE</small></button></div>`;
   ctx.say(sc.shaky ? '<b>Everything on the line…</b> steady your aim · ← → aim · SPACE kick' : 'Aim <b>into</b> the wind · <b>← →</b> aim · <b>SPACE</b> kick');

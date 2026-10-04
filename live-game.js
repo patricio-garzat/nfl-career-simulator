@@ -977,6 +977,48 @@ function lvTrack(game) {
   if (/night/i.test(n) || /super bowl/i.test(r + n)) return 'assets/sounds/live-sunday-night.mp3';
   return 'assets/sounds/live-sunday-gameday.m4a';
 }
+
+/* ---- the broadcast opening (about 7 seconds): team colors slide in, the logos slam down, the title of the window (GAME DAY / THURSDAY NIGHT FOOTBALL / ...) hits, with the song of that window underneath ---- */
+function lvIntroTitle(game) {
+  const n = String(game.slotName || ''), r = String(game.round || '');
+  const wk = game.k === 'PO' ? 'NFL PLAYOFFS' : `NFL · WEEK ${game.wk}`;
+  if (game.k === 'PO') return { top: wk, big: /super bowl/i.test(r) ? 'SUPER BOWL' : (r || 'PLAYOFFS').toUpperCase(), em: /super bowl/i.test(r) ? 'THE BIG GAME' : /sunday night|monday night|thursday/i.test(n) ? n.toUpperCase().replace(' NIGHT', ' NIGHT FOOTBALL') : 'GAME DAY' };
+  if (/thanksgiving/i.test(n)) return { top: wk, big: n.toUpperCase(), em: /night/i.test(n) ? 'FOOTBALL' : 'GAME DAY' };
+  if (/christmas/i.test(n)) return { top: wk, big: 'CHRISTMAS DAY', em: 'FOOTBALL' };
+  if (/black friday/i.test(n)) return { top: wk, big: 'BLACK FRIDAY', em: 'FOOTBALL' };
+  if (/(thursday|wednesday|friday|saturday|sunday|monday) night/i.test(n)) return { top: wk, big: n.toUpperCase().replace(/ ·.*$/, ''), em: 'FOOTBALL' };
+  if (/saturday/i.test(n)) return { top: wk, big: 'SATURDAY', em: 'GAME DAY' };
+  return { top: wk, big: 'GAME DAY', em: /international/i.test(n) ? 'LONDON · INTERNATIONAL' : 'SUNDAY' };
+}
+function lvIntro(ov, L, game, musicVol) {
+  return new Promise(resolve => {
+    const away = TEAM[L.away], home = TEAM[L.home], ca = L.col[L.away] || away.c1, ch = L.col[L.home] || home.c1, T = lvIntroTitle(game);
+    const when = game.date && typeof calShort === 'function' ? `${calShort(new Date(game.date + 'T00:00:00Z'))} · ${game.time} ET` : '';
+    const side = (t, c, k) => `<div class="li-team ${k}"><img src="${logoUrl(t.id)}" alt="${t.id}"><b>${esc(t.city.toUpperCase())}</b><span>${esc(t.nick.toUpperCase())}</span></div>`;
+    const sparks = Array.from({ length: 26 }, () => `<i style="left:${rr(2, 98).toFixed(1)}%;--d:${rr(2.4, 5.2).toFixed(1)}s;--l:${rr(0, 3.5).toFixed(1)}s;--s:${rr(2, 5).toFixed(1)}px"></i>`).join('');
+    const el = document.createElement('div'); el.className = 'lv-intro'; el.id = 'lvIntro'; el.style.cssText = `--a:${ca};--h:${ch};--ta:${textOn(ca)};--th:${textOn(ch)}`;
+    el.innerHTML = `<div class="li-beams"><i></i><i></i><i></i></div><div class="li-sparks">${sparks}</div>
+      <div class="li-panel away"></div><div class="li-panel home"></div>
+      <div class="li-stage"><div class="li-teams">${side(away, ca, 'away')}<div class="li-at">@</div>${side(home, ch, 'home')}</div>
+        <div class="li-title"><small>${esc(T.top)}</small><h1><span>${esc(T.big)}</span><em>${esc(T.em)}</em></h1><p>${esc(when)}</p><i class="li-shine"></i></div></div>
+      <div class="li-flash"></div><div class="li-vignette"></div><button class="li-skip" type="button">SKIP ▸</button>`;
+    ov.appendChild(el);
+    const timers = []; let done = false; const at = (ms, f) => timers.push(setTimeout(f, ms));
+    const song = typeof lvTrack === 'function' ? lvTrack(game) : '';
+    if (song) Snd.music(song, musicVol);
+    at(250, () => Snd.play('introSwoosh')); at(1000, () => Snd.play('introImpact')); at(1550, () => Snd.play('whoosh')); at(2500, () => Snd.play('introSwoosh')); at(3050, () => Snd.play('introImpact')); at(3800, () => Snd.play('whoosh'));
+    at(5200, () => Snd.stopMusic(1800));                         // the song fades out as the broadcast cuts to the field
+    const end = fast => {
+      if (done) return; done = true; timers.forEach(clearTimeout); if (fast) Snd.stopMusic(450);
+      el.classList.add('out'); setTimeout(() => el.remove(), fast ? 250 : 950);
+      if (L.startAmbience) L.startAmbience(); resolve();
+    };
+    at(6000, () => { if (L.startAmbience) { L.startAmbience(); L.startAmbience = null; } });
+    at(7000, () => end(false));
+    el.querySelector('.li-skip').addEventListener('click', e => { e.stopPropagation(); end(true); }); el.addEventListener('click', () => end(true));
+    (L.waits = L.waits || []).push(() => { if (!done) { done = true; timers.forEach(clearTimeout); el.remove(); resolve(); } });
+  });
+}
 async function openLiveGame(game, notes, season) {
   const myId = game.tm, oppId = game.opp, away = game.home ? oppId : myId, home = game.home ? myId : oppId, P = S.player;
   const myDir = game.home ? -1 : 1;                          // away team attacks to the right, home team to the left
@@ -986,7 +1028,7 @@ async function openLiveGame(game, notes, season) {
   const label = game.k === 'PO' ? (game.round || 'PLAYOFFS') : `WEEK ${game.wk}`;
   const whenTxt = game.date && typeof calShort === 'function' ? ` · ${calShort(new Date(game.date + 'T00:00:00Z'))} · ${game.time} ET` : '';
   ov.innerHTML = `<div class="lv-wrap">
-    <div class="lv-top"><span class="lv-live"><i></i>LIVE</span><b>${label}</b><span class="muted">${TEAM[away].name} @ ${TEAM[home].name}${whenTxt}</span><div class="lv-ctrl"><label class="lv-vol" title="Music volume"><span>MUSIC</span><input type="range" id="lvMusic" min="0" max="100" step="1" value="40" aria-label="Music volume"></label><label class="lv-vol" title="Crowd noise volume"><span>CROWD</span><input type="range" id="lvCrowd" min="0" max="100" step="1" value="35" aria-label="Crowd volume"></label><label class="lv-vol" title="Players on the field volume"><span>PLAYERS</span><input type="range" id="lvPlayers" min="0" max="100" step="1" value="50" aria-label="Players volume"></label><button class="mini on" data-lv-speed="1">1×</button><button class="mini" data-lv-speed="2">2×</button><button class="mini" data-lv-speed="4">4×</button><button class="btn btn-ghost btn-sm" id="lvSkip">SKIP ▸</button></div></div>
+    <div class="lv-top"><span class="lv-live"><i></i>LIVE</span><b>${label}</b><span class="muted">${TEAM[away].name} @ ${TEAM[home].name}${whenTxt}</span><div class="lv-ctrl"><label class="lv-vol" title="Crowd noise volume"><span>CROWD</span><input type="range" id="lvCrowd" min="0" max="100" step="1" value="35" aria-label="Crowd volume"></label><label class="lv-vol" title="Players on the field volume"><span>PLAYERS</span><input type="range" id="lvPlayers" min="0" max="100" step="1" value="50" aria-label="Players volume"></label><button class="mini on" data-lv-speed="1">1×</button><button class="mini" data-lv-speed="2">2×</button><button class="mini" data-lv-speed="4">4×</button><button class="btn btn-ghost btn-sm" id="lvSkip">SKIP ▸</button></div></div>
     ${lvScoreboardHTML(L)}
     <div class="lv-stage">${lvFieldSVG(away, home, /super bowl|^SB$/i.test(String(game.round || '')))}<div class="lv-banner" id="lvBanner"></div></div>
     <div class="lv-bottom">
@@ -997,13 +1039,11 @@ async function openLiveGame(game, notes, season) {
   document.body.appendChild(ov);
   const musicVol = () => { let v = 65; try { const x = parseInt(localStorage.getItem('nfl_music_vol2'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
   const vol = v => 0.6 * Math.pow(v / 100, 1.6);                            // wide range: whisper-quiet at the left, full volume at the right, fine control in between
-  Snd.music(lvTrack(game), vol(musicVol()));
   const crowdVol = () => { let v = 35; try { const x = parseInt(localStorage.getItem('nfl_crowd_vol'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
-  Snd.crowd('assets/sounds/crowd-stadium.m4a', vol(crowdVol()));
+  L.startAmbience = () => { if (L.skipped || L.ambience) return; L.ambience = true; Snd.crowd('assets/sounds/crowd-stadium.m4a', vol(crowdVol())); };   // the crowd comes in as the opening ends
   const cv = ov.querySelector('#lvCrowd'); if (cv) { cv.value = crowdVol(); cv.addEventListener('input', () => { Snd.setCrowdVol(vol(cv.value)); try { localStorage.setItem('nfl_crowd_vol', cv.value); } catch (e) { /* ignore */ } }); }
   const playersVol = () => { let v = 50; try { const x = parseInt(localStorage.getItem('nfl_players_vol'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
   const pv = ov.querySelector('#lvPlayers'); if (pv) { pv.value = playersVol(); pv.addEventListener('input', () => { Snd.setPlayersVol(vol(pv.value)); try { localStorage.setItem('nfl_players_vol', pv.value); } catch (e) { /* ignore */ } }); }
-  const mv = ov.querySelector('#lvMusic'); if (mv) { mv.value = musicVol(); mv.addEventListener('input', () => { Snd.setMusicVol(vol(mv.value)); try { localStorage.setItem('nfl_music_vol2', mv.value); } catch (e) { /* ignore */ } }); }
   const $ = id => document.getElementById(id), setScore = () => { $('lvScore_away').textContent = L.score.away; $('lvScore_home').textContent = L.score.home; };
   const setClock = (q, clock) => { $('lvQ').innerHTML = `${q}<small>${['ST', 'ND', 'RD', 'TH'][q - 1]}</small>`; $('lvClock').textContent = clock; };
   const setBugDD = txt => { const el = $('lvBugDD'); if (el) el.innerHTML = esc(String(txt).toUpperCase()).replace(/(\d)(ST|ND|RD|TH)\b/g, '$1<small>$2</small>'); };
@@ -1017,7 +1057,7 @@ async function openLiveGame(game, notes, season) {
   tiles();
   ov.querySelectorAll('[data-lv-speed]').forEach(b => b.addEventListener('click', () => { L.speed = Number(b.dataset.lvSpeed); LV.speed = L.speed; ov.querySelectorAll('[data-lv-speed]').forEach(x => x.classList.toggle('on', x === b)); }));
   const finish = () => {
-    Snd.stopMusic(500);
+    Snd.stopMusic(900);
     if (L.finished) return; L.finished = true; L.skipped = true;  (L.waits || []).splice(0).forEach(f => f()); if (L.cancelAnim) L.cancelAnim();
     const el = document.getElementById('lvOverlay'); if (el) el.remove();
     if (game.st !== 'OUT') { /* the box score is the truth */ }
@@ -1029,7 +1069,7 @@ async function openLiveGame(game, notes, season) {
   const bumpScore = side => { const el = $('lvScore_' + side); if (el) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } };
   const banner = async (text, cls, ms = 1500) => { const b = $('lvBanner'); if (!b || b.classList.contains('final')) return; b.className = 'lv-banner show ' + cls; b.textContent = text; await sleep(ms); if (b && !b.classList.contains('final')) b.className = 'lv-banner'; };
   const finalScreen = (skipped) => {
-    Snd.stopMusic(900);
+    Snd.stopMusic(2200);
     L.score = { away: game.home ? game.op : game.my, home: game.home ? game.my : game.op }; setScore();
     const el = document.getElementById('lvOverlay'); if (!el) return finish();
     const win = game.w; POS[P.pos].stats.forEach(x => { L.T[x.k] = (game.s || {})[x.k] || 0; }); tiles(); L.frozen = true; setClock(4, '0:00'); setBugDD('FINAL');
@@ -1037,8 +1077,9 @@ async function openLiveGame(game, notes, season) {
     const sk = $('lvSkip'); if (sk) sk.style.display = 'none'; Snd.play(win ? 'fanfare' : 'down');
     if (win) { const st = el.querySelector('.lv-stage') || el; burst(st, 70); setTimeout(() => burst(st, 50), 450); }   // team-colored confetti
   };
-  /* ---- play the script ---- */
-  await sleep(700);
+  /* ---- the broadcast opening, then the script ---- */
+  await lvIntro(ov, L, game, vol(musicVol()));
+  await sleep(500);
   const script = lvBuild(game);
   let prevQ = 1;                                              // the teams switch ends at every change of quarter
   for (let si = 0; si < script.length; si++) {
@@ -1081,7 +1122,7 @@ async function openLiveGame(game, notes, season) {
       };
       raf = requestAnimationFrame(frame);
     });
-    Snd.stopPlayers(500);
+    Snd.stopPlayers(900);
     if (!alive()) break;
     T.render(res.dur);
     Object.entries(p.inc || {}).forEach(([k2, v]) => { L.T[k2] = (L.T[k2] || 0) + v; }); tiles();

@@ -1221,6 +1221,8 @@ const Snd = (() => {
     up: t => { brush(t, 0.5, 0.035, true); ping(t + 0.3, 0.013); ping(t + 0.42, 0.01); },
     down: t => { brush(t, 0.45, 0.03, false); },
     whoosh: t => air(t, 0.8, 0.035),
+    introSwoosh: t => { air(t, 0.95, 0.06); brush(t, 0.7, 0.045, true); },
+    introImpact: t => { thump(t, 0.26); noise(t, 0.16, { type: 'lowpass', f: 700, vol: 0.12, attack: 0.002 }); air(t + 0.04, 1.0, 0.045); ping(t + 0.05, 0.012); },
     penScratch: t => noise(t, 0.08, { type: 'bandpass', f: rr(2400, 3800), q: 1.1, vol: 0.04, attack: 0.008, crisp: true }),
     cash: t => { soft(t, 0.04); ping(t + 0.06, 0.012); },
     contract: t => { lib.cash(t); lib.fanfare(t + 0.3); applause(t + 1, 1.4, 0.02); },
@@ -1279,11 +1281,14 @@ const Snd = (() => {
     if (!m) unlock();
   }
   // plays an audio file from the project (e.g. assets/sounds/draft-pick.mp3); if the file is missing or the browser refuses it, `fallback` (a synth sound name) plays instead
+  // every audio file starts with a short fade-in (never a hard cut)
+  function fadeIn(au, vol, ms) { let t = 0; const iv = setInterval(() => { t += 25; au.volume = clamp(vol * Math.min(1, t / ms), 0, 1); if (t >= ms || au.paused && t > 600) clearInterval(iv); }, 25); }
   function file(url, fallback, vol = 0.9) {
     if (muted) return;
     try {
-      const au = new Audio(url); au.volume = vol; au.preload = 'auto';
+      const au = new Audio(url); au.volume = 0; au.preload = 'auto'; fadeIn(au, vol, 90);
       au.addEventListener('error', () => { if (fallback) play(fallback); }, { once: true });
+      au.addEventListener('loadedmetadata', () => { const d = au.duration; if (d && isFinite(d) && d > 0.8) { const tail = Math.min(0.5, d * 0.3), iv = setInterval(() => { if (au.paused || au.ended) return clearInterval(iv); const left = d - au.currentTime; if (left < tail) au.volume = clamp(vol * Math.max(0, left / tail), 0, 1); }, 30); } }, { once: true });   // and a short fade-out at the end
       const p = au.play(); if (p && p.catch) p.catch(() => { if (fallback) play(fallback); });
     } catch (e) { if (fallback) play(fallback); }
   }
@@ -1313,7 +1318,7 @@ const Snd = (() => {
   function players(url, vol = 0.2, rate = 1) {
     stopPlayers(0);
     try {
-      const au = new Audio(url); au.volume = clamp(vol, 0, 1); au.muted = muted; au.preload = 'auto'; au.playbackRate = clamp(rate, 0.25, 4); pl = au; au._vol = vol;
+      const au = new Audio(url); au.volume = 0; au.muted = muted; au.preload = 'auto'; au.playbackRate = clamp(rate, 0.25, 4); pl = au; au._vol = vol; plFade = setInterval(() => { if (pl !== au) return clearInterval(plFade); au.volume = clamp(au._vol * Math.min(1, (au._t = (au._t || 0) + 25) / 160), 0, 1); if (au._t >= 160) clearInterval(plFade); }, 25);
       const p = au.play(); if (p && p.catch) p.catch(() => {});
     } catch (e) { pl = null; }
   }

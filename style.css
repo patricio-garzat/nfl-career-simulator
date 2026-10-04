@@ -1200,3 +1200,42 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 
 .lv-vol > span { font-family: var(--head); font-size: 11px; letter-spacing: .16em; font-weight: 700; color: var(--mut); }
 @media (max-width: 720px) { .lv-ctrl { flex-wrap: wrap; } .lv-vol input { width: 30vw; max-width: 140px; } }
+
+/* ---- live game: broadcast opening (about 7 s) ---- */
+.lv-intro { position: absolute; inset: 0; z-index: 60; overflow: hidden; background: radial-gradient(120% 90% at 50% 40%, #0b1424, #03060c 75%); display: grid; place-items: center; cursor: pointer; }
+.lv-intro.out { animation: liOut .9s ease forwards; pointer-events: none; } @keyframes liOut { to { opacity: 0; } }
+.li-panel { position: absolute; inset: 0; box-shadow: 0 0 60px rgba(0, 0, 0, .6); }
+.li-panel.away { background: linear-gradient(115deg, var(--a), color-mix(in srgb, var(--a) 50%, #000)); clip-path: polygon(0 0, 59% 0, 45% 100%, 0 100%); transform: translateX(-105%); animation: liInL .75s .25s cubic-bezier(.2, .9, .2, 1) forwards; }
+.li-panel.home { background: linear-gradient(245deg, var(--h), color-mix(in srgb, var(--h) 50%, #000)); clip-path: polygon(55% 0, 100% 0, 100% 100%, 41% 100%); transform: translateX(105%); animation: liInR .75s .25s cubic-bezier(.2, .9, .2, 1) forwards; }
+@keyframes liInL { to { transform: none; } } @keyframes liInR { to { transform: none; } }
+.li-beams i { position: absolute; top: -25%; height: 150%; width: 16vw; background: linear-gradient(180deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 72%); filter: blur(16px); transform-origin: 50% 0; animation: liBeam 4.5s ease-in-out infinite alternate; opacity: .8; }
+.li-beams i:nth-child(1) { left: 8%; transform: rotate(14deg); } .li-beams i:nth-child(2) { left: 44%; animation-delay: -1.6s; transform: rotate(-4deg); } .li-beams i:nth-child(3) { left: 78%; animation-delay: -3s; transform: rotate(-16deg); }
+@keyframes liBeam { from { transform: rotate(-12deg); } to { transform: rotate(12deg); } }
+.li-sparks i { position: absolute; bottom: -12px; width: var(--s); height: var(--s); border-radius: 50%; background: rgba(255, 255, 255, .85); box-shadow: 0 0 8px rgba(255, 255, 255, .8); opacity: 0; animation: liRise var(--d) linear var(--l) infinite; }
+@keyframes liRise { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: .9; } 100% { transform: translateY(-110vh); opacity: 0; } }
+.li-stage { position: relative; z-index: 3; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4vh; animation: liShake .38s 1s, liShake .3s 3.05s; }
+@keyframes liShake { 0%, 100% { transform: none; } 20% { transform: translate(-7px, 4px); } 40% { transform: translate(6px, -5px); } 60% { transform: translate(-4px, 3px); } 80% { transform: translate(3px, -2px); } }
+.li-teams { display: flex; align-items: center; justify-content: center; gap: clamp(6px, 3vw, 56px); width: 100%; padding: 0 3vw; box-sizing: border-box; }
+.li-team { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+.li-team img { width: clamp(86px, 26vmin, 250px); height: clamp(86px, 26vmin, 250px); object-fit: contain; filter: drop-shadow(0 14px 26px rgba(0, 0, 0, .6)) drop-shadow(0 0 22px rgba(255, 255, 255, .25)); animation: liSlam .6s .95s cubic-bezier(.2, 1.35, .3, 1) both; }
+@keyframes liSlam { 0% { opacity: 0; transform: scale(3.4) rotate(-8deg); filter: blur(10px) drop-shadow(0 0 0 #000); } 55% { opacity: 1; } 100% { opacity: 1; transform: none; } }
+.li-team b, .li-team span { font-family: var(--head); color: #fff; text-shadow: 0 2px 10px rgba(0, 0, 0, .7); text-align: center; opacity: 0; animation: liUp .55s 1.5s cubic-bezier(.2, .9, .3, 1) both; }
+.li-team b { font-size: clamp(11px, 1.8vw, 18px); letter-spacing: .32em; font-weight: 600; } .li-team span { font-size: clamp(20px, 4.2vw, 46px); letter-spacing: .1em; font-weight: 800; line-height: 1; animation-delay: 1.62s; }
+@keyframes liUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+.li-at { font-family: var(--head); font-size: clamp(22px, 5vmin, 54px); font-weight: 800; color: #fff; text-shadow: 0 0 18px rgba(255, 255, 255, .6); opacity: 0; animation: liPop .45s 1.95s cubic-bezier(.2, 1.6, .4, 1) both; }
+@keyframes liPop { from { opacity: 0; transform: scale(.2); } to { opacity: 1; transform: none; } }
+.li-title { position: relative; overflow: hidden; text-align: center; padding: 1.6vmin 6vw; width: min(100%, 980px); box-sizing: border-box; background: linear-gradient(90deg, transparent, rgba(0, 0, 0, .78) 10%, rgba(0, 0, 0, .78) 90%, transparent); transform: scaleX(0); animation: liBar .55s 2.5s cubic-bezier(.2, .9, .2, 1) forwards; }
+@keyframes liBar { to { transform: none; } }
+.li-title small { display: block; font-family: var(--head); font-size: clamp(10px, 1.7vw, 17px); letter-spacing: .5em; color: #cdd7ec; opacity: 0; animation: liUp .5s 3s both; }
+.li-title h1 { margin: 2px 0; font-family: var(--head); font-weight: 800; line-height: .95; text-transform: uppercase; color: #fff; display: flex; flex-direction: column; align-items: center; }
+.li-title h1 span { font-size: clamp(30px, 8.4vw, 96px); letter-spacing: .06em; opacity: 0; animation: liTrack .75s 2.95s cubic-bezier(.2, .9, .3, 1) both; text-shadow: 0 4px 22px rgba(0, 0, 0, .6); }
+@keyframes liTrack { from { opacity: 0; letter-spacing: .5em; transform: scale(1.25); } to { opacity: 1; letter-spacing: .06em; transform: none; } }
+.li-title h1 em { font-style: normal; font-size: clamp(14px, 3.6vw, 40px); letter-spacing: .5em; margin-right: -.5em; color: #ffd23d; opacity: 0; animation: liUp .55s 3.35s both; }
+.li-title p { margin: 4px 0 0; font-family: var(--head); font-size: clamp(11px, 1.9vw, 19px); letter-spacing: .2em; color: #cdd7ec; opacity: 0; animation: liUp .5s 3.8s both; }
+.li-shine { position: absolute; top: 0; bottom: 0; left: 0; width: 28%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .5), transparent); transform: translateX(-160%) skewX(-18deg); animation: liShine 1.1s 4s ease-in-out forwards; pointer-events: none; }
+@keyframes liShine { to { transform: translateX(520%) skewX(-18deg); } }
+.li-flash { position: absolute; inset: 0; z-index: 5; background: #fff; opacity: 0; pointer-events: none; animation: liFlash .32s 1s ease-out forwards, liFlash .26s 3.05s ease-out forwards; }
+@keyframes liFlash { 0% { opacity: .85; } 100% { opacity: 0; } }
+.li-vignette { position: absolute; inset: 0; z-index: 4; pointer-events: none; background: radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, .65)); }
+.li-skip { position: absolute; z-index: 6; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); font-family: var(--head); letter-spacing: .16em; font-size: 13px; padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .35); background: rgba(0, 0, 0, .4); color: #fff; cursor: pointer; opacity: .75; }
+@media (max-width: 720px) { .li-teams { gap: 4px; } .li-title { padding: 2vmin 4vw; } }

@@ -288,7 +288,8 @@ function lvFieldSVG(away, home, sb) {
   const bench = (team, outer) => {
     const x0 = lvX(25), x1 = lvX(75), y0 = outer ? bandY - 46 : bandY + bandH + 46, yn = outer ? bandY - 2 : bandY + bandH + 2, c = team.c1, mid = (x0 + x1) / 2, ly = (y0 + yn) / 2;
     const dark = lum(c) < 0.45;
-    return `<polygon points="${x0 + 14},${y0} ${x1 - 14},${y0} ${x1},${yn} ${x0},${yn}" fill="${c}"/><image href="${logoUrl(team.id)}" x="${mid - 24}" y="${ly - 24}" width="48" height="48" opacity="${dark ? 1 : .95}" preserveAspectRatio="xMidYMid meet"/>`;
+    const pts = `${x0 + 14},${y0} ${x1 - 14},${y0} ${x1},${yn} ${x0},${yn}`;
+    return `<polygon points="${pts}" fill="${c}"/><polygon points="${pts}" fill="url(#lvGrass)"/><polygon points="${pts}" fill="url(#lvGrass)" opacity=".8"/><image href="${logoUrl(team.id)}" x="${mid - 24}" y="${ly - 24}" width="48" height="48" opacity="${dark ? 1 : .95}" preserveAspectRatio="xMidYMid meet"/>`;
   };
   const dashes = `<rect x="-46" y="${bandY - 24}" width="1292" height="${bandH + 48}" fill="none" stroke="#f0dc9a" stroke-opacity=".75" stroke-width="2" stroke-dasharray="9 7"/><rect x="-42" y="${bandY - 20}" width="1284" height="${bandH + 40}" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.4" stroke-dasharray="9 7"/>`;
   const bandTxt = (t, x, rot, dy = 0) => `<text transform="translate(${x} ${cy + dy}) rotate(${rot})" text-anchor="middle" font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="12" letter-spacing="2.2" fill="#2f8a4a" opacity=".9">${t}</text>`;
@@ -299,6 +300,8 @@ function lvFieldSVG(away, home, sb) {
     ${stripes}${ezOf(0, A, -90, 0)}${ezOf(1100, H, 90, 0)}<rect x="0" y="${top}" width="1200" height="${LV_FH}" fill="url(#lvGrass)" pointer-events="none"/>
     <g class="lv-lines">${lines}${hashes}</g>
     <g class="lv-nums" fill="#fff" fill-opacity=".92">${nums}</g>
+    <image href="${NFL_LOGO}" x="${lvX(15) - 19}" y="${bot - 64 - 19}" width="38" height="38" opacity=".9" preserveAspectRatio="xMidYMid meet"/>
+    <image href="${NFL_LOGO}" x="${lvX(85) - 19}" y="${top + 64 - 19}" width="38" height="38" opacity=".9" preserveAspectRatio="xMidYMid meet" transform="rotate(180 ${lvX(85)} ${top + 64})"/>
     ${sb ? `<image href="${NFL_LOGO}" x="${lvX(50) - 90}" y="${cy - 90}" width="180" height="180" opacity=".95" preserveAspectRatio="xMidYMid meet"/>${[20, 80].map(y => `<image href="super-bowl-trophy.png" x="${lvX(y) - 40}" y="${cy - 49}" width="80" height="98" opacity=".95" preserveAspectRatio="xMidYMid meet"/>`).join('')}`   // Super Bowl: the NFL shield at midfield, a small Lombardi trophy on each 20
       : `<image href="${NFL_MID_LOGO[home] || logoUrl(home)}" x="${lvX(50) - 90}" y="${cy - 90}" width="180" height="180" opacity=".92" preserveAspectRatio="xMidYMid meet"/>`}
     ${pylons}${post(-10, 1)}${post(1210, -1)}

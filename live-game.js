@@ -1033,6 +1033,24 @@ function lvIntro(ov, L, game, musicVol) {
     (L.waits = L.waits || []).push(() => { if (!done) { done = true; timers.forEach(clearTimeout); el.remove(); resolve(); } });
   });
 }
+// a play call on the field (SACK, +12 YDS, TOUCHDOWN!...): a small broadcast plate with an accent bar (green = good, red = bad, gold = touchdown)
+function lvPop(layer, f) {
+  const NS = 'http://www.w3.org/2000/svg', mk = (n, a) => { const e = document.createElementNS(NS, n); Object.keys(a).forEach(k => e.setAttribute(k, a[k])); return e; };
+  const x = Math.min(1090, Math.max(150, f.p.x)), y = Math.max(70, f.p.y - 30), cls = f.cls || '';
+  const outer = mk('g', { transform: `translate(${x} ${y})` }), inner = mk('g', { class: `lv-pop ${cls}${f.sticky ? ' sticky' : ''}` });
+  const tx = mk('text', { class: 'lv-pop-t', 'text-anchor': 'middle', y: 0 }); tx.textContent = f.text; inner.appendChild(tx); outer.appendChild(inner); layer.appendChild(outer);
+  let bb; try { bb = tx.getBBox(); } catch (e) { bb = { x: -60, y: -24, width: 120, height: 30 }; }
+  const px = cls === 'td' ? 34 : 24, py = cls === 'td' ? 11 : 8, w = bb.width + px * 2, h = bb.height + py * 2, sk = h * 0.2, cy = bb.y + bb.height / 2, a = 12;
+  const poly = (pts, c, extra = {}) => mk('polygon', Object.assign({ class: c, points: pts.map(q => q.join(',')).join(' ') }, extra));
+  const L = -w / 2, R = w / 2, T = cy - h / 2, B = cy + h / 2;
+  const plate = [[L + sk, T], [R + sk, T], [R - sk, B], [L - sk, B]];
+  inner.insertBefore(poly(plate.map(([px2, py2]) => [px2, py2 + 5]), 'lv-pl-sh'), tx);
+  inner.insertBefore(poly(plate, 'lv-pl'), tx);
+  inner.insertBefore(poly([[L + sk, T], [L + sk + a, T], [L - sk + a, B], [L - sk, B]], 'lv-acc'), tx);
+  inner.insertBefore(mk('line', { class: 'lv-pl-hi', x1: L + sk + a + 4, y1: T + 1, x2: R + sk - 2, y2: T + 1 }), tx);
+  tx.setAttribute('x', a / 2);
+  Snd.play(cls === 'td' ? 'roar' : (cls === 'good' ? 'pick' : 'click'));
+}
 async function openLiveGame(game, notes, season) {
   const myId = game.tm, oppId = game.opp, away = game.home ? oppId : myId, home = game.home ? myId : oppId, P = S.player;
   const myDir = game.home ? -1 : 1;                          // away team attacks to the right, home team to the left
@@ -1081,7 +1099,7 @@ async function openLiveGame(game, notes, season) {
   const poss = side => { ['away', 'home'].forEach(s2 => { const e = $('lvPoss_' + s2); if (e) e.style.opacity = s2 === side ? 1 : 0; }); const bug = $('lvBug'), id = side === 'away' ? away : home, c = (L.col && L.col[id]) || TEAM[id].c1; if (bug) { bug.style.setProperty('--pc', c); bug.style.setProperty('--pt', textOn(c)); } };      // the down & distance block wears the color of the team with the ball
   const sideOf = who => (who === 'me') === !!game.home ? 'home' : 'away';
   const bumpScore = side => { const el = $('lvScore_' + side); if (el) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } };
-  const banner = async (text, cls, ms = 1500) => { const b = $('lvBanner'); if (!b || b.classList.contains('final')) return; b.className = 'lv-banner show ' + cls; b.textContent = text; await sleep(ms); if (b && !b.classList.contains('final')) b.className = 'lv-banner'; };
+  const banner = async (text, cls, ms = 1500, color = '') => { const b = $('lvBanner'); if (!b || b.classList.contains('final')) return; b.className = 'lv-banner show ' + cls + (/touchdown/i.test(text) ? ' td' : ''); b.style.setProperty('--bc', color || ''); b.innerHTML = `<b>${esc(text)}</b>`; await sleep(ms); if (b && !b.classList.contains('final')) b.className = 'lv-banner'; };
   const finalScreen = (skipped) => {
     Snd.stopMusic(2200);
     L.score = { away: game.home ? game.op : game.my, home: game.home ? game.my : game.op }; setScore();
@@ -1105,7 +1123,7 @@ async function openLiveGame(game, notes, season) {
       const side = sideOf(e.side); poss(side); L.score[side] += e.pts; setScore(); bumpScore(side);
       const t = TEAM[e.side === 'me' ? myId : oppId];
       log(e.q, e.clock, `${t.id} — ${e.label} (+${e.pts})`, e.side === 'me' ? 'good' : 'bad'); $('lvText').textContent = `${t.name}: ${e.label}`; $('lvDD').textContent = `${TEAM[away].id} ${L.score.away} – ${L.score.home} ${TEAM[home].id}`; setBugDD(String(e.label || 'SCORE').toUpperCase());
-      Snd.play(e.side === 'me' ? 'cheer' : 'down'); await banner(`${t.id} ${e.label}`, e.side === 'me' ? 'good' : 'bad', 1300); await sleep(300);
+      Snd.play(e.side === 'me' ? 'cheer' : 'down'); await banner(`${t.id} ${e.label}`, e.side === 'me' ? 'good' : 'bad', 1300, (L.col && L.col[t.id]) || t.c1); await sleep(300);
       continue;
     }
     { const offSide = sideOf(e.play.off), defSide = offSide === 'home' ? 'away' : 'home'; lvSituate(e.play, e, L.score[offSide] - L.score[defSide]); }
@@ -1130,7 +1148,7 @@ async function openLiveGame(game, notes, season) {
         if (start === null) { start = ts; last = ts; }
         if (L.speed !== plSp) { plSp = L.speed; Snd.setPlayersRate(plRate()); }
         const real = ((ts - start) / 1000) * L.speed, t = real * LV_PACE; T.render(t); { const nx = script[si + 1], live = Math.max(0, Math.min(real, res.dur / LV_PACE) - res.snap / LV_PACE), [cq, cc] = clockOf(Math.min(e.t + live, nx ? nx.t - 0.5 : e.q * 900)); if (!L.frozen) setClock(cq, cc); }
-        while (pending.length && pending[0].t <= t) { const f = pending.shift(); const el = document.createElementNS('http://www.w3.org/2000/svg', 'text'); el.setAttribute('class', `lv-pop ${f.cls}${f.sticky ? ' sticky' : ''}`); el.setAttribute('x', Math.min(1090, Math.max(110, f.p.x))); el.setAttribute('y', Math.max(60, f.p.y - 28)); el.setAttribute('text-anchor', 'middle'); el.textContent = f.text; fxLayer.appendChild(el); Snd.play(f.cls === 'td' ? 'roar' : (f.cls === 'good' ? 'pick' : 'click')); }
+        while (pending.length && pending[0].t <= t) { const f = pending.shift(); lvPop(fxLayer, f); Snd.play(f.cls === 'td' ? 'roar' : (f.cls === 'good' ? 'pick' : 'click')); }
         if (t >= res.dur) return resolve();
         raf = requestAnimationFrame(frame);
       };
@@ -1142,7 +1160,7 @@ async function openLiveGame(game, notes, season) {
     Object.entries(p.inc || {}).forEach(([k2, v]) => { L.T[k2] = (L.T[k2] || 0) + v; }); tiles();
     $('lvText').textContent = res.text;
     log(e.q, e.clock, `${res.text}`, p.td || ['pd', 'sack', 'int', 'frec', 'pancake', 'tackle'].includes(p.kind) && !p.td ? 'good' : (['incomplete', 'qbInc', 'qbInt', 'penalty', 'pressure', 'sackAllowed'].includes(p.kind) ? 'bad' : ''));
-    if (p.pts) { const side = sideOf('me'); L.score[side] += p.pts; setScore(); bumpScore(side); log(e.q, e.clock, `${TEAM[myId].id} — ${p.kind === 'fg' ? 'FIELD GOAL' : p.kind === 'xp' ? 'EXTRA POINT' : 'TOUCHDOWN'} (+${p.pts})`, 'good'); if (p.td) await banner('TOUCHDOWN!', 'good', 1300); }
+    if (p.pts) { const side = sideOf('me'); L.score[side] += p.pts; setScore(); bumpScore(side); log(e.q, e.clock, `${TEAM[myId].id} — ${p.kind === 'fg' ? 'FIELD GOAL' : p.kind === 'xp' ? 'EXTRA POINT' : 'TOUCHDOWN'} (+${p.pts})`, 'good'); if (p.td) await banner('TOUCHDOWN!', 'good', 1300, (L.col && L.col[myId]) || TEAM[myId].c1); }
     await sleep(900);
   }
   if (alive()) { await sleep(500); finalScreen(false); } else if (!L.finished && !document.getElementById('lvDone')) finalScreen(true);

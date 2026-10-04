@@ -520,7 +520,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .lv-field { display: block; width: 100%; height: auto; } .lv-ez { font-family: 'Anton', var(--head); font-weight: 400; paint-order: stroke; stroke-width: 4px; stroke-linejoin: round; } .lv-nums { font-family: 'Special Gothic Condensed One', 'Barlow Condensed', sans-serif; font-weight: 400; }
 .lv-pl circle { filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .45)); } .lv-pl.me circle { filter: drop-shadow(0 0 7px rgba(255, 210, 61, .9)); } .lv-pn { font: 800 11px var(--head); fill: #fff; }
 .lv-tag { font: 800 13px var(--head); letter-spacing: .08em; fill: #ffd23d; paint-order: stroke; stroke: rgba(0, 0, 0, .8); stroke-width: 3px; pointer-events: none; }
-.lv-pop { font: 800 30px var(--head); letter-spacing: .06em; fill: #fff; paint-order: stroke; stroke: rgba(0, 0, 0, .75); stroke-width: 6px; animation: lvPop 1.6s ease-out forwards; } .lv-pop.sticky { animation: lvPopS 3s ease-out forwards; } .lv-pop.good { fill: #8dff6b; } .lv-pop.bad { fill: #ff7b7b; } .lv-pop.td { fill: #ffd23d; font-size: 44px; }
+.lv-pop { animation: lvPop 1.7s ease-out forwards; transform-box: fill-box; transform-origin: center; } .lv-pop.sticky { animation: lvPopS 3s ease-out forwards; } 
 @keyframes lvPop { 0% { opacity: 0; transform: translateY(14px) scale(.7); } 15% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18px); } }
 @keyframes lvPopS { 0% { opacity: 0; } 12% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
 .lv-banner { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%) scale(.6); opacity: 0; pointer-events: none; text-align: center; font: 800 clamp(34px, 7vw, 84px) var(--head); font-style: italic; letter-spacing: .04em; text-shadow: 0 6px 30px rgba(0, 0, 0, .7); padding: 6px 30px; transition: transform .35s cubic-bezier(.2, 1.5, .4, 1), opacity .25s; }
@@ -1293,3 +1293,18 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 @keyframes liPulseC { 0%, 100% { transform: translate(-50%, -50%) scale(.94); opacity: .75; } 50% { transform: translate(-50%, -50%) scale(1.06); opacity: 1; } }
 
 .mg-overlay { overscroll-behavior: contain; } html:has(.mg-overlay), body:has(.mg-overlay) { overflow: hidden; }
+
+/* field play calls, broadcast style */
+.lv-pop-t { font: 800 31px var(--head); letter-spacing: .1em; fill: #fff; stroke: none; text-transform: uppercase; }
+.lv-pop .lv-pl-sh { fill: #000; opacity: .35; } .lv-pop .lv-pl { fill: #0c172a; stroke: rgba(255, 255, 255, .28); stroke-width: 1.2; } .lv-pop .lv-pl-hi { stroke: rgba(255, 255, 255, .35); stroke-width: 1.4; }
+.lv-pop .lv-acc { fill: #35c2ff; } .lv-pop.good .lv-acc { fill: #3fe38c; } .lv-pop.bad .lv-acc { fill: #ff5d5d; }
+.lv-pop.td .lv-pl { fill: #f6c21a; stroke: #fff3b0; } .lv-pop.td .lv-acc { fill: #0a1426; } .lv-pop.td .lv-pl-hi { stroke: rgba(255, 255, 255, .7); } .lv-pop.td .lv-pop-t { fill: #0a1426; font-size: 48px; letter-spacing: .08em; }
+@keyframes lvPop { 0% { opacity: 0; transform: translateX(-26px) scale(.92); } 12% { opacity: 1; transform: none; } 82% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-12px); } }
+/* big banners (touchdown, field goal, quarter): a skewed dark plate with a team-color accent */
+.lv-banner:not(.final) { display: flex; align-items: center; top: 40%; font: 800 clamp(24px, 4.8vw, 58px) var(--head); font-style: normal; letter-spacing: .1em; text-transform: uppercase; color: #fff; text-shadow: none; padding: 10px 40px 10px 46px; background: linear-gradient(100deg, rgba(8, 14, 26, .95), rgba(20, 34, 58, .95)); clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%); }
+.lv-banner:not(.final)::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 20px; background: var(--bc, #35c2ff); clip-path: polygon(15% 0, 100% 0, 85% 100%, 0 100%); }
+.lv-banner:not(.final)::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: rgba(255, 255, 255, .4); }
+.lv-banner:not(.final) b { font-weight: 800; }
+.lv-banner.good:not(.final)::before { background: var(--bc, #3fe38c); } .lv-banner.bad:not(.final)::before { background: var(--bc, #ff5d5d); }
+.lv-banner.td:not(.final) { background: linear-gradient(100deg, #f6c21a, #ffde66 60%, #f6c21a); color: #0a1426; } .lv-banner.td:not(.final)::before { background: #0a1426; }
+.lv-banner.quarter:not(.final) { font-size: clamp(18px, 3.6vw, 40px); letter-spacing: .16em; }

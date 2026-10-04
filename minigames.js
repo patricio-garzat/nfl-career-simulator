@@ -443,17 +443,19 @@ function mgRB(ctx, i, st) {
     const put = (p, dt, face) => { p.e.style.transform = `translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px)`; if (face == null) { const dx = p.x - p.px, dy = p.y - p.py; if (dx * dx + dy * dy > 0.04) face = ang(dx, dy); } if (face != null) { const d = ((face - p.f + 540) % 360) - 180; p.f += d * Math.min(1, dt * 12); p.b.setAttribute('transform', `rotate(${p.f.toFixed(0)})`); } p.px = p.x; p.py = p.y; };
     const world = q('mgRW'), ydT = q('mgYd'), hole = q('mgHole'), ballE = q('mgBallEl');
     const me = P('mgMeG', 170, 232, 0), qb = P('mgQBg', 170, 181, 0);
+    me.b.insertAdjacentHTML('beforeend', `<g id="mgCarry" style="display:none">${mgBall(9.5, -2.5, 0.56, 90)}</g>`); const carry = q('mgCarry');
     const ol = olH.map((h, k) => ({ ...P('mgOL' + k, h[0], h[1], 0), hx: h[0], hy: h[1] }));
     const dl = dlH.map((x, k) => ({ ...P('mgDL' + k, x, 147, 180), hx: x, kind: 'DL', held: null, free: false, spd: spd.DL, react: 0 }));
-    const lb = lbH.map((h, k) => ({ ...P('mgLB' + k, h[0], h[1], 180), hx: h[0], kind: 'LB', held: null, free: true, spd: spd.LB, react: 0.7 + k * 0.1 }));
-    const sf = sfH.map((h, k) => ({ ...P('mgSF' + k, h[0], h[1], 180), hx: h[0], kind: 'S', held: null, free: true, spd: spd.S, react: 0.8 + k * 0.1 }));
+    const lb = lbH.map((h, k) => ({ ...P('mgLB' + k, h[0], h[1], 180), hx: h[0], kind: 'LB', held: null, free: true, spd: spd.LB, react: 1.0 + k * 0.12 }));
+    const sf = sfH.map((h, k) => ({ ...P('mgSF' + k, h[0], h[1], 180), hx: h[0], kind: 'S', held: null, free: true, spd: spd.S, react: 1.3 + k * 0.1 }));
     const cb = cbH.map((h, k) => ({ ...P('mgCB' + k, h[0], h[1], 180), hx: h[0], kind: 'CB', held: null, free: false, spd: spd.CB, react: 0.5 }));
     const wr = [0, 1].map(k => ({ ...P('mgWR' + k, k ? 314 : 26, 154, 0) })), te = { ...P('mgTE', 268, 164, 0) };
     const defs = [...dl, ...lb, ...sf, ...cb];
     // the line opens the hole: the linemen next to it are driven away from it
-    dl.forEach((d, j) => { d.push = (d.hx < gapX ? -1 : 1) * (holeI === 0 || holeI === 4 ? 13 : 16); d.sealed = true; d.tFree = 2.6 + rr(0, 0.8); });
+    dl.forEach((d, j) => { d.tx = clamp(d.hx < gapX ? Math.min(d.hx, gapX - 32) : Math.max(d.hx, gapX + 32), 30, 310); d.sealed = true; d.tFree = 2.8 + rr(0, 0.8); });
+    const inside = gapX <= 170 ? 1 : -1;
     // who blocks whom: [blocker, defender, how long he holds him]
-    const holds = [[ol[0], dl[0]], [ol[1], dl[1]], [ol[3], dl[2]], [ol[4], dl[3]], [wr[0], cb[0]], [wr[1], cb[1]]].map(([o, d], n) => ({ o, d, tEnd: n < 4 ? 2.6 + rr(0, 0.9) : 1.9 + rr(0, 0.9) }));
+    const holds = [[ol[0], dl[0]], [ol[1], dl[1]], [ol[3], dl[2]], [ol[4], dl[3]], [wr[0], cb[0]], [wr[1], cb[1]]].map(([o, d], n) => ({ o, d, tEnd: n < 4 ? 2.8 + rr(0, 0.9) : 2.2 + rr(0, 0.9) }));
     const center = ol[2]; let centerTarget = lb[holeI <= 1 ? 0 : holeI >= 3 ? 2 : 1];
     [qb, me, ...ol, ...defs, ...wr, te].forEach(p => put(p, 1, p.f));
     ballE.setAttribute('transform', `translate(170 ${qb.y - 8}) rotate(90) scale(0.62)`);
@@ -482,11 +484,11 @@ function mgRB(ctx, i, st) {
       // ---- the quarterback hands off, then the ball is yours ----
       qb.x = 170 + (t < 0.3 ? 0 : 6 * Math.sin(Math.min(1, (t - 0.3) / 0.2) * 3)); qb.y = 181 + (t < 0.4 ? 0 : 3); put(qb, dt, t < 0.3 ? 0 : -50);
       const bx = t < 0.3 ? qb.x : t < 0.45 ? qb.x + (me.x - qb.x) * ((t - 0.3) / 0.15) : me.x, by = (t < 0.3 ? qb.y - 8 : t < 0.45 ? qb.y - 8 + (me.y - 6 - (qb.y - 8)) * ((t - 0.3) / 0.15) : me.y - 6);
-      ballE.setAttribute('transform', `translate(${bx.toFixed(1)} ${by.toFixed(1)}) rotate(90) scale(0.62)`);
+      if (t >= 0.45) { carry.style.display = ''; ballE.parentNode.style.display = 'none'; } else ballE.setAttribute('transform', `translate(${bx.toFixed(1)} ${by.toFixed(1)}) rotate(90) scale(0.7)`);
       // ---- the line: it surges, opens the hole and the second level reacts ----
       const sur = ease(Math.min(1, t / 0.6));
-      ol.forEach((o, k) => { o.x = o.hx; o.y = o.hy - 7 * sur; });
-      holes: { const hd = holds; hd.forEach(h => { if (t < h.tEnd) { if (h.d.kind === 'CB') { const cx = h.d.hx; toward(h.o, cx, h.d.y + 13, 70, dt); h.d.x += (h.o.x - h.d.x) * Math.min(1, dt * 6); h.d.y += ((h.o.y - 13) - h.d.y) * Math.min(1, dt * 6); h.d.x += Math.sin(t * 9 + h.d.hx) * 0.4; } else { const push = h.d.sealed ? h.d.push : 0, u = ease(Math.min(1, Math.max(0, (t - 0.1) / 0.7))); h.d.x = h.d.hx + push * u + Math.sin(t * 8 + h.d.hx) * 1.5; h.d.y = h.o.y - 13 + Math.cos(t * 7 + h.d.hx) * 1; } } else h.released = true; }); }
+      ol.forEach((o, k) => { o.y = o.hy - 7 * sur; });
+      holes: { const hd = holds; hd.forEach(h => { if (t < h.tEnd) { if (h.d.kind === 'CB') { const cx = h.d.hx; toward(h.o, cx, h.d.y + 13, 70, dt); h.d.x += (h.o.x - h.d.x) * Math.min(1, dt * 6); h.d.y += ((h.o.y - 13) - h.d.y) * Math.min(1, dt * 6); h.d.x += Math.sin(t * 9 + h.d.hx) * 0.4; } else { const u = ease(Math.min(1, Math.max(0, (t - 0.1) / 0.7))), dx0 = (h.d.tx - h.d.hx) * u; h.o.x = h.o.hx + dx0; h.d.x = h.d.hx + dx0 + Math.sin(t * 8 + h.d.hx) * 1.5; h.d.y = h.o.y - 13 + Math.cos(t * 7 + h.d.hx) * 1; } } else h.released = true; }); }
       // the center climbs to the linebacker who is going to fill the hole; the tight end seals the edge
       { const lbT = centerTarget; if (t > 0.4 && t < 2.2) toward(center, lbT.x, lbT.y + 14, 110, dt); else if (t >= 2.2) {} else { center.x = center.hx; center.y = center.hy - 7 * sur; } if (t > 0.4 && (Math.hypot(center.x - lbT.x, center.y - lbT.y) < 22 || t > 0.95) && t < 2.2) { lbT.held = center; } if (t >= 2.2 && lbT.held === center) lbT.held = null; }
       { const edge = dl[3]; if (t > 0.3 && t < 2.4) toward(te, edge.x + 8, edge.y + 14, 55, dt); }
@@ -495,14 +497,14 @@ function mgRB(ctx, i, st) {
       lb.forEach(d => { if (d.held) { d.x += Math.sin(t * 9) * 0.5; return; } });
       let nearest = 999, hitBy = null;
       defs.forEach(d => {
-        if (d === centerTarget && !d.held && t >= 0.4 && t < 1.1) { toward(d, gapX, LOSY - 14, 58, dt); return; }                      // the linebacker fills the hole
+        if (d === centerTarget && !d.held && t >= 0.4 && t < 1.1) { toward(d, gapX + inside * 18, LOSY - 26, 58, dt); return; }                      // the linebacker fills the hole
         const releasedHold = holds.some(h => h.d === d && h.released);
         if (d.kind === 'DL') { if (!d.free && (releasedHold && t >= d.tFree)) d.free = true; }
         if (d.kind === 'CB') { if (!d.free && releasedHold) d.free = true; }
-        if (!d.free || d.held || t < d.react) { if (d.kind === 'LB' && !d.held && t >= 0.4 && t < 1.1 && d === centerTarget) toward(d, gapX, LOSY - 16, 58, dt); return; }
+        if (!d.free || d.held || t < d.react) { return; }
         const lead = 0.35, tx = me.x + (me.x - me.px) * lead * 6, ty = me.y + (me.y - me.py) * lead * 6, sp = d.spd * (stun > 0 ? 1.05 : 1) * (d.kind === 'DL' ? 1 : 0.5 + 0.5 * Math.min(1, Math.max(0, t - d.react) / 1.4));
         toward(d, tx, ty, sp, dt);
-        const dist = Math.hypot(d.x - me.x, d.y - me.y); nearest = Math.min(nearest, dist); if (dist < 12.5 && t >= 0.45) { hitBy = hitBy && hitBy !== d ? 'multi' : d; }
+        const dist = Math.hypot(d.x - me.x, d.y - me.y); nearest = Math.min(nearest, dist); if (dist < 11 && t >= 0.45) { hitBy = hitBy && hitBy !== d ? 'multi' : d; }
       });
       defs.forEach((d, a) => { for (let b = a + 1; b < defs.length; b++) { const e = defs[b], dx = e.x - d.x, dy = e.y - d.y, dd = Math.hypot(dx, dy); if (dd > 0 && dd < 11 && !(d.held || e.held)) { const pu = (11 - dd) * 0.35; d.x -= dx / dd * pu; d.y -= dy / dd * pu; e.x += dx / dd * pu; e.y += dy / dd * pu; } } });
       defs.forEach(d => put(d, dt, d.free && !d.held ? ang(me.x - d.x, me.y - d.y) : (d.kind === 'DL' ? 180 : null)));

@@ -990,7 +990,7 @@ function lvIntroTitle(game) {
   return { top: [wk, hol].filter(Boolean).join(' · '), big, em: 'FOOTBALL', logo };
 }
 // the level of each window's song in the opening (0-1)
-const LV_SONG_VOL = { 'assets/sounds/live-thursday-night.m4a': 0.43, 'assets/sounds/live-sunday-gameday.m4a': 0.34, 'assets/sounds/live-sunday-night.mp3': 0.34, 'assets/sounds/live-monday-night.m4a': 0.34 };
+const LV_SONG_VOL = { 'assets/sounds/live-thursday-night.m4a': 0.50, 'assets/sounds/live-sunday-gameday.m4a': 0.34, 'assets/sounds/live-sunday-night.mp3': 0.34, 'assets/sounds/live-monday-night.m4a': 0.34 };
 function lvIntro(ov, L, game, musicVol) {
   return new Promise(async resolve => {
     const away = TEAM[L.away], home = TEAM[L.home], ca = L.col[L.away] || away.c1, ch = L.col[L.home] || home.c1, T = lvIntroTitle(game);

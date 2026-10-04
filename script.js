@@ -1315,11 +1315,12 @@ const Snd = (() => {
   }
   // the players on the field (huddle break -> snap): one clip per play, its speed follows the game speed so that second 4 of the clip lands on the snap
   var pl = null, plFade = 0;
-  function players(url, vol = 0.2, rate = 1) {
+  function players(url, vol = 0.2, rate = 1, off = 0) {
     stopPlayers(0);
     try {
       const au = new Audio(url); au.volume = 0; au.muted = muted; au.preload = 'auto'; au.playbackRate = clamp(rate, 0.25, 4); pl = au; au._vol = vol; plFade = setInterval(() => { if (pl !== au) return clearInterval(plFade); au.volume = clamp(au._vol * Math.min(1, (au._t = (au._t || 0) + 25) / 160), 0, 1); if (au._t >= 160) clearInterval(plFade); }, 25);
-      const p = au.play(); if (p && p.catch) p.catch(() => {});
+      const go = () => { const p = au.play(); if (p && p.catch) p.catch(() => {}); };
+      if (off > 0) au.addEventListener('loadedmetadata', () => { try { au.currentTime = off; } catch (e) { /* ignore */ } go(); }, { once: true }); else go();
     } catch (e) { pl = null; }
   }
   function setPlayersVol(v) { if (pl) { pl._vol = v; pl.volume = clamp(v, 0, 1); } }

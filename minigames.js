@@ -186,14 +186,20 @@ function mgOpen(env) {
     <div class="mg-legend">${meta.legend.map(([i, a, b]) => `<span>${i === '🔴' ? '<i class="mg-dot r"></i>' : i === '🟢' ? '<i class="mg-dot g"></i>' : ''}${a}${b ? ` <b>→ ${b}</b>` : ''}</span>`).join('')}</div><p class="mg-sub">3 levels · your grade sets ${MGX && MGX.env.se.mg && MGX.env.se.mg.weekly ? 'your next game' : 'the whole season'}</p></div>`;
   ctrl.innerHTML = `<button class="btn btn-primary btn-xl" data-mg="start">START</button>`;
   Snd.play('mgCrowd', 0.05);
+  mgAmbience();
 }
+// stadium crowd noise under every mini game (volume = the CROWD slider of the live game), and the players' noise of each play: second 4 of the clip is the snap
+const mgSndVol = (key, def) => { let v = def; try { const x = parseInt(localStorage.getItem(key), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return 0.6 * Math.pow(v / 100, 1.6); };
+function mgAmbience() { Snd.crowd('assets/sounds/crowd-stadium.m4a', mgSndVol('nfl_crowd_vol', 35)); }
+// waits `ms` before the snap while the players' noise plays, so that second 4 of the clip lands on the snap
+async function mgPre(ctx, ms) { Snd.players('assets/sounds/players-huddle.mp3', mgSndVol('nfl_players_vol', 50), 1, Math.max(0, 4 - ms / 1000)); await sleep(ms); }
 async function mgRun(ctx) {
   const fn = { qb: mgQB, rb: mgRB, catch: mgCatch, kick: mgKick }[ctx.kind], st = {};
   ctx.ctrl.innerHTML = ''; ctx.say('');
   for (let i = 0; i < 3; i++) {
     if (!ctx.alive()) return;
     ctx.ov.querySelectorAll('.mg-pips [data-p]').forEach((p, k) => p.classList.toggle('cur', k === i));
-    const ok = await fn(ctx, MG_LV[i], st); if (!ctx.alive()) return;
+    const ok = await fn(ctx, MG_LV[i], st); Snd.stopPlayers(800); if (!ctx.alive()) return;
     ctx.results.push(ok);
     ctx.combo = ok ? ctx.combo + 1 : 0;
     ctx.ov.querySelector(`.mg-pips [data-p="${i}"]`).className = ok ? 'ok' : 'bad';
@@ -227,8 +233,8 @@ function mgFinish(ctx) {
   Snd.play(sc >= 4 ? 'bigFanfare' : good ? 'win' : 'lose', 0.1);
   if (sc >= 4) burst(ctx.stage, sc === 5 ? 70 : 40);
 }
-function mgSkip() { const env = MGX && MGX.env, se = env && env.se; if (se) { se.mg = null; se.mgSince = 0; se.mgIn = randInt(3, 5); if (env.save) saveGame(); } const o = document.querySelector('.mg-overlay'); if (o) o.remove(); MGX = null; if (env) env.onDone(); }
-function mgDone() { const env = MGX && MGX.env; const o = document.querySelector('.mg-overlay'); if (o) o.remove(); MGX = null; if (env) env.onDone(); }
+function mgSkip() { Snd.stopCrowd(900); Snd.stopPlayers(500); const env = MGX && MGX.env, se = env && env.se; if (se) { se.mg = null; se.mgSince = 0; se.mgIn = randInt(3, 5); if (env.save) saveGame(); } const o = document.querySelector('.mg-overlay'); if (o) o.remove(); MGX = null; if (env) env.onDone(); }
+function mgDone() { Snd.stopCrowd(1800); Snd.stopPlayers(900); const env = MGX && MGX.env; const o = document.querySelector('.mg-overlay'); if (o) o.remove(); MGX = null; if (env) env.onDone(); }
 document.addEventListener('click', e => {
   const b = e.target.closest && e.target.closest('[data-mg]'); if (!b || !MGX) return;
   const k = b.dataset.mg;
@@ -297,7 +303,7 @@ function mgQB(ctx, i, st) {
     const wr = wrs.map((w, k) => { const p = route(w, 0); return { ...P('mgWR' + k, p[0], p[1], 0) }; }), cb = wrs.map((w, k) => { const p = route(w, 0); return { ...P('mgCB' + k, p[0], p[1] - 17, 180) }; });
     const te = { ...P('mgTE', mx(teR.P[0][0]), teR.P[0][1], 0) }, rb = { ...P('mgRB', mx(150), 246, 0), state: 0, tt: 0, tgt: null };
     const all0 = [qb, ...ol, ...dl, ...lb, ...sf, ...wr, ...cb, te, rb]; all0.forEach(p => put(p, 1, p.f));
-    await sleep(650); if (!ctx.alive()) return res(false);
+    await mgPre(ctx, 2000); if (!ctx.alive()) return res(false);
     const inp = mgInput(ctx);
     const bar = ctx.ctrl.querySelector('.mg-timer i'); if (bar) { bar.style.transition = 'none'; bar.style.width = '100%'; void bar.offsetWidth; bar.style.transition = `width ${tMax}s linear`; bar.style.width = '0%'; }
     ctx.say('<b>HIKE!</b> Stay alive · <b>SPACE</b> in the green', 'go'); Snd.play('mgSnap', 0.02);
@@ -471,7 +477,7 @@ function mgRB(ctx, i, st) {
     const center = ol[2]; let centerTarget = lb[holeI <= 1 ? 0 : holeI >= 3 ? 2 : 1];
     [qb, me, ...ol, ...defs, ...wr, te].forEach(p => put(p, 1, p.f));
     ballE.setAttribute('transform', `translate(170 ${qb.y - 8}) rotate(90) scale(0.62)`);
-    await sleep(650); if (!ctx.alive()) return res(false);
+    await mgPre(ctx, 2000); if (!ctx.alive()) return res(false);
     const inp = mgInput(ctx);
     ctx.say('<b>HIKE!</b> Hit the hole!', 'go'); Snd.play('mgSnap', 0.02);
     let t = 0, last = performance.now(), ended = false, raf = 0, best = 0, stun = 0, hits = 0, hitT = -9, hd = 0;
@@ -580,7 +586,7 @@ function mgCatch(ctx, i, st) {
   ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns four">${mgHoldBtn('l', '◀')}${mgHoldBtn('u', '▲')}${mgHoldBtn('d', '▼')}${mgHoldBtn('r', '▶')}</div>`;
   ctx.say(note ? `🚩 ${note}` : td ? 'Last play — <b>catch it in the end zone</b>' : 'Get to the <b>ring</b> before the ball does');
   return new Promise(async res => {
-    await sleep(note ? 1200 : 700); if (!ctx.alive()) return res(false);
+    await mgPre(ctx, note ? 2600 : 2000); if (!ctx.alive()) return res(false);
     const inp = mgInput(ctx);
     const bar = ctx.ctrl.querySelector('.mg-timer i'); if (bar) { bar.style.transition = 'none'; bar.style.width = '100%'; void bar.offsetWidth; bar.style.transition = `width ${T}s linear`; bar.style.width = '0%'; }
     ctx.say('<b>BALL IS UP!</b> Run to the ring', 'go'); Snd.play('mgThrow', 0.02);

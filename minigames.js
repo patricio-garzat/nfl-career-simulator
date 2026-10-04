@@ -134,10 +134,10 @@ function mgOpen(env) {
   env = env || mgEnvNFL(); if (!env) return;
   const se = env.se; if (!se.mg || !MG_META[se.mg.kind]) return;
   const P = env.P, kind = se.mg.kind, t = env.t, opp = env.o, meta = MG_META[kind](P);
-  const ov = document.createElement('div'); ov.className = 'mg-overlay'; ov.style.cssText = env.theme;
-  ov.innerHTML = `<div class="mg-wrap">
+  const ov = document.createElement('div'); ov.className = 'mg-overlay'; ov.style.cssText = `${env.theme};--o1:${opp.c1 || '#444'};--o2:${opp.c2 || '#fff'}`;
+  ov.innerHTML = `<div class="mg-bgart"><img class="a" src="${t.logo}" alt=""><img class="b" src="${opp.logo}" alt=""></div><div class="mg-wrap">
     <div class="mg-top"><span class="mg-tag">🎮 ${se.mg.weekly ? `WEEK ${mgGamesIn(se) + 1} TRAINING` : 'PRESEASON CAMP'}</span><button class="mini mg-skip" data-mg="skip">SKIP</button></div>
-    <div class="mg-board"><img src="${t.logo}" alt=""><div class="mg-bt"><b>${esc(meta.title)}</b><span>${esc(P.name)} · ${P.pos} · #${env.number}</span></div><img src="${opp.logo}" alt=""></div>
+    <div class="mg-board"><div class="mg-team me"><img src="${t.logo}" alt=""><div><small>YOU</small><b>${esc(t.nick || t.name)}</b></div></div><div class="mg-bt"><b>${esc(meta.title)}</b><span>${esc(P.name)} · ${P.pos} · #${env.number}</span></div><div class="mg-team op"><img src="${opp.logo}" alt=""><div><small>VS</small><b>${esc(opp.nick || opp.name)}</b></div></div></div>
     <div class="mg-pips">${[0, 1, 2].map(i => `<span data-p="${i}">${mgFootball()}</span>`).join('')}<em id="mgScore">0/3</em><b class="mg-combo" id="mgCombo" hidden></b></div>
     <div class="mg-stage" id="mgStage"></div><div class="mg-msg" id="mgMsg"></div><div class="mg-ctrl" id="mgCtrl"></div></div>`;
   document.body.appendChild(ov);

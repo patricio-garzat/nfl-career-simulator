@@ -870,7 +870,49 @@ function playGame(season) {
     resolvePlayoffRound(season, win, game, notes);
   }
   mgAfterGame(season, game, notes);
+  seasonProgress(season, game, notes);
   return { game, notes };
+}
+
+/* ---------------------------------------------------------------------
+   In-season growth: your overall climbs while you play, not only in the offseason. Good games, training and mini games all feed it; the further you are behind the
+   man ahead of you on the depth chart (and the earlier in the season), the faster it moves. It never goes down in season, and a yearly cap keeps it believable.
+   --------------------------------------------------------------------- */
+const progCap = age => (age <= 24 ? 6 : age <= 27 ? 4 : age <= 30 ? 2 : 1);
+function growOvr(n) {                                            // +n overall by nudging attributes (technique first once you are a veteran)
+  const P = S.player, cfg = POS[P.pos], from = P.ovr; let guard = 0;
+  while (P.ovr < from + n && guard++ < 90) {
+    const pool = cfg.attrs.filter(([nm]) => P.attrs[nm] < 99); if (!pool.length) break;
+    const vet = (curSeason() ? curSeason().age : P.age) >= 26, w = pool.map(a => (a[2] ? (vet ? 0.5 : 1) : (vet ? 1.4 : 1)) * a[1]);
+    let r = rnd() * w.reduce((x, y) => x + y, 0), k = 0; while (k < w.length - 1 && (r -= w[k]) > 0) k++;
+    P.attrs[pool[k][0]] += 1; P.ovr = calcOvr(P.pos, P.attrs);
+  }
+  return P.ovr - from;
+}
+function seasonGrow(se, pts, notes, src) {
+  const P = S.player; if (!se || !(pts > 0) || P.ovr >= 99) return 0;
+  const age = se.age || P.age, cap = progCap(age), d = se.depth, bias = S.contract ? S.contract.bias : 0;
+  if ((se.progGain || 0) >= cap) return 0;
+  const above = d && d.slot > 1 ? d.mates[d.slot - 2] : null, gap = above ? Math.max(0, above.ovr - (P.ovr + bias)) : 0;
+  const catchUp = 1 + clamp(gap / 8, 0, 1.8), g = se.games.length, early = g < 6 ? 1.8 : g < 10 ? 1.3 : 1, af = age <= 24 ? 1 : age <= 27 ? 0.75 : age <= 30 ? 0.45 : 0.2;
+  se.prog = (se.prog || 0) + pts * catchUp * early * af * Math.sqrt(P.devMult || 1);
+  const from = P.ovr; let up = 0;
+  while (se.prog >= 1 && (se.progGain || 0) < cap && P.ovr < 99) { const n = growOvr(1); if (!n) break; se.prog -= 1; se.progGain = (se.progGain || 0) + n; up += n; }
+  if ((se.progGain || 0) >= cap) se.prog = Math.min(se.prog, 0.99);
+  if (up) {
+    notes.push(`📈 <b>RATING UP</b> — ${from} → ${P.ovr} (${src})`);
+    while (d && d.slot > 1 && P.ovr + bias > d.mates[d.slot - 2].ovr) {            // passing the man ahead of you moves you up the depth chart
+      const m = d.mates[d.slot - 2]; d.slot--; se.role = curRoleKey(se);
+      notes.push(`📋 DEPTH CHART — you passed ${esc(m.name)} (${m.ovr}) and moved up to <b>${slotLabel(P.pos, d.slot)}</b>!`);
+    }
+  }
+  return up;
+}
+// after every game: a good performance is the best teacher, and even a game on the sideline brings a little practice improvement
+function seasonProgress(se, game, notes) {
+  if (!game) return;
+  const played = game.st !== 'OUT' && !game.dnp;
+  seasonGrow(se, played ? 0.12 + 0.04 * (game.rate || 0) : 0.09, notes, played && game.rate >= 3 ? 'a strong game' : 'game experience and practice');
 }
 
 function seasonTotals(season) {
@@ -979,7 +1021,7 @@ function develop(season, T) {
   const rawD = {};
   cfg.attrs.forEach(([name, , phys]) => {
     let base = ageDelta(age, !!phys, P.pos);
-    if (base > 0) base *= P.devMult;
+    if (base > 0) base *= P.devMult * Math.max(0.45, 1 - (season.progGain || 0) * 0.09);      // what you already grew in season counts
     const sp = perf * (phys ? 0.55 : 1.0) * (age <= 30 ? 1 : 0.7);         // technique responds more to how you played
     const trn = phys ? tr.phys : tr.ment, inj = injPen[name] || 0;
     const cp = camp * (phys ? 0.55 : 1.0) * (age <= 30 ? 1 : 0.7);
@@ -994,7 +1036,7 @@ function develop(season, T) {
   // guard rails on the overall
   const serious = Object.keys(injPen).length > 0, perfC = perf + camp * 0.3, good = perfC > 0.35 && gp >= 8, poor = perfC < -0.2;
   const floor = serious ? -6 : good ? (age <= 28 ? 0 : age <= 31 ? -1 : -2) : (age <= 27 ? -2 : -5);
-  const ceil = poor ? (age <= 24 ? 3 : age <= 27 ? 2 : 1) : age >= 30 ? 2 : 7;
+  const ceil = Math.max(1, (poor ? (age <= 24 ? 3 : age <= 27 ? 2 : 1) : age >= 30 ? 2 : 7) - Math.floor((season.progGain || 0) / 2));
   let ovr = calcOvr(P.pos, P.attrs), guard = 0, smoothed = 0;
   while ((ovr < ovrFrom + floor || ovr > ovrFrom + ceil) && guard++ < 60) {
     const up = ovr < ovrFrom + floor, pickA = cfg.attrs.filter(([n]) => (up ? P.attrs[n] < 99 : P.attrs[n] > 35))[Math.floor(rnd() * cfg.attrs.length)] || cfg.attrs[0];

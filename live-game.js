@@ -981,13 +981,13 @@ function lvTrack(game) {
 /* ---- the broadcast opening (about 8 seconds): team colors slide in, the logos slam down, the title of the window (GAME DAY / THURSDAY NIGHT FOOTBALL / ...) hits, with the song of that window underneath ---- */
 function lvIntroTitle(game) {
   const n = String(game.slotName || ''), r = String(game.round || '');
-  const wk = game.k === 'PO' ? `NFL PLAYOFFS${r && !/super bowl/i.test(r) ? ' · ' + r.toUpperCase() : ''}` : 'NFL';
+  const wk = game.k === 'PO' ? `PLAYOFFS${r && !/super bowl/i.test(r) ? ' · ' + r.toUpperCase() : ''}` : '';
   if (/super bowl/i.test(r)) return { top: wk, big: 'SUPER BOWL', em: 'THE BIG GAME', logo: '' };
   const hol = /thanksgiving|christmas|black friday/i.test(n) ? n.toUpperCase() : '';
   // the broadcast logo of the window: Thursday Night Football, Sunday Night Football, Monday Night Football or NFL GameDay Live
   const logo = /monday/i.test(n) ? 'mnf' : /sunday night|saturday night/i.test(n) ? 'snf' : /thursday|wednesday|friday|thanksgiving|christmas/i.test(n) ? 'tnf' : 'gameday';
   const big = { mnf: 'MONDAY NIGHT', snf: n.toUpperCase().replace(/ ·.*$/, ''), tnf: n.toUpperCase(), gameday: 'GAME DAY' }[logo];
-  return { top: hol ? `${wk} · ${hol}` : wk, big, em: 'FOOTBALL', logo };
+  return { top: [wk, hol].filter(Boolean).join(' · '), big, em: 'FOOTBALL', logo };
 }
 function lvIntro(ov, L, game, musicVol) {
   return new Promise(async resolve => {
@@ -1004,9 +1004,9 @@ function lvIntro(ov, L, game, musicVol) {
     const el = document.createElement('div'); el.className = 'lv-intro'; el.id = 'lvIntro'; el.style.cssText = `--a:${ca};--h:${ch};--ta:${textOn(ca)};--th:${textOn(ch)}`;
     el.innerHTML = `<div class="li-beams"><i></i><i></i><i></i></div><div class="li-sparks">${sparks}</div>
       <div class="li-panel away"><img class="li-wm" src="${logoUrl(away.id)}" alt=""><i class="li-streaks"></i></div><div class="li-panel home"><img class="li-wm" src="${logoUrl(home.id)}" alt=""><i class="li-streaks"></i></div>
-      <i class="li-seam"></i><div class="li-field"></div>
+      <div class="li-field"></div>
       <div class="li-stage"><div class="li-main">${side(away, ca, 'away')}
-        <div class="li-center"><small class="li-top">${esc(T.top)}</small>${T.logo ? `<div class="li-bc" style="--m:url(assets/broadcast/${T.logo}.png?v=${window.APP_BUILD})"><img src="assets/broadcast/${T.logo}.png?v=${window.APP_BUILD}" alt="${esc(T.big)} ${esc(T.em)}"><i class="li-bcshine"></i></div><p class="li-when"><em>${game.k === 'PO' ? 'PLAYOFFS' : 'WEEK ' + game.wk}</em>${esc(when)}</p>`
+        <div class="li-center">${T.top ? `<small class="li-top">${esc(T.top)}</small>` : ''}${T.logo ? `<div class="li-bc" style="--m:url(assets/broadcast/${T.logo}.png?v=${window.APP_BUILD})"><img src="assets/broadcast/${T.logo}.png?v=${window.APP_BUILD}" alt="${esc(T.big)} ${esc(T.em)}"><i class="li-bcshine"></i></div><p class="li-when"><em>${game.k === 'PO' ? 'PLAYOFFS' : 'WEEK ' + game.wk}</em>${esc(when)}</p>`
           : `<div class="li-title"><h1><span>${esc(T.big)}</span><em>${esc(T.em)}</em></h1><p>${esc(when)}</p><i class="li-shine"></i></div>`}</div>
         ${side(home, ch, 'home')}</div></div>
       <div class="li-flash"></div><div class="li-vignette"></div><button class="li-skip" type="button">SKIP ▸</button>`;

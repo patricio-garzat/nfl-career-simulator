@@ -1274,7 +1274,7 @@ const Snd = (() => {
   }, { passive: true, capture: true }));
   document.addEventListener('visibilitychange', () => { if (!document.hidden && !muted && ctx && ctx.state !== 'running') revive(); });
   function setMuted(m) {
-    muted = m; if (typeof bg !== 'undefined' && bg) bg.muted = m;
+    muted = m; if (typeof bg !== 'undefined' && bg) bg.muted = m; if (typeof cg !== 'undefined' && cg) cg.muted = m;
     if (master) master.gain.setTargetAtTime(m ? 0 : VOLUME, ctx.currentTime, 0.05);
     if (!m) unlock();
   }
@@ -1297,13 +1297,31 @@ const Snd = (() => {
       clearInterval(bgFade); let t = 0; bgFade = setInterval(() => { t += 50; if (bg !== au) return clearInterval(bgFade); au.volume = Math.min(1, Math.max(0, au._vol * Math.min(1, t / 1800))); if (t >= 1800) clearInterval(bgFade); }, 50);
     } catch (e) { bg = null; }
   }
+  // stadium crowd noise: a second looping layer under the music (starts at a random point of the long recording)
+  var cg = null, cgFade = 0;
+  function crowd(url, vol = 0.12) {
+    stopCrowd(0);
+    try {
+      const au = new Audio(url); au.loop = true; au.volume = 0; au.muted = muted; au.preload = 'auto'; cg = au; au._vol = vol;
+      au.addEventListener('loadedmetadata', () => { try { if (au.duration > 90) au.currentTime = Math.random() * (au.duration - 60); } catch (e) { /* ignore */ } }, { once: true });
+      const p = au.play(); if (p && p.catch) p.catch(() => {});
+      clearInterval(cgFade); let t = 0; cgFade = setInterval(() => { t += 50; if (cg !== au) return clearInterval(cgFade); au.volume = Math.min(1, Math.max(0, au._vol * Math.min(1, t / 2500))); if (t >= 2500) clearInterval(cgFade); }, 50);
+    } catch (e) { cg = null; }
+  }
+  function setCrowdVol(v) { if (cg) { cg._vol = v; cg.volume = clamp(v, 0, 1); } }
+  function stopCrowd(ms = 700) {
+    const au = cg; if (!au) return; cg = null; clearInterval(cgFade);
+    if (!ms) { try { au.pause(); } catch (e) { /* ignore */ } return; }
+    const v0 = au.volume; let t = 0; const iv = setInterval(() => { t += 50; au.volume = Math.max(0, v0 * (1 - t / ms)); if (t >= ms) { clearInterval(iv); try { au.pause(); } catch (e) { /* ignore */ } } }, 50);
+  }
   function setMusicVol(v) { if (bg) { bg._vol = v; bg.volume = clamp(v, 0, 1); } }
   function stopMusic(ms = 700) {
+    stopCrowd(ms);
     const au = bg; if (!au) return; bg = null; clearInterval(bgFade);
     if (!ms) { try { au.pause(); } catch (e) { /* ignore */ } return; }
     const v0 = au.volume; let t = 0; const iv = setInterval(() => { t += 50; au.volume = Math.max(0, v0 * (1 - t / ms)); if (t >= ms) { clearInterval(iv); try { au.pause(); } catch (e) { /* ignore */ } } }, 50);
   }
-  return { play, file, music, setMusicVol, stopMusic, unlock, setMuted, isMuted: () => muted };
+  return { play, file, music, setMusicVol, crowd, setCrowdVol, stopCrowd, stopMusic, unlock, setMuted, isMuted: () => muted };
 })();
 
 /* ---------------------------------------------------------------------

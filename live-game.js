@@ -986,7 +986,7 @@ async function openLiveGame(game, notes, season) {
   const label = game.k === 'PO' ? (game.round || 'PLAYOFFS') : `WEEK ${game.wk}`;
   const whenTxt = game.date && typeof calShort === 'function' ? ` · ${calShort(new Date(game.date + 'T00:00:00Z'))} · ${game.time} ET` : '';
   ov.innerHTML = `<div class="lv-wrap">
-    <div class="lv-top"><span class="lv-live"><i></i>LIVE</span><b>${label}</b><span class="muted">${TEAM[away].name} @ ${TEAM[home].name}${whenTxt}</span><div class="lv-ctrl"><label class="lv-vol" title="Music volume">🎵<input type="range" id="lvMusic" min="0" max="100" step="1" value="40" aria-label="Music volume"></label><button class="mini on" data-lv-speed="1">1×</button><button class="mini" data-lv-speed="2">2×</button><button class="mini" data-lv-speed="4">4×</button><button class="btn btn-ghost btn-sm" id="lvSkip">SKIP ▸</button></div></div>
+    <div class="lv-top"><span class="lv-live"><i></i>LIVE</span><b>${label}</b><span class="muted">${TEAM[away].name} @ ${TEAM[home].name}${whenTxt}</span><div class="lv-ctrl"><label class="lv-vol" title="Music volume"><span>MUSIC</span><input type="range" id="lvMusic" min="0" max="100" step="1" value="40" aria-label="Music volume"></label><label class="lv-vol" title="Crowd noise volume"><span>CROWD</span><input type="range" id="lvCrowd" min="0" max="100" step="1" value="35" aria-label="Crowd volume"></label><button class="mini on" data-lv-speed="1">1×</button><button class="mini" data-lv-speed="2">2×</button><button class="mini" data-lv-speed="4">4×</button><button class="btn btn-ghost btn-sm" id="lvSkip">SKIP ▸</button></div></div>
     ${lvScoreboardHTML(L)}
     <div class="lv-stage">${lvFieldSVG(away, home, /super bowl|^SB$/i.test(String(game.round || '')))}<div class="lv-banner" id="lvBanner"></div></div>
     <div class="lv-bottom">
@@ -998,6 +998,9 @@ async function openLiveGame(game, notes, season) {
   const musicVol = () => { let v = 65; try { const x = parseInt(localStorage.getItem('nfl_music_vol2'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
   const vol = v => 0.6 * Math.pow(v / 100, 1.6);                            // wide range: whisper-quiet at the left, full volume at the right, fine control in between
   Snd.music(lvTrack(game), vol(musicVol()));
+  const crowdVol = () => { let v = 35; try { const x = parseInt(localStorage.getItem('nfl_crowd_vol'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
+  Snd.crowd('assets/sounds/crowd-stadium.m4a', vol(crowdVol()));
+  const cv = ov.querySelector('#lvCrowd'); if (cv) { cv.value = crowdVol(); cv.addEventListener('input', () => { Snd.setCrowdVol(vol(cv.value)); try { localStorage.setItem('nfl_crowd_vol', cv.value); } catch (e) { /* ignore */ } }); }
   const mv = ov.querySelector('#lvMusic'); if (mv) { mv.value = musicVol(); mv.addEventListener('input', () => { Snd.setMusicVol(vol(mv.value)); try { localStorage.setItem('nfl_music_vol2', mv.value); } catch (e) { /* ignore */ } }); }
   const $ = id => document.getElementById(id), setScore = () => { $('lvScore_away').textContent = L.score.away; $('lvScore_home').textContent = L.score.home; };
   const setClock = (q, clock) => { $('lvQ').innerHTML = `${q}<small>${['ST', 'ND', 'RD', 'TH'][q - 1]}</small>`; $('lvClock').textContent = clock; };

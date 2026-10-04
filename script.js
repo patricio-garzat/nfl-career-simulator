@@ -1942,6 +1942,10 @@ function updateCreateJersey() {
   const n = parseInt(form.number, 10), ok = numberOk(form.pos, n);
   const shown = cleanJerseyName(form.jerseyName) || cleanJerseyName(surname(form.name)) || 'YOUR NAME';
   const ym = form.youth && MFL_INFO[form.youth];
+  { const vit = document.getElementById('vitrine'), pl = document.getElementById('createPlaque'), ci = !ym && COLLEGE_INFO[form.college];
+    const col = ym ? ym.c1 : ci ? collegeJersey(form.college).p : '#5a6b8a', tn = ym ? form.youth : ci ? form.college : '';
+    if (vit) { vit.style.setProperty('--vc', /^#[0-9a-f]{6}$/i.test(col) ? col : '#5a6b8a'); vit.style.setProperty('--vlogo', ym ? `url(${mflLogo(ym.slug)})` : ci ? `url(${collegeLogo(ci.id, 200)})` : 'none'); }
+    if (pl) pl.innerHTML = `<span class="pl-num">${Number.isInteger(n) ? '#' + clamp(n, 0, 99) : '#?'}</span><span class="pl-main"><b>${esc(shown)}</b><small>${form.pos}${tn ? ' · ' + esc(tn) : ''} · age ${esc(String(form.age))}</small></span>`; }
   const sec = document.getElementById('collegeSec'), note = document.getElementById('youthNote'), eb = document.getElementById('stageEyebrow');
   if (sec) sec.hidden = !!ym; if (note) note.hidden = !ym; if (eb) eb.textContent = ym ? 'YOUR FIRST JERSEY' : 'YOUR COLLEGE JERSEY';
   if (ym) {
@@ -2119,7 +2123,7 @@ function collegePickerHTML() {
   const subs = [['ALL', 'All'], ['FBS', 'FBS'], ['FCS', 'FCS'], ['OTHER', 'Other']].map(([k, l]) => `<button type="button" class="mini ${collegeDiv === k ? 'on' : ''}" data-act="collegeTab" data-d="${k}">${l}</button>`).join('');
   const tiles = NCAA.map(([id, name, div, conf]) => `<button type="button" class="cp-tile ${name === form.college ? 'on' : ''}" data-act="pickCollege" data-n="${esc(name)}" data-d="${div}" data-l="${leagueOfDiv(div)}" data-q="${esc((name + ' ' + conf + (div === 'MX' ? ' mexico méxico onefa' : div === 'LFA' ? ' lfa mexico méxico liga profesional' : div === 'UFL' ? ' ufl united football league professional pro' : ' ncaa')).toLowerCase())}" title="${esc(name)}${conf ? ' · ' + esc(conf) : ''}"><img src="${collegeLogo(id, 80)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><span>${esc(name)}</span></button>`).join('');
   return `<div class="college-pick" id="cpRoot">
-    <div class="cp-cur" id="cpCur">${cur ? `${collegeImg(form.college, 120, 'col-logo lg')}<div><b>${esc(form.college)}</b><span>${(cur.conf ? esc(cur.conf) + ' · ' : '') + DIV_LABEL[cur.div]}</span></div>` : '<span class="youth-ph">🎓</span><div><b>No team selected</b><span>pick a league below</span></div>'}</div>
+    <div class="cp-cur" id="cpCur">${cur ? `${collegeImg(form.college, 120, 'col-logo lg')}<div><b>${esc(form.college)}</b><span>${(cur.conf ? esc(cur.conf) + ' · ' : '') + DIV_LABEL[cur.div]}</span></div>` : '<span class="youth-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4" stroke-linecap="round"/></svg></span><div><b>No team selected</b><span>pick a league below</span></div>'}</div>
     <div class="cp-tools"><button type="button" class="mini cp-rand" data-act="randCollege" title="Pick a random team">RANDOMIZE</button><button type="button" class="mini cp-back" id="cpBack" data-act="collegeBack" hidden>◂ LEAGUES</button><input class="input cp-search" data-filter="college" placeholder="Search ${NCAA.length} teams…" autocomplete="off"></div>
     <div class="cp-leagues" id="cpLeagues">${leagues}</div>
     <div class="minis cp-subs" id="cpSubs" hidden>${subs}</div>
@@ -2166,18 +2170,21 @@ function youthPrevHTML() {
 function youthRowHTML() {
   const i = MFL_INFO[form.youth];
   return i ? `<button type="button" class="youth-btn on" data-act="pickYouth" style="--yc:${i.c1};--yc2:${i.c2}"><span class="youth-jy">${youthJerseySVG(form.youth, 'front', Number.isInteger(parseInt(form.number, 10)) ? parseInt(form.number, 10) : '', '')}</span><div><b>${esc(form.youth)}</b><span>MFL · your first team</span></div><em>CHANGE</em></button><button type="button" class="mini youth-rand" data-act="randYouthAny" title="Random first team">RANDOMIZE</button><button type="button" class="mini youth-x" data-act="youthNone" title="Remove">✕</button>`
-    : `<button type="button" class="youth-btn" data-act="pickYouth"><span class="youth-ph">🧒</span><div><b>Choose your first team</b><span>MFL or U.S. high school · optional</span></div><em>PICK</em></button><button type="button" class="mini youth-rand" data-act="randYouthAny" title="Random first team">RANDOMIZE</button>`;
+    : `<button type="button" class="youth-btn" data-act="pickYouth"><span class="youth-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4" stroke-linecap="round"/></svg></span><div><b>Choose your first team</b><span>MFL or U.S. high school · optional</span></div><em>PICK</em></button><button type="button" class="mini youth-rand" data-act="randYouthAny" title="Random first team">RANDOMIZE</button>`;
 }
 function renderCreate() {
   collegeDiv = 'ALL'; collegeLeague = '';
   setScreen(`<div class="wrap create">
-    <div class="eyebrow">STEP 1 OF 2</div><h2 class="h-xl">CREATE YOUR PLAYER</h2>
+    <div class="eyebrow">STEP 1 OF 2</div><h2 class="h-xl">CREATE YOUR PLAYER</h2><div class="cr-steps" aria-hidden="true"><i class="on"><b>1</b> Player</i><i><b>2</b> Pre-season</i></div>
     <div class="create-grid">
     <div class="card form-card">
+      <section class="cr-sec"><div class="cr-h"><i>1</i><b>Identity</b><span>who you are and where you play</span></div>
       <label class="lbl">Player Name</label>
       <input class="input" data-model="name" maxlength="24" placeholder="e.g. Alex Johnson" value="${esc(form.name)}" autocomplete="off">
-      <label class="lbl">Position</label>
+      <label class="lbl">Position <span class="hint pos-lg"><u class="o">Offense</u> · <u class="d">Defense</u> · <u class="k">Special teams</u></span></label>
       <div class="pos-grid">${Object.keys(POS).map(p => `<button class="pos-btn ${form.pos === p ? 'sel' : ''}" data-act="pickPos" data-pos="${p}"><b>${p}</b><span>${POS[p].name}</span></button>`).join('')}</div>
+      </section>
+      <section class="cr-sec"><div class="cr-h"><i>2</i><b>Origins</b><span>your first team and your college</span></div>
       <label class="lbl lbl-m">First Team <span class="hint">where you started as a kid</span></label>
       <div class="youth-row" id="youthRow">${youthRowHTML()}</div>
       <div id="collegeSec" ${form.youth ? 'hidden' : ''}>
@@ -2185,6 +2192,8 @@ function renderCreate() {
       ${collegePickerHTML()}
       </div>
       <div class="youth-note" id="youthNote" ${form.youth ? '' : 'hidden'}>🧒 <b>You'll play a season with your first team.</b> Then 5 colleges (NCAA and ONEFA), the LFA and the UFL make you offers — and you pick where to go next. Leave First Team empty to choose a college right now.</div>
+      </section>
+      <section class="cr-sec"><div class="cr-h"><i>3</i><b>Jersey</b><span>age, number and the name on your back</span></div>
       <div class="row3">
         <div><label class="lbl">Age</label><input class="input" type="number" min="21" max="25" data-model="age" value="${form.age}"></div>
         <div><label class="lbl">Jersey Number <span class="hint" id="numHint"></span></label><input class="input" type="number" min="0" max="99" data-model="number" value="${form.number}"></div>
@@ -2192,9 +2201,12 @@ function renderCreate() {
       </div>
       <label class="lbl">Name on the Jersey <span class="hint">what the back says — separate from your player name</span></label>
       <input class="input" data-model="jerseyName" maxlength="12" placeholder="Defaults to your last name" value="${esc(form.jerseyName || '')}" autocomplete="off">
+      </section>
       <div class="row end"><button class="btn btn-ghost" data-act="toTitle">BACK</button><button class="btn btn-primary" data-act="genPlayer">GENERATE PLAYER</button></div>
     </div>
-    <div class="card jersey-stage"><div class="eyebrow" id="stageEyebrow">YOUR COLLEGE JERSEY</div><div id="createCollege" class="create-college"></div><div id="createJersey" class="stage-jersey"></div><div id="createYouth" class="create-youth"></div>
+    <div class="card jersey-stage vitrine" id="vitrine"><div class="eyebrow" id="stageEyebrow">YOUR COLLEGE JERSEY</div><div id="createCollege" class="create-college"></div>
+      <div class="vit-case"><div class="vit-spot"></div><div id="createJersey" class="stage-jersey"></div><div class="vit-base"></div></div>
+      <div id="createPlaque" class="vit-plaque"></div><div id="createYouth" class="create-youth"></div>
       <div class="muted small">The colors follow the college you pick. Name and number update as you type. You'll get your team's colors after the draft — and can design it freely in the Jersey Creator (Locker Room).</div></div>
     </div></div>`);
   updateCreateJersey();

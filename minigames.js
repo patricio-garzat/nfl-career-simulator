@@ -22,7 +22,7 @@ function mgMods(se) { let perf = 1; (se.buffs || []).forEach(b => { if (b.left >
 // after every game the bonuses age (the camp bonus lasts the whole season); there are no more mini games during the season
 function mgAfterGame(se, game, notes) { mgEnsure(se); se.buffs.forEach(b => { b.left--; }); se.buffs = se.buffs.filter(b => b.left > 0); }
 const MG_META = {
-  qb: P => ({ icon: '🏈', title: 'FIND THE OPEN MAN', how: 'A defender sticks to one receiver. Throw to the other one.', legend: [['🔴', 'Defender on him', 'covered'], ['🟢', 'Nobody close', 'THROW HERE']] }),
+  qb: P => ({ icon: '🏈', title: 'POCKET PRESENCE', how: 'Dodge the pass rush inside the pocket and press SPACE when the bar is in the green to throw to your WR. Wait too long and you get sacked.', legend: [['', '← → ↑ ↓ move', 'dodge the rush'], ['', 'SPACE', 'throw in the green'], ['', 'Too slow', 'SACK']] }),
   rb: P => ({ icon: '🏃', title: 'RUSH FOR THE TD', how: 'Reach the end zone for a touchdown. Dodge the defenders and outrun the tackler.', legend: [['⌨️', '← → keys', 'dodge'], ['🏃', 'Tackler behind you', 'don\'t stumble'], ['🏈', 'End zone', 'TOUCHDOWN']] }),
   catch: P => ({ icon: '🙌', title: P.pos === 'TE' ? 'CATCH IT · SEAM' : 'CATCH IT · GO ROUTE', how: 'A three-play drive: catch to move the chains, and the last pass is for the touchdown. Run to where the ball will land.', legend: [['⌨️', 'Arrow keys / drag', 'move'], ['⭕', 'Ring', 'be there first']] }),
   kick: P => ({ icon: '🥅', title: 'KICK IT', how: 'Aim into the wind, stop the bar in the green.', legend: [['💨', 'Wind pushes', 'AIM AGAINST'], ['⏹', 'Power', 'GREEN']] }),
@@ -157,7 +157,9 @@ let MGX = null;
 function mgOpen(env) {
   env = env || mgEnvNFL(); if (!env) return;
   const se = env.se; if (!se.mg || !MG_META[se.mg.kind]) return;
-  const P = env.P, kind = se.mg.kind, t = env.t, opp = env.o, meta = MG_META[kind](P);
+  const P = env.P, kind = se.mg.kind, t = env.t, meta = MG_META[kind](P);
+  let opp = env.o; if (typeof lvDelta === 'function' && opp.c1 && t.c1 && lvDelta(t.c1, opp.c1) < 22) opp = { ...opp, c1: opp.c2 || '#ffffff', c2: opp.c1 };   // two similar colors: the rival wears its secondary one
+  env.o = opp;
   const ov = document.createElement('div'); ov.className = 'mg-overlay'; ov.style.cssText = `${env.theme};--o1:${opp.c1 || '#444'};--o2:${opp.c2 || '#fff'}`;
   ov.innerHTML = `<div class="mg-bgart"><img class="a" src="${t.logo}" alt=""><img class="b" src="${opp.logo}" alt=""></div><div class="mg-wrap">
     <div class="mg-top"><span class="mg-tag">${se.mg.weekly ? `WEEK ${mgGamesIn(se) + 1} TRAINING` : 'PRESEASON CAMP'}</span><button class="mini mg-skip" data-mg="skip">SKIP</button></div>
@@ -236,62 +238,95 @@ const mgPop = (ctx, x, y, txt, cls) => { const fx = ctx.stage.querySelector('#mg
 const mgShake = ctx => { ctx.stage.classList.remove('mg-shake'); void ctx.stage.offsetWidth; ctx.stage.classList.add('mg-shake'); };
 
 /* =====================================================================
-   QB — FIND THE OPEN MAN
-   Two receivers: the WR (deep) and the RB (short). A defender is stuck to one of them: throw to the other one.
-   Level 1: it is obvious. Level 2: both have a defender, one is much closer. Level 3: the defense SWITCHES right after the snap.
+   QB — POCKET PRESENCE
+   You drop back: move inside the pocket with the arrow keys / WASD (or drag) to stay away from the pass rush, and press SPACE when the timing bar is inside the green
+   to fire the pass to your WR. Throw outside the green and the pass fails; wait too long (or let a rusher touch you) and it is a sack.
+   Level 1: two rushers, slow bar. Level 2: three rushers. Level 3: four rushers, fast bar, narrow window.
    ===================================================================== */
-const QB_R = {
-  WR: { x: 292, y: 140, c: '#ffd23d', l: 'WR', route: [[292, 140], [292, 70], [268, 36]] },
-  RB: { x: 104, y: 190, c: '#c5ff3a', l: 'RB', route: [[104, 190], [64, 186], [38, 158]] },
-};
-const QB_COVER = { WR: [276, 126], RB: [120, 178] }, QB_NEAR = { WR: [244, 100], RB: [144, 154] };   // right on top of him / still in the picture but clearly behind
 function mgQB(ctx, i, st) {
-  const lv = MG_LV.indexOf(i);
-  if (!st.open) { const a = shuffle(['WR', 'RB']); st.open = [a[0], a[1], pick(['WR', 'RB'])]; st.flip = [rnd() < 0.5, rnd() < 0.5, rnd() < 0.5]; }
-  const open = st.open[lv], shut = open === 'WR' ? 'RB' : 'WR', flip = st.flip[lv], mx = x => (flip ? 340 - x : x);
-  const T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2, switchy = lv === 2;
-  const line = [[148, 134], [196, 134]];                                            // the two key defenders start on the line and then pick their men
-  const fin = [QB_COVER[shut], lv === 0 ? [170, 56] : QB_NEAR[open]];              // final spots: one is glued to a receiver, the other is far from the open man
-  const pre = switchy ? [QB_COVER[open], QB_NEAR[shut]] : fin;                      // level 3 shows the opposite picture first
-  const defs = fin.map((f, k) => mgGuy(mx(line[k][0]), line[k][1], '#e04b4b', '#4a1010', { s: 0.98, down: true, cls: 'mg-d', attrs: `data-p="${mx(pre[k][0])},${pre[k][1]}" data-f="${mx(f[0])},${f[1]}"` })).join('');
-  const dl = [140, 158, 182, 200].map(x => mgGuy(x, 118, '#b83a3a', '#4a1010', { s: 0.78, down: true })).join(''), ol = [134, 152, 170, 188, 206].map(x => mgGuy(x, 146, T1, T2, { s: 0.78 })).join('');
-  const marker = c => `<marker id="mgA${c.slice(1)}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`;
-  const routes = Object.entries(QB_R).map(([k, g]) => `<path d="M${g.route.map(p => `${mx(p[0])} ${p[1]}`).join(' L')}" stroke="${g.c}" stroke-width="2.4" stroke-dasharray="6 5" fill="none" marker-end="url(#mgA${g.c.slice(1)})" opacity=".9" class="mg-route"/>`).join('');
-  const tgs = Object.entries(QB_R).map(([k, g]) => { const x = mx(g.x), y = g.y; return `<g class="mg-tg" data-pick="${k}" style="cursor:pointer"><circle cx="${x}" cy="${y}" r="26" fill="transparent"/>${mgGuy(x, y, T1, T2, { s: 1.17 })}<text x="${x}" y="${y + 25}" text-anchor="middle" font-size="12" font-weight="800" fill="${g.c}" font-family="Barlow Condensed, sans-serif" letter-spacing=".08em" stroke="rgba(0,0,0,.6)" stroke-width="2.6" paint-order="stroke">${g.l}</text></g>`; }).join('');
-  const ringAt = (p, c) => `<circle cx="${mx(p[0])}" cy="${p[1]}" r="20" fill="none" stroke="${c}" stroke-width="3.2" stroke-dasharray="5 4"/>`;
-  const rings = `<g id="mgRings" opacity="0" style="transition:opacity .35s">${ringAt([QB_R[open].x, QB_R[open].y], '#6dffbb')}${ringAt(QB_COVER[shut], '#ff5d5d')}</g>`;
-  ctx.stage.innerHTML = `<svg class="mg-svg" viewBox="0 0 340 250">${mgField(ctx, 340, 250, 'mgQ', 132, 33, { crowd: false })}<defs>${marker('#ffd23d')}${marker('#c5ff3a')}</defs>
-    <line x1="0" x2="340" y1="132" y2="132" stroke="#4aa8ff" stroke-width="2.5" stroke-opacity=".85"/>${routes}${dl}${defs}${ol}${tgs}${rings}${mgGuy(170, 168, T1, T2, { s: 1.17, you: true, cls: 'mg-qb', num: ctx.number })}
-    <g id="mgBallG">${mgBall(170, 168, 0.85, 0, 'mgBallEl')}</g><g id="mgFx"></g></svg><div class="mg-call">FIND THE OPEN MAN · ${lv + 1}/3</div>`;
-  ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns two">${Object.entries(QB_R).map(([k, g]) => `<button class="mg-b" data-pick="${k}" style="--c:${g.c}">${g.l}</button>`).join('')}</div>`;
-  ctx.say('The defense is getting set…');
-  const secs = [5.5, 4.8, 4.4][lv];
-  return (async () => {
-    await sleep(350); if (!ctx.alive()) return false;
-    const go = key => ctx.stage.querySelectorAll('.mg-d').forEach(g => { const [fx, fy] = g.dataset[key].split(',').map(Number); g.style.transform = `translate(${fx}px,${fy}px)`; });
-    go('p'); ctx.say(switchy ? 'Who is open? <b>Watch closely…</b>' : 'Throw to the receiver with <b>nobody close</b>.');
-    await sleep(900); if (!ctx.alive()) return false;
-    ctx.say('<b>HIKE!</b>', 'go'); Snd.play('mgSnap', 0.02);
-    mgPickBtn(ctx, '.mg-btns .mg-b, .mg-tg');
-    if (switchy) setTimeout(() => { if (!ctx.alive() || !ctx.pick) return; go('f'); ctx.say('<b>⚠ THE DEFENSE SWITCHES!</b>', 'go'); Snd.play('mgSwish', 0); }, 1000);
-    const pickd = await mgChoice(ctx, secs); if (!ctx.alive()) return false;
-    ctx.ctrl.innerHTML = ''; go('f'); const rg = ctx.stage.querySelector('#mgRings'); if (rg) rg.style.opacity = 1;
-    const quick = pickd && (performance.now() - ctx.pickStart) / 1000 < secs * 0.45;
-    const ok = pickd === open, bg = ctx.stage.querySelector('#mgBallG');
-    let txt = '';
-    if (!pickd) { txt = 'SACKED! Too slow'; mgPop(ctx, 170, 150, 'SACK!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx); }
-    else {
-      const tg = QB_R[pickd], tx = mx(tg.x), ty = tg.y - 6; Snd.play('mgThrow', 0);
-      await new Promise(r => { const t0 = performance.now(), dur = 520; const step = () => { if (!ctx.alive()) return r(); const k = Math.min(1, (performance.now() - t0) / dur), x = 170 + (tx - 170) * k, y = 168 + (ty - 168) * k - Math.sin(Math.PI * k) * 26; ctx.stage.querySelector('#mgBallEl').setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(k * 540).toFixed(0)}) scale(${(0.85 + Math.sin(Math.PI * k) * 0.35).toFixed(2)})`); if (k < 1) requestAnimationFrame(step); else r(); }; step(); });
-      if (ok) { const y = pickd === 'WR' ? randInt(14, 32) : randInt(5, 12); txt = `COMPLETE! ${mgYardsStr(y)}`; mgPop(ctx, tx, ty - 14, mgYardsStr(y), 'good'); Snd.play('mgPat', 0); if (y >= 20) Snd.play('td', 0.15); }
-      else if (pickd === 'WR') { txt = 'INTERCEPTED! The WR was covered'; mgPop(ctx, tx, ty - 14, 'INT!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx); }
-      else { txt = 'TACKLED! The RB was covered'; mgPop(ctx, tx, ty - 14, 'LOSS', 'bad'); Snd.play('mgHit', 0); mgShake(ctx); }
-    }
-    if (ok && quick) { ctx.perfects++; txt += ' · ✨ quick read'; }
-    const tip = `${shut} had a defender on him — <b>${open}</b> was open${switchy ? ' (after the switch)' : ''}.`;
-    ctx.say(`${ok ? '✅' : '❌'} ${txt}${ok ? '' : `<span class="mg-tip">${tip}</span>`}`, ok ? 'good' : 'bad');
-    return ok;
-  })();
+  const lv = MG_LV.indexOf(i), T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2, LOSY = 150, flip = rnd() < 0.5, mx = x => (flip ? 340 - x : x);
+  const nR = [2, 3, 4][lv], rushIdx = [2, 1, 3, 0].slice(0, nR), tMax = [6.4, 5.8, 5.2][lv], vq = 92, vr = [50, 58, 66][lv], zone = [0.28, 0.22, 0.17][lv], sp = [0.85, 1.0, 1.15][lv];
+  const pT = rr(0.34, 0.68), B = { x0: 52, x1: 288, y0: 184, y1: 286 };
+  const olX = [104, 137, 170, 203, 236], dlX = [118, 150, 190, 222];
+  const wrs = [{ P: [[36, 154], [36, 112], [96, 58]], T: [0, 1, 2.7] }, { P: [[304, 154], [304, 92], [262, 96]], T: [0, 1.2, 2.4] }, { P: [[250, 162], [250, 104], [190, 66]], T: [0, 1.1, 2.8] }];
+  const wrAt = (w, t) => { const P = w.P, T = w.T; if (t <= 0) return [mx(P[0][0]), P[0][1]]; for (let k = 0; k < P.length - 1; k++) if (t <= T[k + 1]) { const u = (t - T[k]) / (T[k + 1] - T[k]); return [mx(P[k][0] + (P[k + 1][0] - P[k][0]) * u), P[k][1] + (P[k + 1][1] - P[k][1]) * u]; } const e = P[P.length - 1]; return [mx(e[0]), e[1]]; };
+  const gid = 'mgPr' + (++mgGid);
+  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><defs><radialGradient id="${gid}" cx="50%" cy="60%" r="65%"><stop offset=".55" stop-color="#ff2d2d" stop-opacity="0"/><stop offset="1" stop-color="#ff2d2d" stop-opacity=".8"/></radialGradient></defs>
+    ${mgField(ctx, 340, 300, 'mgQ', LOSY, 33, { crowd: false })}
+    <line x1="14" x2="326" y1="${LOSY}" y2="${LOSY}" stroke="#4aa8ff" stroke-width="2.6" stroke-opacity=".9"/>
+    <path d="M${wrs[0].P.map(p => `${mx(p[0])} ${p[1]}`).join(' L')}" stroke="#ffd23d" stroke-width="2" stroke-dasharray="5 6" fill="none" opacity=".55" class="mg-route"/>
+    ${olX.map((x, k) => mgGuy(x, 166, T1, T2, { s: 0.92, cls: 'mg-ol', attrs: `id="mgOL${k}"` })).join('')}
+    ${dlX.map((x, k) => mgGuy(0, 0, O1, O2, { s: 0.92, down: true, run: rushIdx.includes(k), cls: 'mg-rbd', attrs: `id="mgDL${k}"` })).join('')}
+    ${wrs.map((w, k) => mgGuy(0, 0, T1, T2, { s: 0.98, run: true, cls: 'mg-rbd', attrs: `id="mgWR${k}"` })).join('')}
+    ${wrs.map((w, k) => mgGuy(0, 0, O1, O2, { s: 0.98, down: true, run: true, cls: 'mg-rbd', attrs: `id="mgCB${k}"` })).join('')}
+    <g id="mgTgt"><circle r="17" fill="none" stroke="#ffd23d" stroke-width="2.4" stroke-dasharray="4 4" class="mg-landring"/><text y="-22" text-anchor="middle" font-size="9.5" font-weight="800" fill="#ffd23d" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke" font-family="Barlow Condensed, sans-serif" letter-spacing=".12em">TARGET</text></g>
+    <g id="mgQBg" class="mg-rbd">${mgGuy(0, 0, T1, T2, { s: 1.05, you: true, run: true, num: ctx.number })}</g>
+    <g id="mgBallG">${mgBall(0, 0, 0.62, 0, 'mgBallEl')}</g>
+    <rect id="mgPress" width="340" height="300" fill="url(#${gid})" opacity="0" pointer-events="none"/><g id="mgFx"></g></svg><div class="mg-call">POCKET PRESENCE · ${lv + 1}/3</div>`;
+  ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-power"><div class="mg-py" style="left:${(pT - 0.2) * 100}%;width:40%"></div><div class="mg-pz" style="left:${(pT - zone / 2) * 100}%;width:${zone * 100}%"></div><i id="mgPI"></i></div><div class="mg-btns five">${mgHoldBtn('l', '◀')}${mgHoldBtn('u', '▲')}${mgHoldBtn('d', '▼')}${mgHoldBtn('r', '▶')}<button class="mg-b big" id="mgThrow" style="--c:#c5ff3a">THROW <small>SPACE</small></button></div>`;
+  ctx.say('Move in the pocket · press <b>SPACE</b> when the bar is in the green');
+  return new Promise(async res => {
+    const el = id => ctx.stage.querySelector('#' + id), put = (e, x, y) => { e.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`; };
+    const Q = { x: 170, y: 220 }, qE = el('mgQBg'), ballE = el('mgBallEl'), press = el('mgPress'), pi = ctx.ctrl.querySelector('#mgPI'), tgt = el('mgTgt');
+    const rush = rushIdx.map((k, j) => ({ k, bx: dlX[k], x: dlX[k], y: 142, free: false, t: [1.9, 1.55, 1.25][lv] + j * [0.75, 0.6, 0.45][lv] + rr(0, 0.35), e: el('mgDL' + k) }));
+    const dls = dlX.map((x, k) => ({ x, e: el('mgDL' + k) })), cbs = wrs.map((w, k) => ({ x: mx(w.P[0][0]), y: w.P[0][1] - 18, e: el('mgCB' + k) })), wre = wrs.map((w, k) => el('mgWR' + k));
+    dls.forEach(d => put(d.e, d.x, 142)); put(qE, Q.x, Q.y); wrs.forEach((w, k) => { const p = wrAt(w, 0); put(wre[k], p[0], p[1]); put(cbs[k].e, cbs[k].x, cbs[k].y); });
+    await sleep(650); if (!ctx.alive()) return res(false);
+    const inp = mgInput(ctx);
+    const bar = ctx.ctrl.querySelector('.mg-timer i'); if (bar) { bar.style.transition = 'none'; bar.style.width = '100%'; void bar.offsetWidth; bar.style.transition = `width ${tMax}s linear`; bar.style.width = '0%'; }
+    ctx.say('<b>HIKE!</b> Stay alive · <b>SPACE</b> in the green', 'go'); Snd.play('mgSnap', 0.02);
+    let t = 0, last = performance.now(), ended = false, raf = 0, minD = 999;
+    const cleanup = () => { ended = true; cancelAnimationFrame(raf); inp.dispose(); document.removeEventListener('keydown', onKey); };
+    const marker = () => { const ph = (t * sp) % 2; return ph < 1 ? ph : 2 - ph; };
+    const sack = async why => {
+      if (ended) return; cleanup(); ctx.ctrl.innerHTML = '';
+      mgPop(ctx, Q.x, Q.y - 20, 'SACK!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx);
+      ctx.say(`❌ SACKED! ${why}<span class="mg-tip">Throw before the rush gets to you — move to buy time.</span>`, 'bad'); res(false);
+    };
+    const fly = (x0, y0, x1, y1, ms, arc) => new Promise(r => { const f0 = performance.now(); const step = () => { if (!ctx.alive()) return r(); const k = Math.min(1, (performance.now() - f0) / ms), x = x0 + (x1 - x0) * k, y = y0 + (y1 - y0) * k - Math.sin(Math.PI * k) * arc; ballE.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(k * 540).toFixed(0)}) scale(${(0.62 + Math.sin(Math.PI * k) * 0.25).toFixed(2)})`); if (k < 1) requestAnimationFrame(step); else r(); }; step(); });
+    const doThrow = async () => {
+      if (ended) return; const v = marker(), perr = Math.abs(v - pT), close = minD; cleanup(); ctx.ctrl.innerHTML = '';
+      const inGreen = perr <= zone / 2, inYellow = perr <= 0.2, perfect = inGreen && perr <= zone * 0.2 && close > 50;
+      const tw = wrAt(wrs[0], t + 0.55), wx = tw[0], wy = tw[1]; Snd.play('mgThrow', 0);
+      await fly(Q.x, Q.y - 6, wx, wy - 6, 560, 26); if (!ctx.alive()) return res(false);
+      if (inGreen) {
+        const yds = Math.max(2, Math.round((LOSY - wy) / 10 + rr(0, 3)));
+        mgPop(ctx, wx, wy - 18, perfect ? 'PERFECT!' : mgYardsStr(yds), 'good'); Snd.play('mgPat', 0); if (yds >= 12) Snd.play('td', 0.12);
+        if (perfect) ctx.perfects++;
+        ctx.say(`✅ ${perfect ? '✨ Perfect throw! ' : 'Complete! '}${mgYardsStr(yds)}`, 'good'); res(true);
+      } else if (inYellow) {
+        ballE.setAttribute('transform', `translate(${wx + (v < pT ? -20 : 20)} ${wy + 14}) rotate(30) scale(0.62)`);
+        mgPop(ctx, wx, wy - 18, 'INCOMPLETE', 'bad'); Snd.play('mgPat', 0);
+        ctx.say(`❌ Off target — ${v < pT ? 'too early' : 'too late'}<span class="mg-tip">Press SPACE when the marker is inside the green.</span>`, 'bad'); res(false);
+      } else {
+        mgPop(ctx, wx, wy - 18, 'INTERCEPTED!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx);
+        ctx.say(`❌ Intercepted — the timing was way off<span class="mg-tip">Wait for the green zone.</span>`, 'bad'); res(false);
+      }
+    };
+    const onKey = e => { if (e.code === 'Space' || e.key === ' ') { e.preventDefault(); if (!e.repeat) doThrow(); } };
+    document.addEventListener('keydown', onKey);
+    ctx.ov.querySelector('#mgThrow').addEventListener('pointerdown', ev => { ev.preventDefault(); doThrow(); });
+    const frame = now => {
+      if (ended) return; if (!ctx.alive()) { cleanup(); return; }
+      const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
+      let vx = inp.k.r - inp.k.l, vy = inp.k.d - inp.k.u; if (inp.tx !== null) { vx = inp.tx - Q.x; vy = inp.ty - Q.y; if (Math.hypot(vx, vy) < 6) { vx = 0; vy = 0; } }
+      const m = Math.hypot(vx, vy); if (m > 0) { Q.x = clamp(Q.x + vx / m * vq * dt, B.x0, B.x1); Q.y = clamp(Q.y + vy / m * vq * dt, B.y0, B.y1); }
+      put(qE, Q.x, Q.y); ballE.setAttribute('transform', `translate(${Q.x.toFixed(1)} ${(Q.y - 9).toFixed(1)}) rotate(90) scale(0.62)`);
+      minD = 999;
+      rush.forEach(r => {
+        if (!r.free) { if (t >= r.t) { r.free = true; mgPop(ctx, r.x, r.y - 14, 'BLITZ!', 'bad'); } else { r.x = r.bx + Math.sin(t * 13 + r.k) * 1.8; r.y = 143 + Math.cos(t * 11 + r.k) * 1.2; } }
+        else { const dx = Q.x - r.x, dy = Q.y - r.y, d = Math.hypot(dx, dy) || 1, step = vr * dt * (d < 60 ? 1.06 : 1); r.x += dx / d * step + Math.sin(t * 9 + r.k) * 0.25; r.y += dy / d * step; minD = Math.min(minD, d); }
+        put(r.e, r.x, r.y);
+      });
+      dls.forEach(d => { if (!rush.some(r => r.e === d.e)) put(d.e, d.x + Math.sin(t * 8 + d.x) * 1.4, 142 + Math.cos(t * 7 + d.x) * 1); });
+      wrs.forEach((w, k) => { const p = wrAt(w, t); put(wre[k], p[0], p[1]); const c = cbs[k]; c.x += (p[0] - c.x) * Math.min(1, dt * 4.5); c.y += (p[1] - 17 - c.y) * Math.min(1, dt * 4.5); put(c.e, c.x, c.y); if (k === 0) put(tgt, p[0], p[1]); });
+      const v = marker(); pi.style.left = (v * 100) + '%';
+      press.setAttribute('opacity', clamp(1 - minD / 95, 0, 0.7).toFixed(2));
+      if (minD < 15) return sack('A rusher got to you.'); if (t >= tMax) return sack('You held it too long.');
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+  });
 }
 
 /* =====================================================================

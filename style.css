@@ -1103,3 +1103,5 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .mg-guy .mg-lg, .mg-guy .mg-ar { transform-box: fill-box; transform-origin: center; }
 .mg-run .mg-lg.l, .mg-run .mg-ar.r { animation: mgStepA .26s ease-in-out infinite alternate; } .mg-run .mg-lg.r, .mg-run .mg-ar.l { animation: mgStepB .26s ease-in-out infinite alternate; }
 @keyframes mgStepA { from { transform: translateY(-2px); } to { transform: translateY(2px); } } @keyframes mgStepB { from { transform: translateY(2px); } to { transform: translateY(-2px); } }
+
+.mg-btns.five #mgThrow { font-size: 17px; padding: 10px 2px; } .mg-btns.five #mgThrow small { display: block; margin: 0; font-size: 9px; }

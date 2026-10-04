@@ -1071,3 +1071,5 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .tv-conf { letter-spacing: .08em; } .tv-conf.great, .tv-conf.good { color: #2ee59d; } .tv-conf.side { color: #ffd23d; } .tv-conf.back { color: #ff9a3d; } .tv-conf.bad { color: #ff5d5d; }
 @media (max-width: 460px) { .offers { grid-template-columns: 1fr; } .tv-cmp { grid-template-columns: 1fr; } .tv-arrow { transform: rotate(90deg); justify-self: center; } .tv-meter { flex-basis: 30%; } }
 .mg-b small { font-size: .5em; letter-spacing: .12em; opacity: .65; margin-left: .5em; vertical-align: middle; }
+
+.cp-rand, .youth-rand { flex: none; align-self: center; letter-spacing: .1em; font-weight: 800; border-color: color-mix(in srgb, var(--lime) 50%, transparent); color: var(--lime); } .cp-rand:hover, .youth-rand:hover { background: color-mix(in srgb, var(--lime) 16%, transparent); }

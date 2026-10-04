@@ -2111,7 +2111,7 @@ function collegePickerHTML() {
   const tiles = NCAA.map(([id, name, div, conf]) => `<button type="button" class="cp-tile ${name === form.college ? 'on' : ''}" data-act="pickCollege" data-n="${esc(name)}" data-d="${div}" data-l="${leagueOfDiv(div)}" data-q="${esc((name + ' ' + conf + (div === 'MX' ? ' mexico méxico onefa' : div === 'LFA' ? ' lfa mexico méxico liga profesional' : div === 'UFL' ? ' ufl united football league professional pro' : ' ncaa')).toLowerCase())}" title="${esc(name)}${conf ? ' · ' + esc(conf) : ''}"><img src="${collegeLogo(id, 80)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><span>${esc(name)}</span></button>`).join('');
   return `<div class="college-pick" id="cpRoot">
     <div class="cp-cur" id="cpCur">${cur ? `${collegeImg(form.college, 120, 'col-logo lg')}<div><b>${esc(form.college)}</b><span>${(cur.conf ? esc(cur.conf) + ' · ' : '') + DIV_LABEL[cur.div]}</span></div>` : '<span class="youth-ph">🎓</span><div><b>No team selected</b><span>pick a league below</span></div>'}</div>
-    <div class="cp-tools"><button type="button" class="mini cp-back" id="cpBack" data-act="collegeBack" hidden>◂ LEAGUES</button><input class="input cp-search" data-filter="college" placeholder="Search ${NCAA.length} teams…" autocomplete="off"></div>
+    <div class="cp-tools"><button type="button" class="mini cp-rand" data-act="randCollege" title="Pick a random team">RANDOMIZE</button><button type="button" class="mini cp-back" id="cpBack" data-act="collegeBack" hidden>◂ LEAGUES</button><input class="input cp-search" data-filter="college" placeholder="Search ${NCAA.length} teams…" autocomplete="off"></div>
     <div class="cp-leagues" id="cpLeagues">${leagues}</div>
     <div class="minis cp-subs" id="cpSubs" hidden>${subs}</div>
     <div class="cp-grid" id="cpGrid" hidden>${tiles}<div class="cp-empty" hidden>No team matches that search.</div></div>
@@ -2147,7 +2147,7 @@ function youthModal() {
     <div class="yp-tabs"><button type="button" class="yp-tab ${ypLg === 'MFL' ? 'on' : ''}" data-act="youthLg" data-lg="MFL"><img src="${LEAGUE_LOGO.MFL}" alt=""><span><b>MFL</b><small>Kids league · Monterrey</small></span></button><button type="button" class="yp-tab ${ypLg === 'HS' ? 'on' : ''}" data-act="youthLg" data-lg="HS"><i class="yp-hs">HS</i><span><b>USA High School</b><small>MaxPreps national top 25</small></span></button></div>
     <div class="youth-prev" id="youthPrev" style="--yc:${(MFL_INFO[form.youth] || {}).c1 || '#4a5a7a'}">${youthPrevHTML()}</div>
     <div class="cp-grid youth-grid">${youthGridHTML(ypLg)}</div>
-    <div class="row end"><button class="btn btn-ghost" data-act="youthNone">NO YOUTH TEAM</button><button class="btn btn-primary" data-act="closeModal">DONE</button></div>`, 'youth');
+    <div class="row end"><button class="btn btn-ghost" data-act="youthNone">NO YOUTH TEAM</button><button class="btn btn-secondary" data-act="randYouth">RANDOMIZE</button><button class="btn btn-primary" data-act="closeModal">DONE</button></div>`, 'youth');
 }
 // the jersey shown while you browse the MFL teams (your name and number on it)
 function youthPrevHTML() {
@@ -2156,8 +2156,8 @@ function youthPrevHTML() {
 }
 function youthRowHTML() {
   const i = MFL_INFO[form.youth];
-  return i ? `<button type="button" class="youth-btn on" data-act="pickYouth" style="--yc:${i.c1};--yc2:${i.c2}"><span class="youth-jy">${youthJerseySVG(form.youth, 'front', Number.isInteger(parseInt(form.number, 10)) ? parseInt(form.number, 10) : '', '')}</span><div><b>${esc(form.youth)}</b><span>MFL · your first team</span></div><em>CHANGE</em></button><button type="button" class="mini youth-x" data-act="youthNone" title="Remove">✕</button>`
-    : `<button type="button" class="youth-btn" data-act="pickYouth"><span class="youth-ph">🧒</span><div><b>Choose your first team</b><span>MFL or U.S. high school · optional</span></div><em>PICK</em></button>`;
+  return i ? `<button type="button" class="youth-btn on" data-act="pickYouth" style="--yc:${i.c1};--yc2:${i.c2}"><span class="youth-jy">${youthJerseySVG(form.youth, 'front', Number.isInteger(parseInt(form.number, 10)) ? parseInt(form.number, 10) : '', '')}</span><div><b>${esc(form.youth)}</b><span>MFL · your first team</span></div><em>CHANGE</em></button><button type="button" class="mini youth-rand" data-act="randYouthAny" title="Random first team">RANDOMIZE</button><button type="button" class="mini youth-x" data-act="youthNone" title="Remove">✕</button>`
+    : `<button type="button" class="youth-btn" data-act="pickYouth"><span class="youth-ph">🧒</span><div><b>Choose your first team</b><span>MFL or U.S. high school · optional</span></div><em>PICK</em></button><button type="button" class="mini youth-rand" data-act="randYouthAny" title="Random first team">RANDOMIZE</button>`;
 }
 function renderCreate() {
   collegeDiv = 'ALL'; collegeLeague = '';
@@ -3149,6 +3149,20 @@ const actions = {
     collegeLeague = d.l; collegeDiv = 'ALL'; applyCollegeFilter(); Snd.play('click');
     const g = document.getElementById('cpGrid'); if (g) { g.scrollTop = 0; const on = g.querySelector('.cp-tile.on:not([hidden])'); if (on) on.scrollIntoView({ block: 'nearest' }); }
   },
+  // RANDOMIZE: a random team from what you are looking at (a league, a search) or from everything
+  randCollege: () => {
+    const grid = document.getElementById('cpGrid'); if (!grid) return;
+    const all = [...grid.querySelectorAll('.cp-tile')], shown = !grid.hidden ? all.filter(t => !t.hidden) : [], pool = (shown.length ? shown : all).filter(t => t.dataset.n !== form.college), t = pick(pool.length ? pool : all);
+    if (!t) return;
+    const sr = document.querySelector('[data-filter="college"]'); if (sr && !shown.length) sr.value = '';
+    if (!shown.length || t.hidden) { collegeLeague = t.dataset.l; collegeDiv = 'ALL'; applyCollegeFilter(); }
+    actions.pickCollege({ n: t.dataset.n }); t.scrollIntoView({ block: 'nearest' });
+  },
+  randYouth: () => {
+    const pool = Object.keys(MFL_INFO).filter(n => MFL_INFO[n].lg === ypLg && n !== form.youth); if (!pool.length) return;
+    const n = pick(pool); actions.youthPick({ n }); const t = [...document.querySelectorAll('.youth-grid .cp-tile')].find(x => x.dataset.n === n); if (t) t.scrollIntoView({ block: 'nearest' });
+  },
+  randYouthAny: () => { const pool = Object.keys(MFL_INFO).filter(n => n !== form.youth); if (pool.length) actions.youthPick({ n: pick(pool) }); },
   collegeBack: () => { collegeLeague = ''; collegeDiv = 'ALL'; const i = document.querySelector('[data-filter="college"]'); if (i) i.value = ''; applyCollegeFilter(); },
   randNumber: () => { form.number = randomNumber(form.pos); const i = document.querySelector('[data-model="number"]'); if (i) i.value = form.number; updateCreateJersey(); },
   egg: () => {

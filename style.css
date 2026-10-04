@@ -826,7 +826,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .of-pro { flex: none; font: 800 11px var(--head); letter-spacing: .12em; padding: 3px 8px; border-radius: 99px; background: var(--lime); color: #0a1204; }
 
 /* ---- live watch: broadcast score bug (ScoreBug design: team | down & distance over quarter + clock | team), embossed ---- */
-.scb { container-type: inline-size; position: relative; display: grid; grid-template-columns: 32.1fr 35.8fr 32.1fr; width: min(100%, 780px); aspect-ratio: 1832.8 / 262.9; margin: 0 auto; border-radius: 1.1cqw; overflow: hidden; font-family: Inter, 'Segoe UI', system-ui, sans-serif; color: #fff;
+.scb { container-type: inline-size; position: relative; display: grid; grid-template-columns: 32.1fr 35.8fr 32.1fr; width: min(100%, 500px); aspect-ratio: 1832.8 / 262.9; margin: 0 auto; border-radius: 1.1cqw; overflow: hidden; font-family: Inter, 'Segoe UI', system-ui, sans-serif; color: #fff;
   box-shadow: 0 1.2cqw 3.2cqw rgba(0, 0, 0, .55), 0 0 0 .22cqw rgba(0, 0, 0, .55), 0 0 0 .4cqw rgba(255, 255, 255, .16); isolation: isolate; }
 .scb::after { content: ''; position: absolute; inset: 0; z-index: 6; pointer-events: none; background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, .22) 48%, rgba(255, 255, 255, .06) 53%, transparent 62%); transform: translateX(-120%); animation: scbSheen 7s ease-in-out 2.5s infinite; mix-blend-mode: screen; }
 @keyframes scbSheen { 0%, 55% { transform: translateX(-120%); } 85%, 100% { transform: translateX(120%); } }

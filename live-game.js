@@ -53,6 +53,67 @@ function lvCoins(rem) {
   }
   return shuffle(out);
 }
+
+/* ---------- football sense: the situation (down, distance, field position, clock, score) decides what is called ----------
+   Nobody goes for it on 4th & 10: from 4th down the offense punts or kicks a field goal, so a snap on 4th down only happens in short yardage past midfield, or when a trailing team is
+   desperate late. The clock and the score decide hurry-up, runs to kill the clock and passes to catch up; the call itself (formation + a playbook concept) follows the situation. */
+const lvWeighted = w => { let r = rnd() * w.reduce((a, b) => a + b, 0), i = 0; while (i < w.length - 1 && (r -= w[i]) > 0) i++; return i; };
+function lvDistFor(down, pass, los) {
+  const goal = 100 - los;
+  if (down === 1) return goal <= 10 ? goal : (rnd() < 0.05 ? 15 : 10);
+  const tiers = down === 2 ? [[1, 3, 0.2], [4, 7, 0.5], [8, 10, 0.24], [11, 15, 0.06]] : down === 3 ? [[1, 2, 0.26], [3, 6, 0.34], [7, 10, 0.32], [11, 16, 0.08]] : [[1, 1, 0.45], [2, 2, 0.3], [3, 3, 0.15], [4, 5, 0.1]];
+  const t = tiers[lvWeighted(tiers.map(x => x[2] * (pass && x[0] >= 7 ? 1.25 : !pass && x[0] <= 2 ? 1.3 : 1)))];
+  return Math.min(Math.round(rr(t[0], t[1] + 0.99)), goal);
+}
+function lvSituate(p, e, offLead) {              // offLead = points the team with the ball is ahead (negative = behind)
+  if (p.kind === 'xp') return;
+  const m = /(\d+):(\d+)/.exec(e.clock || '15:00'), cl = m ? +m[1] * 60 + +m[2] : 900, q = e.q;
+  const endHalf = (q === 2 || q === 4) && cl <= 130, late4 = q === 4 && cl <= 360, trail = offLead < 0, lead = offLead > 0;
+  p.hurry = (endHalf && (trail || q === 2 || offLead <= 0)) || (late4 && offLead <= -4);
+  p.late = late4; p.lead = lead; p.trail = trail;
+  if (p.kind === 'fg') {                                                  // a field goal comes on 4th down (or on the last play of a half)
+    p.down = endHalf && rnd() < 0.3 ? pick([2, 3]) : 4; p.dist = p.down === 4 ? lvWeighted([8, 8, 8, 7, 7, 6, 6, 5, 4, 4, 3, 3]) + 1 : Math.round(rr(5, 12));
+    p.dist = Math.min(p.dist, 100 - p.los); return;
+  }
+  const pass = LV_PASS_KINDS.includes(p.kind) || (p.kind === 'tackle' && !!p.pass), longPass = ['sack', 'sackAllowed', 'pressure', 'qbInt', 'int'].includes(p.kind);
+  let w = pass ? [0.36, 0.32, 0.29, 0.03] : [0.52, 0.32, 0.13, 0.03];
+  if (longPass) w = [0.14, 0.33, 0.5, 0.03];
+  if (lead && late4 && !pass) w = [0.44, 0.38, 0.18, 0];                  // protecting a lead: run it
+  if (trail && late4) w = [w[0] * 0.8, w[1], w[2] * 1.15, 0.09];
+  if (p.hurry) w = [0.25, 0.33, 0.36, 0.06];
+  let down = lvWeighted(w) + 1, dist = lvDistFor(down, pass, p.los);
+  if (down === 4 && !(dist <= 5 && (p.los >= 48 || (trail && late4)))) { down = 3; dist = lvDistFor(3, pass, p.los); }   // not 4th & long, not in your own end
+  if (p.td && p.yards <= 10) dist = Math.min(dist, Math.max(1, 100 - p.los));
+  p.down = down; p.dist = Math.max(1, dist);
+}
+const LV_DEPTH = { slant: 6, curl: 10, out: 9, dig: 13, comeback: 14, post: 18, corner: 16, go: 24, seam: 20, flat: 3, drag: 6, wheel: 14 };
+const LV_CONCEPTS = [                                                      // route concepts of a real playbook: who runs what
+  { n: 'Quick Slants', a: [0, 6], R: { WR1: 'slant', WR2: 'slant', WR3: 'flat', TE: 'drag', RB: 'flat' } },
+  { n: 'Mesh', a: [3, 9], R: { WR1: 'go', WR2: 'drag', WR3: 'drag', TE: 'curl', RB: 'flat' } },
+  { n: 'Curl-Flat', a: [5, 11], R: { WR1: 'curl', WR2: 'curl', WR3: 'flat', TE: 'out', RB: 'flat' } },
+  { n: 'Smash', a: [4, 16], R: { WR1: 'curl', WR2: 'corner', WR3: 'curl', TE: 'drag', RB: 'flat' } },
+  { n: 'Flood', a: [8, 17], R: { WR1: 'go', WR2: 'corner', WR3: 'out', TE: 'flat', RB: 'wheel' } },
+  { n: 'Dagger', a: [11, 20], R: { WR1: 'seam', WR2: 'dig', WR3: 'post', TE: 'seam', RB: 'flat' } },
+  { n: 'Post-Wheel', a: [14, 32], R: { WR1: 'post', WR2: 'go', WR3: 'wheel', TE: 'seam', RB: 'flat' } },
+  { n: 'Four Verticals', a: [17, 70], R: { WR1: 'go', WR2: 'go', WR3: 'seam', TE: 'seam', RB: 'flat' } },
+  { n: 'Red Zone Fades', a: [0, 70], rz: true, R: { WR1: 'go', WR2: 'slant', WR3: 'out', TE: 'seam', RB: 'flat' } },
+];
+function lvConcept(play) {
+  const air = Math.max(1, Math.max(play.yards || 0, play.yards ? 0 : (play.dist || 10) * 0.8)), rz = (play.los || 0) >= 88 && !play.td;
+  let pool = LV_CONCEPTS.filter(c => (rz ? c.rz || c.a[1] <= 12 : !c.rz && air >= c.a[0] - 1 && air <= c.a[1] + 2));
+  if (play.hurry) { const q = pool.filter(c => /Slants|Mesh|Curl|Smash|Flood/.test(c.n)); if (q.length) pool = q; }
+  if (!pool.length) pool = LV_CONCEPTS.filter(c => !c.rz);
+  return pick(pool);
+}
+const LV_RUN_CALLS = [
+  { n: 'Inside Zone', w: 30, hv: () => rr(-3.5, 3.5) }, { n: 'Outside Zone', w: 22, hv: s => s * rr(5, 7.5) }, { n: 'Power', w: 16, hv: s => s * rr(3.5, 5.5) },
+  { n: 'Counter', w: 10, hv: s => s * rr(5.5, 8) }, { n: 'Draw', w: 9, hv: () => rr(-3, 3) }, { n: 'Sweep', w: 8, hv: s => s * rr(11, 16) }, { n: 'Dive', w: 0, hv: () => rr(-2, 2) },
+];
+function lvRunCall(play) {
+  const short = (play.dist || 10) <= 2 || (play.los || 0) >= 97, pool = LV_RUN_CALLS.map(c => ({ ...c, w: short ? (/Power|Dive|Inside/.test(c.n) ? (c.n === 'Dive' ? 30 : 40) : 3) : (c.n === 'Draw' && (play.dist || 10) >= 7 ? c.w * 1.8 : c.w) }));
+  const c = pool[lvWeighted(pool.map(x => x.w))], s = rnd() < 0.5 ? -1 : 1;
+  return { n: c.n, hv: c.hv(s) };
+}
 const LV_SCORE_LABEL = { 7: 'TOUCHDOWN', 6: 'TOUCHDOWN', 8: 'TOUCHDOWN + 2-PT', 3: 'FIELD GOAL', 2: 'SAFETY', 1: 'EXTRA POINT' };
 
 function lvBuild(game) {
@@ -325,12 +386,16 @@ function lvPlan(play) {
   let pass = LV_PASS_KINDS.includes(k) || (k === 'tackle' && !!play.pass);
   if (k === 'tackle' && meDef === 'DL2') pass = false;           // an interior lineman makes his tackles against the run
   const F = (play._f = { kick, pass, off: {}, def: {}, pre: {}, hud: {}, dst: {}, mot: null, cov: pass ? 'man' : 'run' });
+  if (pass && !kick) F.concept = lvConcept(play); else if (!pass && !kick) F.runCall = lvRunCall(play);
   if (kick) {                                                   // field-goal unit: 7 on the line, two wings, holder and kicker; the defense rushes
     F.off = { OL1: [-0.6, -4], OL2: [-0.6, -2], OL3: [-0.6, 0], OL4: [-0.6, 2], OL5: [-0.6, 4], TE: [-0.6, 6], WR1: [-0.6, -6], WR2: [-1.4, 8], WR3: [-1.4, -8], QB: [-7, 0.4], K: [-8.7, -3] };
     F.def = { DL1: [1.1, -5.4], DL2: [1.1, -2.2], DL3: [1.1, 0], DL4: [1.1, 2.2], LB1: [1.1, 5.4], LB2: [1.1, -8], LB3: [1.1, 8], CB1: [3, -10], CB2: [3, 10], S1: [10, -3], S2: [10, 3] };
   } else {
     const fl = rnd() < 0.5 ? -1 : 1;
-    const key = pass ? pick(['gun22', 'gun22', 'gun31', 'gun31', 'uc']) : pick(['uc', 'uc', 'pistol', 'gun22']);
+    const dn = play.down || 1, dst = play.dist || 10, goalL = (play.los || 0) >= 97, shortY = dst <= 2 || goalL;
+    const key = pass ? (goalL ? 'uc' : dst >= 7 || play.hurry ? pick(['gun31', 'gun31', 'gun22']) : pick(['gun22', 'gun31', 'uc', 'pistol'])) : (shortY ? pick(['uc', 'uc', 'pistol']) : play.hurry ? 'gun22' : pick(['uc', 'uc', 'pistol', 'gun22']));
+    F.fname = { gun22: 'Shotgun · Doubles', gun31: 'Shotgun · Trips', uc: shortY ? 'Under center · I-Form' : 'Under center', pistol: 'Pistol' }[key]; if (goalL) F.fname = 'Goal line · ' + F.fname.split(' · ').pop();
+    F.goal = goalL && !pass;
     const base = { OL1: [-0.6, -4], OL2: [-0.6, -2], OL3: [-0.6, 0], OL4: [-0.6, 2], OL5: [-0.6, 4] };
     const form = {
       gun22: { TE: [-0.6, 6.4], WR1: [-0.6, -22.5], WR3: [-1.5, -12.5], WR2: [-0.6, 22.5], QB: [-4.9, 0], RB: [-4.9, 2.4] },
@@ -358,11 +423,14 @@ function lvPlan(play) {
     });
   }
   // the huddle: the offense starts as a tight ball behind the line (the QB at the open end, the others around it, the men who will line up on the left on the left side), then breaks to the formation
+  F.hurry = !!play.hurry;
   const hu = -Math.min(9.5, (play.los || 25) + 6), HR = 3.3, offKeys = Object.keys(F.off), rest = offKeys.filter(r => r !== 'QB').sort((a, b) => (F.pre[a] || F.off[a])[1] - (F.pre[b] || F.off[b])[1]), half = Math.ceil(rest.length / 2);
   F.hc = [hu, 0];
   const ring = (deg, r) => { const t = deg * Math.PI / 180; return [hu + Math.cos(t) * HR + rr(-0.1, 0.1), Math.sin(t) * HR + rr(-0.1, 0.1)]; };
   if (F.off.QB) F.hud.QB = ring(0);
   rest.forEach((r, i) => { const neg = i < half, n = neg ? half : rest.length - half, j = neg ? i : i - half, step = n > 1 ? 145 / (n - 1) : 0; F.hud[r] = ring(neg ? -170 + j * step : 25 + j * step); });
+  if (F.hurry && !kick) Object.keys(F.off).forEach(r => { const q = F.pre[r] || F.off[r]; F.hud[r] = [q[0] - 3.5, q[1] + rr(-0.6, 0.6)]; });      // no huddle: they hustle straight to the line
+  if (F.goal) Object.assign(F.def, { DL1: [0.7, -4.4], DL2: [0.7, -1.5], DL3: [0.7, 1.5], DL4: [0.7, 4.4], LB1: [2.2, -4], LB2: [2.2, 0.4], LB3: [2.2, 4], S1: [5.2, -3.4], S2: [5.2, 3.4], CB1: [3.6, -9], CB2: [3.6, 9] });     // goal-line stack
   Object.keys(F.def).forEach(r => { const q = F.def[r]; F.dst[r] = [q[0] + (r.startsWith('DL') ? rr(3, 4) : rr(2.5, 4.5)), q[1] * 1.05 + rr(-1, 1)]; });
   return F;
 }
@@ -511,7 +579,7 @@ function lvPlayScript(play, sc, A, T) {
 
   /* ---- before the snap: break the huddle, line up, (motion) ---- */
   const shadow = F.mot && F.cov === 'man' ? (F.mot === 'RB' ? 'LB1' : 'LB3') : null;
-  Object.keys(F.off).forEach(r => { const q = F.pre[r] || F.off[r]; T.move(r, to(q[0], q[1]), 0.55 + rr(0, 0.18), SN - (r === F.mot ? 0.9 : 0.5) - rr(0, 0.08), { prof: 1, pa: 0.2, pd: 0.25 }); });
+  Object.keys(F.off).forEach(r => { const q = F.pre[r] || F.off[r]; T.move(r, to(q[0], q[1]), (F.hurry ? 0.05 : 0.55) + rr(0, 0.18), SN - (r === F.mot ? 0.9 : 0.5) - rr(0, 0.08), { prof: 1, pa: 0.2, pd: 0.25 }); });
   defKeys.forEach(r => { const q = D(r); T.move(dd(r), to(q[0], q[1]), 0.2 + rr(0, 0.3), SN - (r === shadow ? 0.9 : 0.18), { prof: 1, pa: 0.3, pd: 0.4 }); });
   if (F.mot) {
     const q = O(F.mot), pq = F.pre[F.mot]; M(F.mot, q, -0.7, -0.02, { prof: 1, pa: 0.3, pd: 0.3 });
@@ -561,6 +629,8 @@ function lvPlayScript(play, sc, A, T) {
       const st = O(r);
       if (r === 'RB' && rnd() < 0.5) { R('RB', [[-3.5, st[1] * 0.6 + (st[1] === 0 ? 1.5 : 0)]], 0.05, 6); return; }
       if (r === 'TE' && rnd() < 0.35) { const ed = lvSgn(st[1]) === lvSgn(D('DL1')[1]) ? 'DL1' : 'DL4'; FOL('TE', dd(ed), 0.25, 3, -0.9, (st[1] - D(ed)[1]) * 0.4, { wob: 2.4, bl: 0.6 }); return; }
+      const cr = F.concept && F.concept.R[r];
+      if (cr) { const a3 = Math.round(LV_DEPTH[cr] * rr(0.92, 1.1)); R(r, routePts(cr, st, a3), 0, 7.4); return; }
       const a2 = Math.round(rr(5, 19)); R(r, routePts(pickRoute(r, a2, st[1]), st, a2), 0, 7.4);
     });
   };
@@ -604,7 +674,7 @@ function lvPlayScript(play, sc, A, T) {
 
   /* ---- a pass: drop-back, route, coverage, throw, catch, run after the catch, tackle ---- */
   const passTo = (target, air, yac, res, defRole, o = {}) => {
-    const st = O(target), qb0 = O('QB'), shot = qb0[0] < -3, ty = pickRoute(target, air, st[1]);
+    const st = O(target), qb0 = O('QB'), shot = qb0[0] < -3, ty = (F.concept && F.concept.R[target]) || pickRoute(target, air, st[1]);
     const rp = routePts(ty, st, air), cp = rp[rp.length - 1];
     const dropTo = shot ? [qb0[0] - 1.2, qb0[1] + rr(-0.5, 0.5)] : [-6.7 + rr(-0.3, 0.3), qb0[1] + rr(-0.4, 0.4)], dropT = shot ? 0.45 : 1.0;
     let tT = Math.max(dropT + 0.22, (shot ? 0.68 : 0.9) + Math.max(0, air) * 0.04 + rr(0, 0.12));
@@ -788,7 +858,7 @@ function lvPlayScript(play, sc, A, T) {
     case 'qbPass': { const t = passerTarget(), y = Math.max(0, play.yards), air = Math.max(1, Math.round(y * rr(0.5, 0.9))); passTo(t, t === 'RB' ? Math.min(air, 7) : air, Math.max(0, y - (t === 'RB' ? Math.min(air, 7) : air)), 'comp', manOf[t], { td: play.td }); result.text = `${play.td ? 'TOUCHDOWN — ' : ''}${y}-yard completion`; break; }
     case 'qbInc': { const t = passerTarget(); passTo(t, pickAir(t, 6, 22), 0, 'inc', manOf[t]); result.text = 'Pass falls incomplete'; break; }
     case 'qbInt': { const t = passerTarget(); passTo(t, pickAir(t, 8, 22), 0, 'int', t === 'RB' ? 'LB1' : pick([manOf[t], manOf[t], 'S1'])); result.text = 'INTERCEPTED'; break; }
-    case 'rush': runPlay(rushCarrier(), play.yards, play.td); result.text = `${play.td ? 'TOUCHDOWN — ' : ''}${play.yards}-yard run`; break;
+    case 'rush': runPlay(rushCarrier(), play.yards, play.td, F.runCall ? { hv: F.runCall.hv } : {}); result.text = `${play.td ? 'TOUCHDOWN — ' : ''}${play.yards}-yard run`; break;
     case 'qbRush': { const tF = scramblePlay(play.yards, play.td); done(tF + 0.9); result.text = `${play.td ? 'TOUCHDOWN — ' : ''}${play.yards}-yard scramble`; break; }
     case 'pancake': runPlay('RB', play.yards, false, { hv: O(me)[1] + rr(-1.5, 1.5), pan: me }); result.text = 'Pancake block springs a run'; break;
     case 'block': runPlay('RB', play.yards, false, { hv: O(me)[1] + rr(-2, 2), surge: 0.8 }); result.text = `Solid block — ${play.yards}-yard gain`; break;
@@ -883,6 +953,7 @@ function lvPlayScript(play, sc, A, T) {
     result.tw = tW; if (!td) result.dur = Math.max(result.dur, tW + 1.55);
   };
   try { livePlay(); } catch (err) { console.warn('live play layer', err); }
+  result.call = k === 'fg' ? 'Field goal unit' : k === 'xp' ? 'Extra point' : F.concept ? `${F.fname} · ${F.concept.n}` : F.runCall ? `${F.fname} · ${F.runCall.n}` : (F.fname || '');
   if (play.td) result.fx.push({ t: Math.max(0, result.dur - 1.1), p: result.end || P(0, 0), text: 'TOUCHDOWN!', cls: 'td', sticky: true });
   if (play.td) result.dur += 1.1;
   return result;
@@ -977,12 +1048,13 @@ async function openLiveGame(game, notes, season) {
       Snd.play(e.side === 'me' ? 'cheer' : 'down'); await banner(`${t.id} ${e.label}`, e.side === 'me' ? 'good' : 'bad', 1300); await sleep(300);
       continue;
     }
+    { const offSide = sideOf(e.play.off), defSide = offSide === 'home' ? 'away' : 'home'; lvSituate(e.play, e, L.score[offSide] - L.score[defSide]); }
     const p = e.play, sc = lvScene(p, { myDir: e.q % 2 === 0 ? -myDir : myDir, myId, oppId, col: L.col });
     poss(sideOf(p.off));
-    const dd = p.kind === 'xp' ? 'Extra point' : p.kind === 'fg' ? `Field goal · ${p.yards} yds` : `${['', '1st', '2nd', '3rd', '4th'][p.down]} & ${p.dist}`;
+    const dTxt = p.dist >= 100 - p.los && 100 - p.los <= 10 ? 'Goal' : p.dist, dd = p.kind === 'xp' ? 'Extra point' : p.kind === 'fg' ? `Field goal · ${p.yards} yds` : `${['', '1st', '2nd', '3rd', '4th'][p.down]} & ${dTxt}`;
     const spot = p.los < 50 ? `${TEAM[p.off === 'me' ? myId : oppId].id} ${p.los}` : (p.los === 50 ? 'Midfield' : `${TEAM[p.off === 'me' ? oppId : myId].id} ${100 - p.los}`);
-    $('lvDD').textContent = `${dd} · ball on ${spot}`; setBugDD(p.kind === 'xp' ? 'Extra Point' : p.kind === 'fg' ? `FG ${p.yards} yds` : `${['', '1st', '2nd', '3rd', '4th'][p.down]} & ${p.dist}`); $('lvText').textContent = '…';
-    const A = lvMakeActors(sc, p), T = lvTimeline(A), res = lvPlayScript(p, sc, A, T); LV.last = { A, T, res, sc, p };
+    $('lvDD').textContent = `${dd} · ball on ${spot}`; setBugDD(p.kind === 'xp' ? 'Extra Point' : p.kind === 'fg' ? `FG ${p.yards} yds` : `${['', '1st', '2nd', '3rd', '4th'][p.down]} & ${dTxt}`); $('lvText').textContent = '…';
+    const A = lvMakeActors(sc, p), T = lvTimeline(A), res = lvPlayScript(p, sc, A, T); LV.last = { A, T, res, sc, p }; if (res.call) $('lvText').textContent = res.call;
     const los = $('lvLos'), fd = $('lvFd'), losX = lvX(sc.los) - 2;
     if (los) { los.setAttribute('x', lvX(sc.los) - 2); los.setAttribute('opacity', .9); }
     if (fd && p.kind !== 'fg' && p.kind !== 'xp') { fd.setAttribute('x', lvX(sc.dir === 1 ? sc.los + p.dist : sc.los) - 2 + (sc.dir === 1 ? 0 : 0)); const fdAbs = sc.dir === 1 ? Math.min(100, sc.los + p.dist) : Math.max(0, sc.los - p.dist); fd.setAttribute('x', lvX(fdAbs) - 2); fd.setAttribute('opacity', .85); } else if (fd) fd.setAttribute('opacity', 0);

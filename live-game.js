@@ -986,7 +986,7 @@ async function openLiveGame(game, notes, season) {
   const label = game.k === 'PO' ? (game.round || 'PLAYOFFS') : `WEEK ${game.wk}`;
   const whenTxt = game.date && typeof calShort === 'function' ? ` · ${calShort(new Date(game.date + 'T00:00:00Z'))} · ${game.time} ET` : '';
   ov.innerHTML = `<div class="lv-wrap">
-    <div class="lv-top"><span class="lv-live"><i></i>LIVE</span><b>${label}</b><span class="muted">${TEAM[away].name} @ ${TEAM[home].name}${whenTxt}</span><div class="lv-ctrl"><label class="lv-vol" title="Music volume"><span>MUSIC</span><input type="range" id="lvMusic" min="0" max="100" step="1" value="40" aria-label="Music volume"></label><label class="lv-vol" title="Crowd noise volume"><span>CROWD</span><input type="range" id="lvCrowd" min="0" max="100" step="1" value="35" aria-label="Crowd volume"></label><button class="mini on" data-lv-speed="1">1×</button><button class="mini" data-lv-speed="2">2×</button><button class="mini" data-lv-speed="4">4×</button><button class="btn btn-ghost btn-sm" id="lvSkip">SKIP ▸</button></div></div>
+    <div class="lv-top"><span class="lv-live"><i></i>LIVE</span><b>${label}</b><span class="muted">${TEAM[away].name} @ ${TEAM[home].name}${whenTxt}</span><div class="lv-ctrl"><label class="lv-vol" title="Music volume"><span>MUSIC</span><input type="range" id="lvMusic" min="0" max="100" step="1" value="40" aria-label="Music volume"></label><label class="lv-vol" title="Crowd noise volume"><span>CROWD</span><input type="range" id="lvCrowd" min="0" max="100" step="1" value="35" aria-label="Crowd volume"></label><label class="lv-vol" title="Players on the field volume"><span>PLAYERS</span><input type="range" id="lvPlayers" min="0" max="100" step="1" value="50" aria-label="Players volume"></label><button class="mini on" data-lv-speed="1">1×</button><button class="mini" data-lv-speed="2">2×</button><button class="mini" data-lv-speed="4">4×</button><button class="btn btn-ghost btn-sm" id="lvSkip">SKIP ▸</button></div></div>
     ${lvScoreboardHTML(L)}
     <div class="lv-stage">${lvFieldSVG(away, home, /super bowl|^SB$/i.test(String(game.round || '')))}<div class="lv-banner" id="lvBanner"></div></div>
     <div class="lv-bottom">
@@ -1001,6 +1001,8 @@ async function openLiveGame(game, notes, season) {
   const crowdVol = () => { let v = 35; try { const x = parseInt(localStorage.getItem('nfl_crowd_vol'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
   Snd.crowd('assets/sounds/crowd-stadium.m4a', vol(crowdVol()));
   const cv = ov.querySelector('#lvCrowd'); if (cv) { cv.value = crowdVol(); cv.addEventListener('input', () => { Snd.setCrowdVol(vol(cv.value)); try { localStorage.setItem('nfl_crowd_vol', cv.value); } catch (e) { /* ignore */ } }); }
+  const playersVol = () => { let v = 50; try { const x = parseInt(localStorage.getItem('nfl_players_vol'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
+  const pv = ov.querySelector('#lvPlayers'); if (pv) { pv.value = playersVol(); pv.addEventListener('input', () => { Snd.setPlayersVol(vol(pv.value)); try { localStorage.setItem('nfl_players_vol', pv.value); } catch (e) { /* ignore */ } }); }
   const mv = ov.querySelector('#lvMusic'); if (mv) { mv.value = musicVol(); mv.addEventListener('input', () => { Snd.setMusicVol(vol(mv.value)); try { localStorage.setItem('nfl_music_vol2', mv.value); } catch (e) { /* ignore */ } }); }
   const $ = id => document.getElementById(id), setScore = () => { $('lvScore_away').textContent = L.score.away; $('lvScore_home').textContent = L.score.home; };
   const setClock = (q, clock) => { $('lvQ').innerHTML = `${q}<small>${['ST', 'ND', 'RD', 'TH'][q - 1]}</small>`; $('lvClock').textContent = clock; };
@@ -1063,12 +1065,15 @@ async function openLiveGame(game, notes, season) {
     if (fd && p.kind !== 'fg' && p.kind !== 'xp') { fd.setAttribute('x', lvX(sc.dir === 1 ? sc.los + p.dist : sc.los) - 2 + (sc.dir === 1 ? 0 : 0)); const fdAbs = sc.dir === 1 ? Math.min(100, sc.los + p.dist) : Math.max(0, sc.los - p.dist); fd.setAttribute('x', lvX(fdAbs) - 2); fd.setAttribute('opacity', .85); } else if (fd) fd.setAttribute('opacity', 0);
     const fxLayer = $('lvFx'); fxLayer.innerHTML = ''; const pending = (res.fx || []).slice().sort((a, b) => a.t - b.t);
     Snd.play('whistle');
+    // the players' noise starts when the huddle breaks; second 4 of the clip is the snap, so its speed is set so that second 4 lands on the snap (and follows the 1x / 2x / 4x buttons)
+    const plRate = () => 4 * LV_PACE * L.speed / Math.max(0.5, res.snap || LV_SN); let plSp = L.speed; Snd.players('assets/sounds/players-huddle.mp3', vol(playersVol()), plRate());
     await new Promise(resolve => {
       let start = null, raf = 0, last = 0;
       L.cancelAnim = () => { cancelAnimationFrame(raf); resolve(); };
       const frame = ts => {
         if (!alive()) return resolve();
         if (start === null) { start = ts; last = ts; }
+        if (L.speed !== plSp) { plSp = L.speed; Snd.setPlayersRate(plRate()); }
         const real = ((ts - start) / 1000) * L.speed, t = real * LV_PACE; T.render(t); { const nx = script[si + 1], live = Math.max(0, Math.min(real, res.dur / LV_PACE) - res.snap / LV_PACE), [cq, cc] = clockOf(Math.min(e.t + live, nx ? nx.t - 0.5 : e.q * 900)); if (!L.frozen) setClock(cq, cc); }
         while (pending.length && pending[0].t <= t) { const f = pending.shift(); const el = document.createElementNS('http://www.w3.org/2000/svg', 'text'); el.setAttribute('class', `lv-pop ${f.cls}${f.sticky ? ' sticky' : ''}`); el.setAttribute('x', Math.min(1090, Math.max(110, f.p.x))); el.setAttribute('y', Math.max(60, f.p.y - 28)); el.setAttribute('text-anchor', 'middle'); el.textContent = f.text; fxLayer.appendChild(el); Snd.play(f.cls === 'td' ? 'roar' : (f.cls === 'good' ? 'pick' : 'click')); }
         if (t >= res.dur) return resolve();
@@ -1076,6 +1081,7 @@ async function openLiveGame(game, notes, season) {
       };
       raf = requestAnimationFrame(frame);
     });
+    Snd.stopPlayers(500);
     if (!alive()) break;
     T.render(res.dur);
     Object.entries(p.inc || {}).forEach(([k2, v]) => { L.T[k2] = (L.T[k2] || 0) + v; }); tiles();

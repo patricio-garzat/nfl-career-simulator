@@ -1012,7 +1012,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 
 .cal-net { display: block; margin-top: 3px; font: 800 10px var(--head); font-style: normal; letter-spacing: .1em; color: var(--ta, var(--lime)); text-transform: uppercase; }
 
-.lv-vol { gap: 10px; margin-right: 14px; font-size: 20px; } .lv-vol input { -webkit-appearance: none; appearance: none; width: 170px; height: 10px; border-radius: 999px; background: linear-gradient(90deg, rgba(255,255,255,.18), var(--lime)); outline: none; cursor: pointer; }
+.lv-vol { gap: 10px; margin-right: 14px; font-size: 20px; } .lv-vol input { -webkit-appearance: none; appearance: none; width: 130px; height: 10px; border-radius: 999px; background: linear-gradient(90deg, rgba(255,255,255,.18), var(--lime)); outline: none; cursor: pointer; }
 .lv-vol input::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 3px solid var(--lime); box-shadow: 0 2px 8px rgba(0,0,0,.5); cursor: pointer; }
 .lv-vol input::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 3px solid var(--lime); box-shadow: 0 2px 8px rgba(0,0,0,.5); cursor: pointer; }
 @media (max-width: 720px) { .lv-vol { margin-right: 6px; font-size: 18px; } .lv-vol input { width: 46vw; max-width: 220px; } }

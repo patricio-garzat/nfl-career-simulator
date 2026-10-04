@@ -1274,7 +1274,7 @@ const Snd = (() => {
   }, { passive: true, capture: true }));
   document.addEventListener('visibilitychange', () => { if (!document.hidden && !muted && ctx && ctx.state !== 'running') revive(); });
   function setMuted(m) {
-    muted = m; if (typeof bg !== 'undefined' && bg) bg.muted = m; if (typeof cg !== 'undefined' && cg) cg.muted = m;
+    muted = m; if (typeof bg !== 'undefined' && bg) bg.muted = m; if (typeof cg !== 'undefined' && cg) cg.muted = m; if (typeof pl !== 'undefined' && pl) pl.muted = m;
     if (master) master.gain.setTargetAtTime(m ? 0 : VOLUME, ctx.currentTime, 0.05);
     if (!m) unlock();
   }
@@ -1308,6 +1308,22 @@ const Snd = (() => {
       clearInterval(cgFade); let t = 0; cgFade = setInterval(() => { t += 50; if (cg !== au) return clearInterval(cgFade); au.volume = Math.min(1, Math.max(0, au._vol * Math.min(1, t / 2500))); if (t >= 2500) clearInterval(cgFade); }, 50);
     } catch (e) { cg = null; }
   }
+  // the players on the field (huddle break -> snap): one clip per play, its speed follows the game speed so that second 4 of the clip lands on the snap
+  var pl = null, plFade = 0;
+  function players(url, vol = 0.2, rate = 1) {
+    stopPlayers(0);
+    try {
+      const au = new Audio(url); au.volume = clamp(vol, 0, 1); au.muted = muted; au.preload = 'auto'; au.playbackRate = clamp(rate, 0.25, 4); pl = au; au._vol = vol;
+      const p = au.play(); if (p && p.catch) p.catch(() => {});
+    } catch (e) { pl = null; }
+  }
+  function setPlayersVol(v) { if (pl) { pl._vol = v; pl.volume = clamp(v, 0, 1); } }
+  function setPlayersRate(r) { if (pl) { try { pl.playbackRate = clamp(r, 0.25, 4); } catch (e) { /* ignore */ } } }
+  function stopPlayers(ms = 600) {
+    const au = pl; if (!au) return; pl = null; clearInterval(plFade);
+    if (!ms) { try { au.pause(); } catch (e) { /* ignore */ } return; }
+    const v0 = au.volume; let t = 0; const iv = setInterval(() => { t += 50; au.volume = Math.max(0, v0 * (1 - t / ms)); if (t >= ms) { clearInterval(iv); try { au.pause(); } catch (e) { /* ignore */ } } }, 50);
+  }
   function setCrowdVol(v) { if (cg) { cg._vol = v; cg.volume = clamp(v, 0, 1); } }
   function stopCrowd(ms = 700) {
     const au = cg; if (!au) return; cg = null; clearInterval(cgFade);
@@ -1316,12 +1332,12 @@ const Snd = (() => {
   }
   function setMusicVol(v) { if (bg) { bg._vol = v; bg.volume = clamp(v, 0, 1); } }
   function stopMusic(ms = 700) {
-    stopCrowd(ms);
+    stopCrowd(ms); stopPlayers(ms);
     const au = bg; if (!au) return; bg = null; clearInterval(bgFade);
     if (!ms) { try { au.pause(); } catch (e) { /* ignore */ } return; }
     const v0 = au.volume; let t = 0; const iv = setInterval(() => { t += 50; au.volume = Math.max(0, v0 * (1 - t / ms)); if (t >= ms) { clearInterval(iv); try { au.pause(); } catch (e) { /* ignore */ } } }, 50);
   }
-  return { play, file, music, setMusicVol, crowd, setCrowdVol, stopCrowd, stopMusic, unlock, setMuted, isMuted: () => muted };
+  return { play, file, music, setMusicVol, crowd, setCrowdVol, stopCrowd, players, setPlayersVol, setPlayersRate, stopPlayers, stopMusic, unlock, setMuted, isMuted: () => muted };
 })();
 
 /* ---------------------------------------------------------------------

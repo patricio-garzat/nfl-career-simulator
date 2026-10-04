@@ -164,7 +164,7 @@ const LV_EZ = {
   HOU: { bg: '#C9243F', ends: [[{ l: { k: 'img', src: 'assets/nfl/texans-wordmark.png', x: 0, y: 0, w: 440, h: 67 } }]] },   // HOUSTON (navy) over TEXANS (white) on Texans red, big with a margin
   IND: { bg: '#1A4FB0', ends: [[{ l: { k: 'img', src: 'assets/nfl/colts-wordmark.png', x: 0, y: 0, w: 250, h: 76, stretch: 1 } }]] },   // the COLTS wordmark in white on blue (stretched wide, as painted on a field)
   JAX: { bg: '#000000', op: 0.96, ends: [[{ l: { k: 'img', src: 'assets/nfl/jaguars-wordmark.png', x: 0, y: 0, w: 250, h: 76 } }]] },   // JACKSONVILLE JAGUARS on black
-  TEN: { bg: null, ends: [[{ t: { s: 'TITANS', f: '#0C2340', o: '#FFFFFF', w: 5, ff: 'Russo One', h: 66, n: 480, sh: ['#4B92DB', 4, 4] } }]] },
+  TEN: { bg: null, ey: 47, ends: [[{ l: { k: 'img', src: 'assets/nfl/titans-wordmark.png', x: 0, y: 0, w: 330, h: 90, stretch: 1 } }]] },   // the TENNESSEE TITANS wordmark (supplied), as big as the end zone allows, on bare turf
   DEN: { bg: '#0C2340', ey: 43, ends: [[{ l: { k: 'team', x: -198, y: 0, w: 86, h: 86 } }, { l: { k: 'img', src: 'assets/nfl/broncos-wordmark.png', x: 51, y: 0, w: 380, h: 43 } }]] },   // orange BRONCOS (no DENVER) with the logo before it, on Broncos navy; bigger art (ey = a slimmer safety margin)
   KC: { bg: '#FFB81C', ends: [[{ l: { k: 'img', src: 'assets/nfl/chiefs-wordmark.png', x: 0, y: 0, w: 315, h: 76 } }]] },   // CHIEFS wordmark, white outline, on gold
   LV: { bg: '#111214', ends: [[{ l: { k: 'img', src: 'assets/nfl/raiders-wordmark.png', x: 0, y: 0, w: 400, h: 75 } }]] },   // silver RAIDERS on a soft black (not pure black)

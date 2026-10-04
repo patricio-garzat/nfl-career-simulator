@@ -982,7 +982,7 @@ function lvTrack(game) {
 function lvIntroTitle(game) {
   const n = String(game.slotName || ''), r = String(game.round || '');
   const wk = game.k === 'PO' ? `PLAYOFFS${r && !/super bowl/i.test(r) ? ' · ' + r.toUpperCase() : ''}` : '';
-  if (/super bowl/i.test(r)) return { top: wk, big: 'SUPER BOWL', em: 'THE BIG GAME', logo: '' };
+  if (/super bowl/i.test(r)) return { top: '', big: 'SUPER BOWL', em: 'THE BIG GAME', logo: 'trophy' };
   const hol = /thanksgiving|christmas|black friday/i.test(n) ? n.toUpperCase() : '';
   // the broadcast logo of the window: Thursday Night Football, Sunday Night Football, Monday Night Football or NFL GameDay Live
   const logo = /monday/i.test(n) ? 'mnf' : /sunday night|saturday night/i.test(n) ? 'snf' : /thursday|wednesday|friday|thanksgiving|christmas/i.test(n) ? 'tnf' : 'gameday';
@@ -1006,7 +1006,8 @@ function lvIntro(ov, L, game, musicVol) {
       <div class="li-panel away"><img class="li-wm" src="${logoUrl(away.id)}" alt=""><i class="li-streaks"></i></div><div class="li-panel home"><img class="li-wm" src="${logoUrl(home.id)}" alt=""><i class="li-streaks"></i></div>
       <div class="li-field"></div>
       <div class="li-stage"><div class="li-main">${side(away, ca, 'away')}
-        <div class="li-center">${T.top ? `<small class="li-top">${esc(T.top)}</small>` : ''}${T.logo ? `<div class="li-bc" style="--m:url(assets/broadcast/${T.logo}.png?v=${window.APP_BUILD})"><img src="assets/broadcast/${T.logo}.png?v=${window.APP_BUILD}" alt="${esc(T.big)} ${esc(T.em)}"><i class="li-bcshine"></i></div><p class="li-when"><em>${game.k === 'PO' ? 'PLAYOFFS' : 'WEEK ' + game.wk}</em>${esc(when)}</p>`
+        <div class="li-center">${T.top ? `<small class="li-top">${esc(T.top)}</small>` : ''}${T.logo === 'trophy' ? `<div class="li-bc li-trophy" style="--m:url(super-bowl-trophy.png?v=${window.APP_BUILD})"><i class="li-tglow"></i><img src="super-bowl-trophy.png?v=${window.APP_BUILD}" alt="Super Bowl trophy"><i class="li-bcshine"></i></div><div class="li-sbt"><b>${esc(T.big)}</b><span>${esc(T.em)}</span></div><p class="li-when"><em>CHAMPIONSHIP</em>${esc(when)}</p>`
+          : T.logo ? `<div class="li-bc" style="--m:url(assets/broadcast/${T.logo}.png?v=${window.APP_BUILD})"><img src="assets/broadcast/${T.logo}.png?v=${window.APP_BUILD}" alt="${esc(T.big)} ${esc(T.em)}"><i class="li-bcshine"></i></div><p class="li-when"><em>${game.k === 'PO' ? 'PLAYOFFS' : 'WEEK ' + game.wk}</em>${esc(when)}</p>`
           : `<div class="li-title"><h1><span>${esc(T.big)}</span><em>${esc(T.em)}</em></h1><p>${esc(when)}</p><i class="li-shine"></i></div>`}</div>
         ${side(home, ch, 'home')}</div></div>
       <div class="li-flash"></div><div class="li-vignette"></div><button class="li-skip" type="button">SKIP ▸</button>`;

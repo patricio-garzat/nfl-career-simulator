@@ -1281,3 +1281,13 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .li-when em { font-style: normal; font-weight: 800; background: #d0182f; padding: 6px 12px; letter-spacing: .2em; } .li-when { padding-right: 14px; align-items: center; gap: 12px; }
 .li-main .li-team b { font-size: clamp(12px, 1.9vw, 20px); } .li-main .li-team span { font-size: clamp(22px, 4.6vw, 54px); }
 @media (max-width: 720px) { .li-when { font-size: 11px; } .li-wm { width: 90vmin; height: 90vmin; } }
+
+/* Super Bowl opening: the Lombardi trophy with a golden glow and the title under it */
+.li-trophy { width: clamp(110px, min(25vmin, 19vw), 220px); overflow: visible; }
+.li-tglow { position: absolute; left: 50%; top: 46%; width: 190%; height: 150%; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 210, 61, .55), rgba(255, 170, 40, .18) 55%, transparent 72%); animation: liPulseC 2.4s ease-in-out infinite; pointer-events: none; }
+.li-trophy img { position: relative; z-index: 1; filter: drop-shadow(0 0 16px rgba(255, 210, 61, .55)); }
+.li-trophy .li-bcshine { z-index: 2; }
+.li-sbt { display: flex; flex-direction: column; align-items: center; line-height: 1; opacity: 0; animation: liTrack .8s 3.1s cubic-bezier(.2, .9, .3, 1) both; }
+.li-sbt b { font-family: var(--head); font-weight: 800; font-size: clamp(26px, 4.6vw, 52px); letter-spacing: .12em; background: linear-gradient(180deg, #fff6c8, #ffd23d 55%, #c98a10); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 3px 10px rgba(0, 0, 0, .7)); }
+.li-sbt span { font-family: var(--head); font-size: clamp(11px, 1.8vw, 18px); letter-spacing: .5em; margin-right: -.5em; color: #fff; margin-top: 6px; text-shadow: 0 2px 8px rgba(0, 0, 0, .8); }
+@keyframes liPulseC { 0%, 100% { transform: translate(-50%, -50%) scale(.94); opacity: .75; } 50% { transform: translate(-50%, -50%) scale(1.06); opacity: 1; } }

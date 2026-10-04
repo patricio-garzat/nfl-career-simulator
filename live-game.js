@@ -999,8 +999,8 @@ function lvIntro(ov, L, game, musicVol) {
     // the song is started right away (inside the click) at volume 0; the opening begins the moment it is really playing (it waits up to 2 s), so the music is never late
     const song = typeof lvTrack === 'function' ? lvTrack(game) : '';
     const cover = document.createElement('div'); cover.className = 'lv-intro lv-intro-wait'; ov.appendChild(cover);
-    let au = null; if (song) { try { au = new Audio(song); au.preload = 'auto'; au.volume = 0; au.muted = Snd.isMuted(); const p0 = au.play(); if (p0 && p0.catch) p0.catch(() => {}); } catch (e) { au = null; } }
-    if (au) await new Promise(r => { const t = setTimeout(r, 2000); au.addEventListener('playing', () => { clearTimeout(t); r(); }, { once: true }); });
+    let au = null, blocked = false; if (song) { try { au = new Audio(song); au.preload = 'auto'; au.volume = 0.001; au.muted = Snd.isMuted(); const p0 = au.play(); if (p0 && p0.catch) p0.catch(() => { blocked = true; }); } catch (e) { au = null; } }
+    if (au) await new Promise(r => { const t = setTimeout(r, 2000), ok = () => { clearTimeout(t); r(); }; au.addEventListener('playing', ok, { once: true }); au.addEventListener('timeupdate', ok, { once: true }); if (blocked) ok(); setTimeout(() => { if (blocked) ok(); }, 250); });
     cover.remove();
     const el = document.createElement('div'); el.className = 'lv-intro'; el.id = 'lvIntro'; el.style.cssText = `--a:${ca};--h:${ch};--ta:${textOn(ca)};--th:${textOn(ch)}`;
     el.innerHTML = `<div class="li-beams"><i></i><i></i><i></i></div><div class="li-sparks">${sparks}</div>
@@ -1010,7 +1010,11 @@ function lvIntro(ov, L, game, musicVol) {
       <div class="li-flash"></div><div class="li-vignette"></div><button class="li-skip" type="button">SKIP ▸</button>`;
     ov.appendChild(el);
     const timers = []; let done = false; const at = (ms, f) => timers.push(setTimeout(f, ms));
-    if (au) Snd.musicEl(au, musicVol);
+    if (au) Snd.musicEl(au, 0.34);                               // fixed level (the old music slider's saved value no longer applies)
+    if (au && (blocked || au.paused) && !Snd.isMuted()) {       // Safari may refuse to start sound without a tap: offer one
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'li-sound'; b.textContent = 'TAP FOR SOUND'; el.appendChild(b);
+      b.addEventListener('click', e => { e.stopPropagation(); try { au.currentTime = 0; const q = au.play(); if (q && q.catch) q.catch(() => {}); } catch (x) { /* ignore */ } Snd.musicEl(au, 0.34); b.remove(); });
+    }
     at(250, () => Snd.play('introSwoosh')); at(1000, () => Snd.play('introImpact')); at(1550, () => Snd.play('whoosh')); at(3000, () => Snd.play('introSwoosh')); at(3550, () => Snd.play('introImpact')); at(4300, () => Snd.play('whoosh'));
     at(5900, () => Snd.stopMusic(2000));                         // the song fades out as the broadcast cuts to the field
     const end = fast => {

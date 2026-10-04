@@ -1241,3 +1241,4 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 @media (max-width: 720px) { .li-teams { gap: 4px; } .li-title { padding: 2vmin 4vw; } }
 
 .lv-intro-wait { background: #03060c; cursor: default; }
+.li-sound { position: absolute; z-index: 6; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); font-family: var(--head); letter-spacing: .2em; font-size: 14px; padding: 9px 18px; border-radius: 999px; border: 1.5px solid #ffd23d; background: rgba(0, 0, 0, .55); color: #ffd23d; cursor: pointer; animation: liUp .5s 1s both; }

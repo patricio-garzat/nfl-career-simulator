@@ -847,8 +847,8 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .scb-clk::before { background: linear-gradient(180deg, rgba(255, 255, 255, .22) 0%, rgba(255, 255, 255, .05) 47%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, .3) 100%); }
 .scb-bar { position: relative; z-index: 2; width: .66cqw; height: 5.4cqw; background: #fff; box-shadow: 0 0 .8cqw rgba(255, 255, 255, .5); border-radius: .1cqw; }
 .scb-q, .scb-time { position: relative; z-index: 2; text-shadow: 0 .25cqw 0 rgba(0, 0, 0, .5); } .scb-time { font-variant-numeric: tabular-nums; letter-spacing: .01em; }
-.scb .lv-score.bump { animation: lvBump .6s cubic-bezier(.2, 1.6, .4, 1); color: var(--t); }      /* the pop is a size bump only: the number stays white */
-.scb-score { transition: color .4s; }
+.scb .lv-score.bump { animation: lvBump .6s cubic-bezier(.2, 1.6, .4, 1); color: #fff; }      /* the pop is a size bump only: the number stays white */
+.scb-score { color: #fff; transition: color .4s; }
 
 /* ---- fantasy draft day ---- */
 .ff-overlay { position: fixed; inset: 0; z-index: 95; overflow-y: auto; background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--t1, #1b3a6b) 28%, #0b1220) 0%, #070b14 70%); animation: ffIn .45s ease both; } .ff-overlay.out { animation: ffOut .38s ease both; }

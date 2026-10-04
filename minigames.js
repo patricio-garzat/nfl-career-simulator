@@ -170,6 +170,16 @@ document.addEventListener('keydown', e => {
   if (!document.querySelector('.mg-overlay')) return;
   if ([' ', 'Spacebar', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown'].includes(e.key) && !/^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '')) e.preventDefault();
 }, { capture: true });
+// a small broadcast score bug for the top of the field: flat blocks (team color + dark), white condensed type. segs: [{ w, fill, txt, id, big }], txt is an array of [text, kind, id] where kind 'n' = number and 'l' = small label
+function mgBug(segs, y = 6) {
+  const H = 18, total = segs.reduce((a, g) => a + g.w, 0), x0 = (340 - total) / 2; let x = 0;
+  const body = segs.map((g, i) => {
+    const t = g.txt.map(([tx, k, id]) => k === 'n' ? `<tspan ${id ? `id="${id}"` : ''} font-size="12.5" font-weight="800" fill="${g.on || '#fff'}">${tx}</tspan>` : `<tspan font-size="8.5" font-weight="700" fill="${g.on || '#fff'}" fill-opacity=".72" letter-spacing=".1em">${tx}</tspan>`).join('');
+    const out = `<rect x="${x}" y="0" width="${g.w}" height="${H}" fill="${g.fill}"/>${i ? `<rect x="${x}" y="0" width="1" height="${H}" fill="#fff" fill-opacity=".16"/>` : ''}<text x="${x + g.w / 2}" y="12.6" text-anchor="middle" font-family="Barlow Condensed, sans-serif" letter-spacing=".04em">${t}</text>`;
+    x += g.w; return out;
+  }).join('');
+  return `<g id="mgHud" transform="translate(${x0.toFixed(1)} ${y})" style="filter:drop-shadow(0 1.5px 2.5px rgba(0,0,0,.45))" pointer-events="none"><defs><clipPath id="mgBugC"><rect width="${total}" height="${H}" rx="3"/></clipPath></defs><g clip-path="url(#mgBugC)">${body}<rect width="${total}" height="1" fill="#fff" fill-opacity=".28"/></g></g>`;
+}
 const mgPts = n => String(Math.round(n * 10) / 10);
 function mgOpen(env) {
   env = env || mgEnvNFL(); if (!env) return;
@@ -457,7 +467,7 @@ function mgRB(ctx, i, st) {
       <g id="mgMeG" class="mg-rbd">${mgGuy(0, 0, T1, T2, { s: 1.05, you: true, run: true, num: ctx.number })}</g>
       <g id="mgBallG">${mgBall(0, 0, 0.62, 0, 'mgBallEl')}</g>
     </g>
-    <g id="mgHud"><rect x="70" y="8" width="200" height="30" rx="15" fill="rgba(5,8,16,.74)" stroke="rgba(255,255,255,.22)"/><text id="mgYd" x="170" y="29" text-anchor="middle" font-size="18" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" letter-spacing=".04em">0 YDS · 0 PTS</text></g>
+    ${mgBug([{ w: 34, fill: T1, on: textOn(T1), txt: [[ctx.t.id, 'n']] }, { w: 56, fill: '#0b1220', txt: [['0', 'n', 'mgYdN'], [' YDS', 'l']] }, { w: 62, fill: '#13203a', txt: [['0', 'n', 'mgPtN'], [' PTS', 'l']] }])}
     <g id="mgFx"></g></svg><div class="mg-call">RUSH FOR YARDS · ${lv + 1}/3</div>`;
   ctx.ctrl.innerHTML = `<div class="mg-btns three" style="grid-template-columns:1fr 1.7fr 1fr">${mgHoldBtn('l', '◀')}<button class="mg-b mg-hold mg-go" data-hold="g" style="--c:#c5ff3a">RUN<small>SPACE</small></button>${mgHoldBtn('r', '▶')}</div>`;
   ctx.say('Hit the <b>HOLE</b> · hold <b>SPACE</b> to run, <b>◀ ▶</b> to turn');
@@ -465,7 +475,7 @@ function mgRB(ctx, i, st) {
     const q = id => ctx.stage.querySelector('#' + id), ang = (dx, dy) => Math.atan2(dx, -dy) * 180 / Math.PI;
     const P = (id, x, y, f0) => { const e = q(id); return { e, b: e.querySelector('.mg-body'), x, y, f: f0, px: x, py: y }; };
     const put = (p, dt, face) => { p.e.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`); if (face == null) { const dx = p.x - p.px, dy = p.y - p.py; if (dx * dx + dy * dy > 0.04) face = ang(dx, dy); } if (face != null) { const d = ((face - p.f + 540) % 360) - 180; p.f += d * Math.min(1, dt * 12); p.b.setAttribute('transform', `rotate(${p.f.toFixed(0)})`); } p.px = p.x; p.py = p.y; };
-    const world = q('mgRW'), ydT = q('mgYd'), hole = q('mgHole'), ballE = q('mgBallEl');
+    const world = q('mgRW'), ydN = q('mgYdN'), ptN = q('mgPtN'), hole = q('mgHole'), ballE = q('mgBallEl');
     const me = P('mgMeG', 170, 232, 0), qb = P('mgQBg', 170, 181, 0);
     me.b.insertAdjacentHTML('beforeend', `<path d="M-4.5 -17 L0 -24 L4.5 -17 Z" fill="#ffd23d" stroke="rgba(0,0,0,.6)" stroke-width="1" stroke-linejoin="round"/><g id="mgCarry" style="display:none">${mgBall(9.5, -2.5, 0.56, 90)}</g>`); const carry = q('mgCarry');
     const ol = olH.map((h, k) => ({ ...P('mgOL' + k, h[0], h[1], 0), hx: h[0], hy: h[1] }));
@@ -541,7 +551,7 @@ function mgRB(ctx, i, st) {
       put(me, dt, hd);
       // ---- camera, HUD, the end zone ----
       const cy = Math.max(0, RY - me.y); world.setAttribute('transform', `translate(0 ${cy.toFixed(1)})`);
-      const yd = Math.max(0, Math.round(best)), pts = yd * 0.2; ydT.textContent = `${yd} YDS · ${mgPts(ctx.rbPts + pts)} PTS`;
+      const yd = Math.max(0, Math.round(best)), pts = yd * 0.2; ydN.textContent = yd; ptN.textContent = mgPts(ctx.rbPts + pts);
       hole.setAttribute('opacity', clamp(1 - Math.max(0, t - 1.3) / 0.8, 0, 1).toFixed(2));
       if (me.y <= GOALY - 30) return finish(true);
       if (t > 15) return finish(false, 'Time ran out.');
@@ -587,7 +597,7 @@ function mgCatch(ctx, i, st) {
     ${mgGuy(Q.x, Q.y, T1, T2, { s: 1.17 })}
     <g id="mgMe" transform="translate(${R.x} ${R.y})">${mgGuy(0, 0, T1, T2, { s: 1.3, you: true, run: true, num: ctx.number })}<text y="-18" text-anchor="middle" font-size="9" font-weight="800" fill="#ffd23d" font-family="Barlow Condensed, sans-serif" letter-spacing=".12em" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke">YOU</text></g>
     <ellipse id="mgShadow" rx="7" ry="4" fill="#000" opacity=".35" cx="${B0.x}" cy="${B0.y}"/><g id="mgBallG">${mgBall(B0.x, B0.y, 1, 0, 'mgBallEl')}</g>
-    <g id="mgHud"><rect x="60" y="6" width="220" height="28" rx="14" fill="rgba(5,8,16,.74)" stroke="rgba(255,255,255,.22)"/><text x="170" y="26" text-anchor="middle" font-size="18" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" letter-spacing=".05em">${board}</text></g>
+    ${mgBug([{ w: 66, fill: T1, on: textOn(T1), txt: [[`${ord(down)} & ${gl <= 10 ? 'GOAL' : toGo}`, 'n']] }, { w: 62, fill: '#0b1220', txt: [[spot(A), 'n']] }])}
     <g id="mgFx"></g></svg><div class="mg-call">${te ? 'TE' : 'WR'} · <b>${route}</b> · ${lv + 1}/3</div>`;
   ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns four">${mgHoldBtn('l', '◀')}${mgHoldBtn('u', '▲')}${mgHoldBtn('d', '▼')}${mgHoldBtn('r', '▶')}</div>`;
   ctx.say(note ? `🚩 ${note}` : td ? 'Last play — <b>catch it in the end zone</b>' : 'Get to the <b>ring</b> before the ball does');

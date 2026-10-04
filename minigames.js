@@ -202,7 +202,7 @@ function mgFinish(ctx) {
   const wPerf = weekly ? (rbm ? clamp(0.008 + pts * 0.0011, 0.008, 0.07) : MG_WEEK_PERF[sc]) + Math.min(0.03, 0.005 * (streak - 1)) : 0;
   const fx = rbm && !weekly ? `${pts} points → ${perf >= 0 ? '+' : '−'}${Math.abs(perf * 100).toFixed(1).replace(/\.0$/, '')}% performance all season · moves your rating` : weekly ? `${rbm ? pts + ' points → ' : ''}+${(wPerf * 100).toFixed(1).replace(/\.0$/, '')}% performance in your next game${streak > 1 ? ` · ${streak}-week training streak` : ''}` : `${perf > 0 ? '+' : '−'}${Math.abs(Math.round(perf * 100))}% performance all season · moves your rating`;
   ctx.stage.innerHTML = `<div class="mg-res ${good ? 'good' : 'bad'}" style="background-image:radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, ${ctx.t.c1} 38%, transparent), transparent)">
-    <div class="mg-jersey-big small">${ctx.env.jersey ? ctx.env.jersey('back') : ''}</div>
+    <img class="mg-intro-logo small" src="${ctx.t.logo}" alt="">
     <div class="mg-grade">${g.n}</div><div class="mg-big">${rbm ? pts : raw}<small>${rbm ? ' PTS' : '/3'}</small></div>
     <div class="mg-stars">${[0, 1, 2].map(i => `<span class="${i < raw ? 'on' : ''}">★</span>`).join('')}</div>
     ${ctx.perfects ? `<div class="mg-perf">✨ ${ctx.perfects} perfect play${ctx.perfects > 1 ? 's' : ''}</div>` : ''}

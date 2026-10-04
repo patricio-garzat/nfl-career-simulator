@@ -1095,6 +1095,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 /* the stands on both sides of the field (only while the field is on screen; the intro and result screens stay clean) */
 .mg-stage:has(.mg-svg) { background-color: #060a14; background-image: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, .26) 1.6px, transparent 2.4px), linear-gradient(90deg, color-mix(in srgb, var(--t1) 62%, #060a14) 0%, #0a1226 34%, #0a1226 66%, color-mix(in srgb, var(--o1) 62%, #060a14) 100%); background-size: 13px 11px, 100% 100%; }
 
+.mg-intro-logo.small { width: min(24vw, 112px); height: min(24vw, 112px); }
 .mg-intro-logo { width: min(34vw, 170px); height: min(34vw, 170px); object-fit: contain; filter: drop-shadow(0 0 14px rgba(255, 255, 255, .35)) drop-shadow(0 12px 20px rgba(0, 0, 0, .55)); animation: mgBob 2.6s ease-in-out infinite; }
 .mg-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 7px; vertical-align: baseline; box-shadow: 0 0 8px currentColor; } .mg-dot.r { background: #ff5d5d; color: #ff5d5d; } .mg-dot.g { background: #6dffbb; color: #6dffbb; }
 .mg-legend b { color: color-mix(in srgb, var(--ta, #ffd23d) 45%, #fff); }

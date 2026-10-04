@@ -2446,6 +2446,54 @@ function renderStandings(idx) {
 }
 
 /* --- Trade Center -------------------------------------------------------------------- */
+/* --- Trade analysis: should you take this deal? Compares your spot on your current depth chart with the one you would get on the other team (real players and ratings) --- */
+function tradeLineup(teamId, pos, ovr, bias) {
+  const D = DEPTH[pos], real = D.n ? realMates(teamId, pos) : null;
+  const mates = D.n ? (real ? real.slice(0, D.n - 1) : Array.from({ length: D.n - 1 }, (_, i) => ({ name: `${pos}${i + 2}`, ovr: Math.round(teamTalent(teamId) + D.top - D.step * i) }))) : [];
+  const slot = 1 + mates.filter(m => m.ovr > ovr + bias).length;
+  const list = mates.map(m => ({ name: m.name, ovr: m.ovr })); list.splice(slot - 1, 0, { name: S.player.name, ovr, you: true });
+  return { slot, list };
+}
+const tvWindow = (list, slot, n = 5) => { const i = list.findIndex(x => x.you), a = clamp(i - 2, 0, Math.max(0, list.length - n)); return list.slice(a, a + n).map((x, k) => ({ ...x, idx: a + k + 1 })); };
+function tradeAnalysis(se, o) {
+  const P = S.player, pos = P.pos, D = DEPTH[pos], c = S.contract;
+  const curSlotNow = curSlot(se), cur = se.depth ? (() => { const list = se.depth.mates.map(m => ({ name: m.name, ovr: m.ovr })); list.splice(se.depth.slot - 1, 0, { name: P.name, ovr: P.ovr, you: true }); return { slot: se.depth.slot, list }; })() : tradeLineup(S.teamId, pos, P.ovr, c.bias);
+  const nw = tradeLineup(o.teamId, pos, P.ovr, o.bias);
+  const sCur = snapShare(pos, cur.slot), sNew = snapShare(pos, nw.slot), strCur = S.teamRatings[S.teamId], strNew = S.teamRatings[o.teamId];
+  const kicker = !D.n;
+  let score = 100 * (sNew - sCur) * 0.9 + clamp((strNew - strCur) / 10, -3, 3) * 6;
+  if (!kicker) { if (cur.slot > D.starters && nw.slot <= D.starters) score += 15; if (cur.slot <= D.starters && nw.slot > D.starters) score -= 20; }
+  const key = score >= 25 ? 'great' : score >= 8 ? 'good' : score > -8 ? 'side' : score > -25 ? 'back' : 'bad';
+  const label = { great: 'GREAT MOVE', good: 'GOOD MOVE', side: 'SIDEWAYS', back: 'STEP BACK', bad: 'BAD IDEA' }[key];
+  const sub = { great: 'a clear upgrade for you', good: 'worth thinking about', side: 'not much changes', back: 'you would lose ground', bad: 'you would be worse off' }[key];
+  const reasons = [];
+  const above = nw.list[nw.slot - 2], aboveCur = cur.list[cur.slot - 2];
+  if (!kicker) {
+    if (nw.slot < cur.slot) reasons.push(['up', `You move up from <b>${slotLabel(pos, cur.slot)}</b> to <b>${slotLabel(pos, nw.slot)}</b>${nw.slot > 1 && above ? ` — only ${esc(above.name)} (${above.ovr}) is ahead of you` : ''}`]);
+    else if (nw.slot > cur.slot) reasons.push(['down', `You slide from <b>${slotLabel(pos, cur.slot)}</b> to <b>${slotLabel(pos, nw.slot)}</b>${above ? ` behind ${esc(above.name)} (${above.ovr})` : ''}`]);
+    else reasons.push(['flat', `Same spot, <b>${slotLabel(pos, nw.slot)}</b>${nw.slot > 1 && above ? ` behind ${esc(above.name)} (${above.ovr})` : ''}`]);
+    const dS = Math.round((sNew - sCur) * 100);
+    reasons.push([dS > 3 ? 'up' : dS < -3 ? 'down' : 'flat', dS === 0 ? `Same share of the snaps (~${Math.round(sNew * 100)}%)` : `${dS > 0 ? '+' : '−'}${Math.abs(dS)}% of the snaps — about ${Math.round(sNew * 100)}% of the game`]);
+  } else reasons.push(['flat', 'Kickers keep one job anywhere — the team around you is what changes']);
+  const dT = Math.round(strNew - strCur);
+  reasons.push([dT >= 3 ? 'up' : dT <= -3 ? 'down' : 'flat', `${dT >= 3 ? 'Stronger team' : dT <= -3 ? 'Weaker team' : 'Similar team'}: ${Math.round(strCur)} → ${Math.round(strNew)}${strNew >= 76 ? ' · a contender' : strNew <= 66 ? ' · rebuilding' : ''}`]);
+  return { cur, nw, key, label, sub, score, reasons, pct: clamp(50 + score * 1.1, 5, 100), sCur, sNew, kicker };
+}
+function tradeCardHTML(o, wins, k) {
+  const se = curSeason(), c = S.contract, t = TEAM[o.teamId], me = TEAM[S.teamId], P = S.player, a = tradeAnalysis(se, o);
+  const col = (team, L, title, tag) => `<div class="tv-col ${tag}" style="${themeVars(team.id)}"><div class="tv-ch">${badge(team.id)}<div><small>${title}</small><b>${team.nick}</b></div><em class="tv-slot">${a.kicker ? 'K' : slotLabel(P.pos, L.slot)}</em></div>
+    ${a.kicker ? '<div class="tv-k muted small">No depth chart battle at kicker</div>' : tvWindow(L.list, L.slot).map(x => `<div class="tv-row ${x.you ? 'you' : ''}"><span>${slotLabel(P.pos, x.idx)}</span><i>${esc(x.name)}${x.you ? ' <em>YOU</em>' : ''}</i><b>${x.ovr}</b></div>`).join('')}
+    <div class="tv-snap"><span>${a.kicker ? 'Team' : 'Snaps'}</span><div class="tv-bar"><i style="width:${a.kicker ? clamp(S.teamRatings[team.id], 0, 100) : Math.round((tag === 'now' ? a.sCur : a.sNew) * 100)}%"></i></div><b>${a.kicker ? Math.round(S.teamRatings[team.id]) : Math.round((tag === 'now' ? a.sCur : a.sNew) * 100) + '%'}</b></div></div>`;
+  return `<div class="offer tv" style="${themeVars(o.teamId)}">
+    <div class="tv-ribbon ${a.key}"><div class="tv-vt"><span>${a.label}</span><small>${a.sub}</small></div><div class="tv-meter"><i style="width:${Math.round(a.pct)}%"></i></div></div>
+    <div class="of-head">${badge(o.teamId, 'lg')}<div><div class="of-team">${t.name}</div><span class="muted small">${t.conf} ${t.div} · ${wins[o.teamId]}–${k - wins[o.teamId]} · ${esc(o.why)}</span></div></div>
+    <div class="tv-cmp">${col(me, a.cur, 'YOUR SPOT NOW', 'now')}<div class="tv-arrow">➜</div>${col(t, a.nw, 'IF YOU ACCEPT', 'next')}</div>
+    <ul class="tv-why">${a.reasons.map(([d, txt]) => `<li class="${d}"><i>${d === 'up' ? '▲' : d === 'down' ? '▼' : '●'}</i><span>${txt}</span></li>`).join('')}</ul>
+    <div class="of-pkg"><span>Your current team would receive</span><b>${o.pkg}</b></div>
+    <div class="of-rows"><div><span>Team interest</span><b class="interest i${o.interest}">${INTEREST[o.interest]}</b></div><div><span>Contract</span><b>${c.yearsLeft} yr · ${money(c.aav)}/yr</b></div></div>
+    <div class="muted small">${o.until < TRADE_DEADLINE ? 'Offer expires after Game ' + o.until : 'Valid until the deadline'} · you decide: the verdict is only advice</div>
+    <div class="row"><button class="btn btn-ghost grow" data-act="tradeDecline" data-id="${o.id}">DECLINE</button><button class="btn btn-primary grow" data-act="tradeAccept" data-id="${o.id}">ACCEPT TRADE</button></div></div>`;
+}
 function renderTrades() {
   const se = curSeason(), st = tradeStatus(se), offers = offersOf(se), P = S.player, c = S.contract;
   const { wins, k } = standingsData(se), left = TRADE_DEADLINE - se.games.length;
@@ -2455,17 +2503,7 @@ function renderTrades() {
     used: '🔁 <b>You were already traded this season</b> — one trade per season',
     closed: '🔒 <b>The trade deadline has passed</b> — trades reopen next season',
   }[st];
-  const cards = offers.map(o => {
-    const t = TEAM[o.teamId];
-    return `<div class="offer" style="${themeVars(o.teamId)}">
-      <div class="of-head">${badge(o.teamId, 'lg')}<div><div class="of-team">${t.name}</div><span class="muted small">${t.conf} ${t.div} · ${wins[o.teamId]}–${k - wins[o.teamId]}</span></div></div>
-      <div class="muted small">${esc(o.why)}</div>
-      <div class="of-pkg"><span>Your current team would receive</span><b>${o.pkg}</b></div>
-      <div class="of-rows"><div><span>Your role</span><b>${o.role}</b></div><div><span>Team strength</span><b>${Math.round(S.teamRatings[o.teamId])}</b></div>
-        <div><span>Team interest</span><b class="interest i${o.interest}">${INTEREST[o.interest]}</b></div><div><span>Contract</span><b>${c.yearsLeft} yr · ${money(c.aav)}/yr</b></div></div>
-      <div class="muted small">${o.until < TRADE_DEADLINE ? 'Offer expires after Game ' + o.until : 'Valid until the deadline'}</div>
-      <div class="row"><button class="btn btn-ghost grow" data-act="tradeDecline" data-id="${o.id}">DECLINE</button><button class="btn btn-primary grow" data-act="tradeAccept" data-id="${o.id}">ACCEPT TRADE</button></div></div>`;
-  }).join('');
+  const cards = offers.map(o => tradeCardHTML(o, wins, k)).join('');
   const reqState = { refused: 'The front office <b>refused</b> your request — they want to keep you. You can\'t ask again this season.', granted: 'The front office granted your request. Offers are listed above.', nobody: 'The front office granted your request, but <b>no team is interested</b> right now.' }[se.tradeReq];
   const canAsk = (st === 'open' || st === 'today') && !se.tradeReq;
   const hist = (S.trades || []).map(t => `<div class="hist-row">${badge(t.from)} ↔ ${badge(t.to)}<div><b>${t.year}</b> <span class="muted">· after Game ${t.after} · ${TEAM[t.from].name} → ${TEAM[t.to].name}</span></div><div class="hist-v">${t.pkg}</div></div>`).join('');
@@ -2999,7 +3037,7 @@ const actions = {
   tradeAccept: (d) => {
     const se = curSeason(), o = offersOf(se).find(x => x.id === d.id); if (!o || tradeStatus(se) === 'closed' || tradeStatus(se) === 'used') return;
     const t = TEAM[o.teamId];
-    confirmBox(`Accept the trade to ${t.city}?`, `You'd join the ${t.name} as a <b>${o.role}</b>. Your contract carries over, and the rest of your season is played with your new team. You can only be traded once this season.`, 'ACCEPT TRADE', async () => {
+    confirmBox(`Accept the trade to ${t.city}?`, `${(() => { const a = tradeAnalysis(se, o); return `<b class="tv-conf ${a.key}">${a.label}</b> — `; })()}You'd join the ${t.name} as a <b>${slotLabel(S.player.pos, tradeAnalysis(se, o).nw.slot)}</b>. Your contract carries over, and the rest of your season is played with your new team. You can only be traded once this season.`, 'ACCEPT TRADE', async () => {
       const from = se.teamId; executeTrade(o);
       const c = S.contract || {};
       if (typeof contractSign === 'function') await contractSign({ teamId: o.teamId, kind: 'TRADE · NEW TEAM', years: c.yearsLeft || c.years || 1, total: c.total || 0, guaranteed: c.guaranteed || 0, role: o.role, startYear: S.year, date: `${['October', 'November'][rnd() < 0.5 ? 0 : 1]} ${randInt(2, 27)}, ${S.year}` });

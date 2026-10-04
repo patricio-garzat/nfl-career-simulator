@@ -1218,7 +1218,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .li-teams { display: flex; align-items: center; justify-content: center; gap: clamp(6px, 3vw, 56px); width: 100%; padding: 0 3vw; box-sizing: border-box; }
 .li-team { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
 .li-team img { width: clamp(86px, 26vmin, 250px); height: clamp(86px, 26vmin, 250px); object-fit: contain; filter: drop-shadow(0 14px 26px rgba(0, 0, 0, .6)) drop-shadow(0 0 22px rgba(255, 255, 255, .25)); animation: liSlam .6s .95s cubic-bezier(.2, 1.35, .3, 1) both; }
-@keyframes liSlam { 0% { opacity: 0; transform: scale(3.4) rotate(-8deg); filter: blur(10px) drop-shadow(0 0 0 #000); } 55% { opacity: 1; } 100% { opacity: 1; transform: none; } }
+@keyframes liSlam { 0% { opacity: 0; transform: scale(.45) rotate(-8deg); } 55% { opacity: 1; transform: scale(1.1) rotate(2deg); } 100% { opacity: 1; transform: none; } }
 .li-team b, .li-team span { font-family: var(--head); color: #fff; text-shadow: 0 2px 10px rgba(0, 0, 0, .7); text-align: center; opacity: 0; animation: liUp .55s 1.5s cubic-bezier(.2, .9, .3, 1) both; }
 .li-team b { font-size: clamp(11px, 1.8vw, 18px); letter-spacing: .32em; font-weight: 600; } .li-team span { font-size: clamp(20px, 4.2vw, 46px); letter-spacing: .1em; font-weight: 800; line-height: 1; animation-delay: 1.62s; }
 @keyframes liUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
@@ -1250,7 +1250,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .li-top { font-family: var(--head); font-size: clamp(10px, 1.6vw, 16px); letter-spacing: .42em; margin-right: -.42em; color: #e6ecf8; text-shadow: 0 2px 8px rgba(0, 0, 0, .8); opacity: 0; animation: liUp .5s 2.2s both; text-align: center; }
 .li-bc { position: relative; width: clamp(160px, min(40vmin, 29vw), 340px); animation: liBc .95s 2.5s cubic-bezier(.2, 1.25, .3, 1) both; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .5)); }
 .li-bc img { display: block; width: 100%; height: auto; }
-@keyframes liBc { 0% { opacity: 0; transform: scale(2.1); filter: blur(16px) drop-shadow(0 0 0 #000); } 45% { opacity: 1; } 100% { opacity: 1; transform: none; } }
+@keyframes liBc { 0% { opacity: 0; transform: scale(.5); } 55% { opacity: 1; transform: scale(1.08); } 100% { opacity: 1; transform: none; } }
 .li-bcshine { position: absolute; inset: 0; -webkit-mask-image: var(--m); mask-image: var(--m); -webkit-mask-size: 100% 100%; mask-size: 100% 100%; background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, .85) 50%, transparent 62%); background-size: 260% 100%; background-position: 130% 0; mix-blend-mode: screen; pointer-events: none; animation: liBcShine 1.3s 3.5s ease-in-out forwards; }
 @keyframes liBcShine { to { background-position: -40% 0; } }
 .li-when { margin: 0; font-family: var(--head); font-size: clamp(11px, 1.9vw, 19px); letter-spacing: .2em; color: #e6ecf8; text-shadow: 0 2px 8px rgba(0, 0, 0, .8); opacity: 0; animation: liUp .5s 3.2s both; text-align: center; }

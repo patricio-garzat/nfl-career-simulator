@@ -37,14 +37,21 @@ function lvAlloc(total, n, min = 0) {
   return out.map(x => x + min);
 }
 const lvAllocSigned = (total, n) => lvAlloc(total + 2 * n, n).map(x => x - 2);   // carries can lose a yard or two
-function lvCoins(rem) {   // random split of points into touchdowns / field goals (/ the odd 2-point or safety)
+// Splits a team's points into scores. Almost every total is built from touchdowns (7, sometimes 6 or 8) and field goals (3); a safety (2) shows up only when the total
+// cannot be made without one (2, 4 or 5 points), exactly like in the real league where a safety is a rare event.
+const lvOkRest = r => r === 0 || r === 3 || r >= 6;
+function lvCoins(rem) {
   const out = [];
   while (rem > 0) {
-    const opts = [7, 3, 6, 8, 2].filter(c => c <= rem && (rem - c === 0 || rem - c >= 2)), pool = [];
-    opts.forEach(c => { const w = c === 7 ? 60 : c === 3 ? 40 : c === 6 ? 5 : c === 8 ? 4 : 2; for (let i = 0; i < w; i++) pool.push(c); });
-    const c = pool.length ? pick(pool) : rem; out.push(c); rem -= c;
+    let c;
+    if (!lvOkRest(rem)) c = rem === 1 ? 1 : 2;                                 // 2 = safety, 4 = two safeties, 5 = field goal + safety
+    else {
+      const pool = []; [7, 3, 6, 8].filter(k => k <= rem && lvOkRest(rem - k)).forEach(k => { const w = k === 7 ? 60 : k === 3 ? 40 : k === 6 ? 5 : 4; for (let i = 0; i < w; i++) pool.push(k); });
+      c = pool.length ? pick(pool) : rem;
+    }
+    out.push(c); rem -= c;
   }
-  return out;
+  return shuffle(out);
 }
 const LV_SCORE_LABEL = { 7: 'TOUCHDOWN', 6: 'TOUCHDOWN', 8: 'TOUCHDOWN + 2-PT', 3: 'FIELD GOAL', 2: 'SAFETY', 1: 'EXTRA POINT' };
 

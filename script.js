@@ -328,13 +328,21 @@ function genDEF(pos, c) {
   let defTD = 0; for (let k = 0; k < ints + fr; k++) if (rnd() < 0.12) defTD++;
   return { tackles, solo, sacks, ints, pd, ff, fr, defTD };
 }
+// A kicker's line must add up to the team's points: touchdowns are 6, each followed by an extra point (1), sometimes a 2-point try (2), field goals are 3, and a safety is 2.
+// kFit finds how many touchdowns, extra points and field goals make exactly `pts` (it moves a field goal away if the rest cannot be built from touchdowns).
+const kValid = r => r === 0 || r === 2 || (r >= 6 && Math.floor(r / 6) >= Math.ceil(r / 8));
+function kFit(pts, fga, fgm) {
+  let g = Math.min(fgm, Math.floor(pts / 3)), best = null;
+  for (let d = 0; d <= Math.floor(pts / 3) + 1 && best == null; d++) for (const c of [g - d, g + d]) if (c >= 0 && c <= Math.floor(pts / 3) && kValid(pts - 3 * c)) { best = c; break; }
+  const f = best == null ? g : best, rem = pts - 3 * f;
+  let t = 0, e = 0, c2 = 0;
+  if (rem >= 6) { t = clamp(Math.round(rem / 7), Math.ceil(rem / 8), Math.floor(rem / 6)); e = rem - 6 * t; c2 = Math.max(0, e - t); e -= 2 * c2; }
+  return { fga: Math.max(fga, f), fgm: f, xpa: t - c2, xpm: e };
+}
 function genK(c) {
   const fga = poisson(1.85 * Math.sqrt(c.tm));
   const pct = clamp(0.815 + 0.065 * c.z + 0.04 * (c.a('Kick Accuracy') - 0.5) * 2 + gauss(0, 0.03), 0.5, 0.99);
-  const fgm = binom(fga, pct);
-  // touchdowns (= extra-point tries) are whatever is left of the team's points once field goals are removed
-  const xpa = Math.max(0, Math.round((c.pts - 3 * fgm) / 7 + gauss(0, 0.35)));
-  return { fga, fgm, xpa, xpm: binom(xpa, clamp(0.93 + 0.05 * c.s, 0.8, 1)) };
+  return kFit(c.pts, fga, binom(fga, pct));
 }
 function genOL(c) {
   const part = Math.min(1, c.snap);
@@ -857,6 +865,7 @@ function playGame(season) {
   // easter egg: the team wins every playoff game and loses 2-4 in the regular season; a lost game just flips its score (still a realistic result)
   if (season.rigged && !win && (kind === 'PO' || season.games.filter(g => !g.w).length >= (season.riggedCap = season.riggedCap || randInt(2, 4)))) { [my, op] = [op, my]; win = true; }
 
+  if (pos === 'K' && st !== 'OUT' && s && s.fga != null) { const k2 = kFit(my, s.fga, s.fgm); if (k2.fgm !== s.fgm || k2.xpa !== s.xpa || k2.xpm !== s.xpm) { s = { ...s, ...k2 }; fp = fantasyPts(pos, s); rate = ratingIdx(pos, fp); } }
   const game = { k: kind, wk, round: mInfo ? mInfo.name : null, opp: oppId, home, my, op, w: win, tm: season.teamId, st, dnp, slot, inj: injNote, hurt, s, fp, rate, td };
   if (kind === 'PO' && typeof calPlayoffWhen === 'function') { const pw = calPlayoffWhen(season, wk); game.date = pw.date.toISOString().slice(0, 10); game.time = pw.time; game.slotName = pw.name; }
   if (kind === 'REG') {

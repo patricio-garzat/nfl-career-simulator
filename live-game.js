@@ -62,16 +62,16 @@ function lvBuild(game) {
   if (game.st !== 'OUT') {
     if (['WR', 'TE', 'RB'].includes(pos)) {
       const rec = N('rec'), tgt = N('targets'), yd = lvAlloc(N('recYds'), rec), isTD = tdMark(N('recTD'), rec);
-      for (let i = 0; i < rec; i++) { const td = isTD(i), y = td ? Math.max(1, yd[i]) : yd[i]; mk('catch', { yards: y, td, pts: td ? 7 : 0, inc: { targets: 1, rec: 1, recYds: y, recTD: td ? 1 : 0 } }); }
+      for (let i = 0; i < rec; i++) { const td = isTD(i), y = td ? Math.max(1, yd[i]) : yd[i]; mk('catch', { yards: y, td, pts: td ? 6 : 0, xp: td, inc: { targets: 1, rec: 1, recYds: y, recTD: td ? 1 : 0 } }); }
       for (let i = 0; i < Math.max(0, tgt - rec); i++) mk('incomplete', { inc: { targets: 1 }, drop: rnd() < 0.3 });
     }
     if (['WR', 'TE', 'RB', 'QB'].includes(pos)) {
       const ra = N('rushAtt'), yd = lvAllocSigned(N('rushYds'), ra), isTD = tdMark(N('rushTD'), ra);
-      for (let i = 0; i < ra; i++) { const td = isTD(i), y = td ? Math.max(1, yd[i]) : yd[i]; mk(pos === 'QB' ? 'qbRush' : 'rush', { yards: y, td, pts: td ? 7 : 0, inc: { rushAtt: 1, rushYds: y, rushTD: td ? 1 : 0 } }); }
+      for (let i = 0; i < ra; i++) { const td = isTD(i), y = td ? Math.max(1, yd[i]) : yd[i]; mk(pos === 'QB' ? 'qbRush' : 'rush', { yards: y, td, pts: td ? 6 : 0, xp: td, inc: { rushAtt: 1, rushYds: y, rushTD: td ? 1 : 0 } }); }
     }
     if (pos === 'QB') {
       const att = N('passAtt'), comp = Math.min(att, N('passComp')), ints = Math.min(N('int'), att - comp), yd = lvAlloc(N('passYds'), comp), isTD = tdMark(N('passTD'), comp);
-      for (let i = 0; i < comp; i++) { const td = isTD(i), y = td ? Math.max(1, yd[i]) : yd[i]; mk('qbPass', { yards: y, td, pts: td ? 7 : 0, inc: { passAtt: 1, passComp: 1, passYds: y, passTD: td ? 1 : 0 } }); }
+      for (let i = 0; i < comp; i++) { const td = isTD(i), y = td ? Math.max(1, yd[i]) : yd[i]; mk('qbPass', { yards: y, td, pts: td ? 6 : 0, xp: td, inc: { passAtt: 1, passComp: 1, passYds: y, passTD: td ? 1 : 0 } }); }
       for (let i = 0; i < att - comp; i++) mk(i < ints ? 'qbInt' : 'qbInc', { inc: i < ints ? { passAtt: 1, int: 1 } : { passAtt: 1 } });
     }
     if (pos === 'OL') {
@@ -90,9 +90,9 @@ function lvBuild(game) {
       const ffIdx = tdMark(N('ff'), rest);
       for (let i = 0; i < rest; i++) mk('tackle', { off: 'op', yards: ys[i] - 1, solo: i < soloLeft, ff: ffIdx(i), pass: rnd() < 0.42, inc: { tackles: 1, solo: i < soloLeft ? 1 : 0, ff: ffIdx(i) ? 1 : 0 } });
       let tds = N('defTD');
-      for (let i = 0; i < N('ints'); i++) { const td = tds > 0; if (td) tds--; mk('int', { off: 'op', td, pts: td ? 7 : 0, yards: td ? 0 : Math.round(rr(0, 28)), inc: { ints: 1, defTD: td ? 1 : 0 } }); }
+      for (let i = 0; i < N('ints'); i++) { const td = tds > 0; if (td) tds--; mk('int', { off: 'op', td, pts: td ? 6 : 0, xp: td, yards: td ? 0 : Math.round(rr(0, 28)), inc: { ints: 1, defTD: td ? 1 : 0 } }); }
       for (let i = 0; i < N('pd'); i++) mk('pd', { off: 'op', inc: { pd: 1 } });
-      for (let i = 0; i < N('fr'); i++) { const td = tds > 0; if (td) tds--; mk('frec', { off: 'op', td, pts: td ? 7 : 0, inc: { fr: 1, defTD: td ? 1 : 0 } }); }
+      for (let i = 0; i < N('fr'); i++) { const td = tds > 0; if (td) tds--; mk('frec', { off: 'op', td, pts: td ? 6 : 0, xp: td, inc: { fr: 1, defTD: td ? 1 : 0 } }); }
     }
     if (pos === 'K') {
       const fgm = N('fgm'), fga = Math.max(fgm, N('fga')), xpm = N('xpm'), xpa = Math.max(xpm, N('xpa'));
@@ -102,15 +102,23 @@ function lvBuild(game) {
   }
   /* team scoring around the player's own plays */
   const events = [];
-  let myPts = plays.reduce((a, p) => a + (p.pts || 0), 0);
+  let myPts = plays.reduce((a, p) => a + (p.pts || 0) + (p.xp ? 1 : 0), 0);          // a touchdown is 6, the extra point after it is 1 more
   if (pos === 'K') {                                   // each extra point follows a touchdown (6) by the offense
     plays.filter(p => p.kind === 'xp').forEach(p => events.push({ type: 'score', side: 'me', pts: 6, label: 'TOUCHDOWN', pair: p }));
     myPts += events.length * 6;
   }
   let remMe = game.my - myPts;
   if (remMe < 0) { plays.forEach(p => { if (p.pts && remMe < 0) { const d = Math.min(p.pts, -remMe); p.pts -= d; remMe += d; } }); remMe = Math.max(0, remMe); }
-  lvCoins(remMe).forEach(c => events.push({ type: 'score', side: 'me', pts: c, label: LV_SCORE_LABEL[c] }));
-  lvCoins(game.op).forEach(c => events.push({ type: 'score', side: 'op', pts: c, label: LV_SCORE_LABEL[c] }));
+  const addCoins = (side, coins) => coins.forEach(c => {
+    if (c === 7) events.push({ type: 'score', side, pts: 6, label: 'TOUCHDOWN', follow: { pts: 1, label: 'EXTRA POINT' } });
+    else if (c === 8) events.push({ type: 'score', side, pts: 6, label: 'TOUCHDOWN', follow: { pts: 2, label: '2-POINT CONVERSION' } });
+    else events.push({ type: 'score', side, pts: c, label: LV_SCORE_LABEL[c] });
+  });
+  // the kicker takes every field goal and extra point of his team: what is left for his team are touchdowns with a 2-point try
+  const kCoins = rem => { const o = []; while (rem > 0) { const c = rem >= 8 && (rem - 8 === 0 || rem - 8 >= 6 || rem - 8 === 2) ? 8 : rem >= 6 ? 6 : 2; o.push(c); rem -= c; } return o; };
+  if (remMe === 1) { const tdp = plays.find(p => p.xp === true); if (tdp) { tdp.xp = 2; remMe = 0; } }       // a single leftover point is a touchdown that went for 2
+  addCoins('me', pos === 'K' ? kCoins(remMe) : lvCoins(remMe));
+  addCoins('op', lvCoins(game.op));
   /* put everything in order along the 60 minutes of the game */
   const items = shuffle(plays.filter(p => p.kind !== 'xp').map(p => ({ type: 'play', play: p })).concat(events.filter(e => !e.pair)));
   const pairs = events.filter(e => e.pair), total = items.length + pairs.length * 2;
@@ -118,6 +126,10 @@ function lvBuild(game) {
   const out = []; let ti = 0;
   items.forEach(it => { out.push({ ...it, t: times[ti++] }); });
   pairs.forEach(e => { const t = times[ti++]; out.push({ ...e, t }); out.push({ type: 'play', play: e.pair, t: t + 10 + rnd() * 20 }); ti++; });
+  [...out].forEach(e => {                                         // the extra point / 2-point try right after its touchdown
+    if (e.follow) out.push({ type: 'score', side: e.side, pts: e.follow.pts, label: e.follow.label, t: e.t + 12 + rnd() * 14 });
+    if (e.type === 'play' && e.play.xp) out.push({ type: 'score', side: 'me', pts: e.play.xp === 2 ? 2 : 1, label: e.play.xp === 2 ? '2-POINT CONVERSION' : 'EXTRA POINT', t: e.t + 14 + rnd() * 14 });
+  });
   out.sort((a, b) => a.t - b.t);
   out.forEach(e => { e.q = Math.min(4, Math.floor(e.t / 900) + 1); const left = 900 - (e.t % 900); e.clock = `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`; });
   /* field position, down & distance */

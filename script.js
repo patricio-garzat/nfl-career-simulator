@@ -474,7 +474,9 @@ function depthCardHTML(se) {
   if (!d) return '';
   const list = d.mates.map(m => ({ name: m.name, ovr: m.ovr }));
   list.splice(d.slot - 1, 0, { name: P.name, ovr: P.ovr, you: true });
-  const rows = list.map((x, i) => `${i === D.starters && list.length > D.starters ? '<div class="dc-sep">BACKUPS</div>' : ''}<div class="dc-row ${x.you ? 'you' : ''}"><span class="dc-pos">${slotLabel(P.pos, i + 1)}</span><span class="dc-name">${esc(x.name)}${x.you ? ' <em>YOU</em>' : ''}</span><b>${x.ovr}</b></div>`).join('');
+  const tm = TEAM[d.teamId] || {}, ini = n => esc(n.replace(/\b(Jr|Sr|II|III|IV)\b\.?/g, '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase());
+  const photo = x => { if (x.you) return `<span class="dc-ph you" style="--pc:${tm.c1 || '#333'}"><i>${esc(String(playerNumber()))}</i></span>`; const u = typeof sleeperPhoto === 'function' ? sleeperPhoto(d.teamId, x.name) : ''; return `<span class="dc-ph" style="--pc:${tm.c1 || '#333'}"><i>${ini(x.name)}</i>${u ? `<img src="${u}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`; };
+  const rows = list.map((x, i) => `${i === D.starters && list.length > D.starters ? '<div class="dc-sep">BACKUPS</div>' : ''}<div class="dc-row ${x.you ? 'you' : ''}"><span class="dc-pos">${slotLabel(P.pos, i + 1)}</span>${photo(x)}<span class="dc-name">${esc(x.name)}${x.you ? ' <em>YOU</em>' : ''}</span><b>${x.ovr}</b></div>`).join('');
   return `<section class="card depth-card"><div class="card-h"><h3>DEPTH CHART</h3><span class="chip gold">${slotLabel(P.pos, d.slot)}</span></div>${rows}<div class="muted small dc-hint">${usageHint(P.pos, d.slot)}</div></section>`;
 }
 

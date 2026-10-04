@@ -23,7 +23,7 @@ function mgMods(se) { let perf = 1; (se.buffs || []).forEach(b => { if (b.left >
 function mgAfterGame(se, game, notes) { mgEnsure(se); se.buffs.forEach(b => { b.left--; }); se.buffs = se.buffs.filter(b => b.left > 0); }
 const MG_META = {
   qb: P => ({ icon: '🏈', title: 'POCKET PRESENCE', how: 'Dodge the pass rush inside the pocket and press SPACE when the bar is in the green to throw to your WR. Wait too long and you get sacked.', legend: [['', '← → ↑ ↓ move', 'dodge the rush'], ['', 'SPACE', 'throw in the green'], ['', 'Too slow', 'SACK']] }),
-  rb: P => ({ icon: '🏃', title: 'RUSH FOR YARDS', how: 'Take the handoff, hit the hole the line opens, then keep dodging tacklers. Every yard is a point (10 more for a touchdown) and your points raise your performance.', legend: [['', '← → ↑ ↓ run', 'find the hole'], ['', 'Every yard', '1 point'], ['', 'Touchdown', '+10 points']] }),
+  rb: P => ({ icon: '🏃', title: 'RUSH FOR YARDS', how: 'Take the handoff, hit the hole the line opens, then keep dodging tacklers. Hold SPACE to run and use the arrows to turn. Every yard is a point (10 more for a touchdown) and your points raise your performance.', legend: [['', 'SPACE', 'run forward'], ['', '← →', 'turn'], ['', 'Every yard', '1 point'], ['', 'Touchdown', '+10 points']] }),
   catch: P => ({ icon: '🙌', title: P.pos === 'TE' ? 'CATCH IT · SEAM' : 'CATCH IT · GO ROUTE', how: 'A three-play drive: catch to move the chains, and the last pass is for the touchdown. Run to where the ball will land.', legend: [['⌨️', 'Arrow keys / drag', 'move'], ['⭕', 'Ring', 'be there first']] }),
   kick: P => ({ icon: '🥅', title: 'KICK IT', how: 'Aim into the wind, stop the bar in the green.', legend: [['💨', 'Wind pushes', 'AIM AGAINST'], ['⏹', 'Power', 'GREEN']] }),
 };
@@ -385,8 +385,9 @@ function mgQB(ctx, i, st) {
    Controls shared by the two "arcade" games (RB run, WR/TE catch): arrow keys / WASD, dragging a finger on the field, or the on-screen hold buttons.
    ===================================================================== */
 function mgInput(ctx) {
-  const k = { l: 0, r: 0, u: 0, d: 0 }, o = { k, tx: null, ty: null };
+  const k = { l: 0, r: 0, u: 0, d: 0, g: 0 }, o = { k, tx: null, ty: null };
   const map = { ArrowLeft: 'l', ArrowRight: 'r', ArrowUp: 'u', ArrowDown: 'd', a: 'l', A: 'l', d: 'r', D: 'r', w: 'u', W: 'u', s: 'd', S: 'd' };
+  if (ctx.kind === 'rb') { map[' '] = 'g'; map.Spacebar = 'g'; }
   const kd = e => { const m = map[e.key]; if (m) { k[m] = 1; e.preventDefault(); } }, ku = e => { const m = map[e.key]; if (m) k[m] = 0; };
   document.addEventListener('keydown', kd); document.addEventListener('keyup', ku);
   const toXY = ev => { const s = ctx.stage.querySelector('svg'); if (!s || !s.createSVGPoint) return null; const pt = s.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY; const m = s.getScreenCTM(); return m ? pt.matrixTransform(m.inverse()) : null; };
@@ -435,15 +436,15 @@ function mgRB(ctx, i, st) {
     </g>
     <g id="mgHud"><rect x="70" y="8" width="200" height="30" rx="15" fill="rgba(5,8,16,.74)" stroke="rgba(255,255,255,.22)"/><text id="mgYd" x="170" y="29" text-anchor="middle" font-size="18" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" letter-spacing=".04em">0 YDS · 0 PTS</text></g>
     <g id="mgFx"></g></svg><div class="mg-call">RUSH FOR YARDS · ${lv + 1}/3</div>`;
-  ctx.ctrl.innerHTML = `<div class="mg-btns four">${mgHoldBtn('l', '◀')}${mgHoldBtn('u', '▲')}${mgHoldBtn('d', '▼')}${mgHoldBtn('r', '▶')}</div>`;
-  ctx.say('Take the handoff and hit the <b>HOLE</b> · arrows to run');
+  ctx.ctrl.innerHTML = `<div class="mg-btns three" style="grid-template-columns:1fr 1.7fr 1fr">${mgHoldBtn('l', '◀')}<button class="mg-b mg-hold mg-go" data-hold="g" style="--c:#c5ff3a">RUN<small>SPACE</small></button>${mgHoldBtn('r', '▶')}</div>`;
+  ctx.say('Hit the <b>HOLE</b> · hold <b>SPACE</b> to run, <b>◀ ▶</b> to turn');
   return new Promise(async res => {
     const q = id => ctx.stage.querySelector('#' + id), ang = (dx, dy) => Math.atan2(dx, -dy) * 180 / Math.PI;
     const P = (id, x, y, f0) => { const e = q(id); return { e, b: e.querySelector('.mg-body'), x, y, f: f0, px: x, py: y }; };
     const put = (p, dt, face) => { p.e.style.transform = `translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px)`; if (face == null) { const dx = p.x - p.px, dy = p.y - p.py; if (dx * dx + dy * dy > 0.04) face = ang(dx, dy); } if (face != null) { const d = ((face - p.f + 540) % 360) - 180; p.f += d * Math.min(1, dt * 12); p.b.setAttribute('transform', `rotate(${p.f.toFixed(0)})`); } p.px = p.x; p.py = p.y; };
     const world = q('mgRW'), ydT = q('mgYd'), hole = q('mgHole'), ballE = q('mgBallEl');
     const me = P('mgMeG', 170, 232, 0), qb = P('mgQBg', 170, 181, 0);
-    me.b.insertAdjacentHTML('beforeend', `<g id="mgCarry" style="display:none">${mgBall(9.5, -2.5, 0.56, 90)}</g>`); const carry = q('mgCarry');
+    me.b.insertAdjacentHTML('beforeend', `<path d="M-4.5 -17 L0 -24 L4.5 -17 Z" fill="#ffd23d" stroke="rgba(0,0,0,.6)" stroke-width="1" stroke-linejoin="round"/><g id="mgCarry" style="display:none">${mgBall(9.5, -2.5, 0.56, 90)}</g>`); const carry = q('mgCarry');
     const ol = olH.map((h, k) => ({ ...P('mgOL' + k, h[0], h[1], 0), hx: h[0], hy: h[1] }));
     const dl = dlH.map((x, k) => ({ ...P('mgDL' + k, x, 147, 180), hx: x, kind: 'DL', held: null, free: false, spd: spd.DL, react: 0 }));
     const lb = lbH.map((h, k) => ({ ...P('mgLB' + k, h[0], h[1], 180), hx: h[0], kind: 'LB', held: null, free: true, spd: spd.LB, react: 1.0 + k * 0.12 }));
@@ -462,7 +463,7 @@ function mgRB(ctx, i, st) {
     await sleep(650); if (!ctx.alive()) return res(false);
     const inp = mgInput(ctx);
     ctx.say('<b>HIKE!</b> Hit the hole!', 'go'); Snd.play('mgSnap', 0.02);
-    let t = 0, last = performance.now(), ended = false, raf = 0, best = 0, stun = 0, hits = 0, hitT = -9;
+    let t = 0, last = performance.now(), ended = false, raf = 0, best = 0, stun = 0, hits = 0, hitT = -9, hd = 0;
     const cleanup = () => { ended = true; cancelAnimationFrame(raf); inp.dispose(); };
     const finish = async (td, why) => {
       if (ended) return; cleanup(); ctx.ctrl.innerHTML = '';
@@ -478,8 +479,10 @@ function mgRB(ctx, i, st) {
       if (ended) return; if (!ctx.alive()) { cleanup(); return; }
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt; stun = Math.max(0, stun - dt);
       // ---- you: the handoff, then free running ----
-      let vx = inp.k.r - inp.k.l, vy = inp.k.d - inp.k.u; if (inp.tx !== null) { vx = inp.tx - me.x; vy = inp.ty - (me.y + Math.max(0, RY - me.y)); if (Math.hypot(vx, vy) < 8) { vx = 0; vy = 0; } }
-      if (t >= 0.45) { const m = Math.hypot(vx, vy); if (m > 0) { const sp = vRB * (stun > 0 ? 0.4 : 1) * (vy > 0 ? 0.7 : 1); me.x = clamp(me.x + vx / m * sp * dt, 22, 318); me.y += vy / m * sp * dt; } } else { me.y -= 8 * dt; }
+      // arrows turn the runner (up straightens him upfield), SPACE moves him in the direction he faces
+      const turn = inp.k.r - inp.k.l; if (turn) hd += turn * 230 * dt; else if (inp.k.u) hd -= Math.sign(hd) * Math.min(Math.abs(hd), 400 * dt); hd = ((hd + 540) % 360) - 180;
+      const rad = hd * Math.PI / 180, vx = Math.sin(rad), vy = -Math.cos(rad);
+      if (t >= 0.45) { if (inp.k.g) { const sp = vRB * (stun > 0 ? 0.4 : 1) * (vy > 0 ? 0.7 : 1); me.x = clamp(me.x + vx * sp * dt, 22, 318); me.y += vy * sp * dt; } } else { me.y -= 8 * dt; }
       best = Math.max(best, (LOSY - me.y) / 10);
       // ---- the quarterback hands off, then the ball is yours ----
       qb.x = 170 + (t < 0.3 ? 0 : 6 * Math.sin(Math.min(1, (t - 0.3) / 0.2) * 3)); qb.y = 181 + (t < 0.4 ? 0 : 3); put(qb, dt, t < 0.3 ? 0 : -50);
@@ -512,7 +515,7 @@ function mgRB(ctx, i, st) {
       // ---- tackles: a first hit slows you down, a second one (or two defenders at once) ends the run ----
       if (hitBy === 'multi' || (hitBy && stun > 0 && t - hitT > 0.12)) return finish(false, hitBy === 'multi' ? 'Two defenders got to you.' : 'You got hit twice — dodge them!');
       if (hitBy && stun <= 0) { stun = 0.6; hitT = t; hits++; mgPop(ctx, me.x, Math.max(30, me.y + Math.max(0, RY - me.y) - 22), 'HIT!', 'bad'); Snd.play('mgHit', 0); const dxh = me.x - hitBy.x; hitBy.x -= (dxh >= 0 ? 8 : -8); hitBy.y += 6; }
-      me.px = me.px; put(me, dt, vx || vy ? ang(vx, vy) : null);
+      put(me, dt, hd);
       // ---- camera, HUD, the end zone ----
       const cy = Math.max(0, RY - me.y); world.style.transform = `translateY(${cy.toFixed(1)}px)`;
       const yd = Math.max(0, Math.round(best)), pts = yd; ydT.textContent = `${yd} YDS · ${ctx.rbPts + pts} PTS`;

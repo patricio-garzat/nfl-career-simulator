@@ -1160,3 +1160,4 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
   .wrap.create .cp-league img { height: 28px; } .pos-btn:nth-child(n) { border-bottom-width: 2px; }
 }
 .youth-ph svg { width: 26px; height: 26px; display: block; margin: 0 auto; color: var(--mut); }
+.mg-go { line-height: 1; } .mg-go small { display: block; font-size: 10px; letter-spacing: .24em; opacity: .7; margin-top: 2px; font-weight: 600; }

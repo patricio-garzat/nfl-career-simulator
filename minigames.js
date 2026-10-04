@@ -24,7 +24,7 @@ function mgAfterGame(se, game, notes) { mgEnsure(se); se.buffs.forEach(b => { b.
 const MG_META = {
   qb: P => ({ icon: '🏈', title: 'POCKET PRESENCE', how: 'Dodge the pass rush inside the pocket and press SPACE when the bar is in the green to throw to your WR. Wait too long and you get sacked.', legend: [['', '← → ↑ ↓ move', 'dodge the rush'], ['', 'SPACE', 'throw in the green'], ['', 'Too slow', 'SACK']] }),
   rb: P => ({ icon: '🏃', title: 'RUSH FOR YARDS', how: 'Take the handoff, hit the hole the line opens, then keep dodging tacklers. Hold SPACE to run and use the arrows to turn. Every yard is 0.2 points and a touchdown is worth 5 — your points raise your performance.', legend: [['', 'SPACE', 'run forward'], ['', '← →', 'turn'], ['', 'Every yard', '0.2 points'], ['', 'Touchdown', '5 points']] }),
-  catch: P => ({ icon: '🙌', title: P.pos === 'TE' ? 'CATCH IT · SEAM' : 'CATCH IT · GO ROUTE', how: 'A three-play drive: catch to move the chains, and the last pass is for the touchdown. Run to where the ball will land.', legend: [['⌨️', 'Arrow keys / drag', 'move'], ['⭕', 'Ring', 'be there first']] }),
+  catch: P => ({ icon: '🙌', title: P.pos === 'TE' ? 'CATCH IT · SEAM' : 'CATCH IT · GO ROUTE', how: 'A three-play drive: catch to move the chains, and the last pass is for the touchdown. Hold SPACE to run and use the arrows to turn: get to where the ball will land.', legend: [['⌨️', 'SPACE', 'run forward'], ['⌨️', '← →', 'turn'], ['⭕', 'Ring', 'be there first']] }),
   kick: P => ({ icon: '🥅', title: 'KICK IT', how: 'Aim into the wind, stop the bar in the green.', legend: [['💨', 'Wind pushes', 'AIM AGAINST'], ['⏹', 'Power', 'GREEN']] }),
 };
 /* weekly training: the camp mini game opens the season; after that, every week you can play it again from a button. Playing lifts your next game
@@ -430,7 +430,7 @@ function mgQB(ctx, i, st) {
 function mgInput(ctx) {
   const k = { l: 0, r: 0, u: 0, d: 0, g: 0 }, o = { k, tx: null, ty: null };
   const map = { ArrowLeft: 'l', ArrowRight: 'r', ArrowUp: 'u', ArrowDown: 'd', a: 'l', A: 'l', d: 'r', D: 'r', w: 'u', W: 'u', s: 'd', S: 'd' };
-  if (ctx.kind === 'rb') { map[' '] = 'g'; map.Spacebar = 'g'; }
+  if (ctx.kind === 'rb' || ctx.kind === 'catch') { map[' '] = 'g'; map.Spacebar = 'g'; }
   const kd = e => { const m = map[e.key]; if (m) { k[m] = 1; e.preventDefault(); } }, ku = e => { const m = map[e.key]; if (m) k[m] = 0; };
   document.addEventListener('keydown', kd); document.addEventListener('keyup', ku);
   const toXY = ev => { const s = ctx.stage.querySelector('svg'); if (!s || !s.createSVGPoint) return null; const pt = s.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY; const m = s.getScreenCTM(); return m ? pt.matrixTransform(m.inverse()) : null; };
@@ -609,14 +609,15 @@ function mgCatch(ctx, i, st) {
     <ellipse id="mgShadow" rx="7" ry="4" fill="#000" opacity=".35" cx="${B0.x}" cy="${B0.y}"/><g id="mgBallG">${mgBall(B0.x, B0.y, 1, 0, 'mgBallEl')}</g>
     ${mgBug([{ w: 66, fill: T1, on: textOn(T1), txt: [[`${ord(down)} & ${gl <= 10 ? 'GOAL' : toGo}`, 'n']] }, { w: 62, fill: '#0b1220', txt: [[spot(A), 'n']] }])}
     <g id="mgFx"></g></svg><div class="mg-call">${te ? 'TE' : 'WR'} · <b>${route}</b> · ${lv + 1}/3</div>`;
-  ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns four">${mgHoldBtn('l', '◀')}${mgHoldBtn('u', '▲')}${mgHoldBtn('d', '▼')}${mgHoldBtn('r', '▶')}</div>`;
+  ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns three" style="grid-template-columns:1fr 1.7fr 1fr">${mgHoldBtn('l', '◀')}<button class="mg-b mg-hold mg-go" data-hold="g" style="--c:#c5ff3a">RUN<small>SPACE</small></button>${mgHoldBtn('r', '▶')}</div>`;
   ctx.say(note ? `🚩 ${note}` : td ? 'Last play — <b>catch it in the end zone</b>' : 'Get to the <b>ring</b> before the ball does');
   return new Promise(async res => {
     await mgPre(ctx, note ? 2600 : 2000); if (!ctx.alive()) return res(false);
     const inp = mgInput(ctx);
     const bar = ctx.ctrl.querySelector('.mg-timer i'); if (bar) { bar.style.transition = 'none'; bar.style.width = '100%'; void bar.offsetWidth; bar.style.transition = `width ${T}s linear`; bar.style.width = '0%'; }
     ctx.say('<b>BALL IS UP!</b> Run to the ring', 'go'); Snd.play('mgThrow', 0.02);
-    const me = ctx.stage.querySelector('#mgMe'), landG = ctx.stage.querySelector('#mgLand'), pathEl = ctx.stage.querySelector('#mgPath'), ball = ctx.stage.querySelector('#mgBallEl'), shadow = ctx.stage.querySelector('#mgShadow'), dEl = ctx.stage.querySelector('#mgDefn');
+    const me = ctx.stage.querySelector('#mgMe'), meBody = me.querySelector('.mg-body'); let hd = 0; if (meBody) meBody.insertAdjacentHTML('beforeend', '<path d="M-4.5 -22 L0 -29 L4.5 -22 Z" fill="#ffd23d" stroke="rgba(0,0,0,.6)" stroke-width="1" stroke-linejoin="round"/>');
+    const landG = ctx.stage.querySelector('#mgLand'), pathEl = ctx.stage.querySelector('#mgPath'), ball = ctx.stage.querySelector('#mgBallEl'), shadow = ctx.stage.querySelector('#mgShadow'), dEl = ctx.stage.querySelector('#mgDefn');
     let cur = { ...L }, Dp = D ? { ...D } : null, t0 = performance.now(), last = t0, raf = 0, ended = false, adjusted = false, P1 = null;
     const finish = async () => {
       ended = true; cancelAnimationFrame(raf); inp.dispose(); ctx.ctrl.innerHTML = '';
@@ -639,8 +640,10 @@ function mgCatch(ctx, i, st) {
       if (!ctx.alive()) { inp.dispose(); return; }
       const dt = Math.min(0.05, (now - last) / 1000); last = now; const u = Math.min(1, (now - t0) / 1000 / T);
       // you move
-      let vx = inp.k.r - inp.k.l, vy = inp.k.d - inp.k.u; if (inp.tx !== null) { vx = inp.tx - R.x; vy = inp.ty - R.y; const m = Math.hypot(vx, vy); if (m < 6) { vx = 0; vy = 0; } }
-      const m = Math.hypot(vx, vy); if (m > 0) { R.x = clamp(R.x + vx / m * VR * dt, 16, 324); R.y = clamp(R.y + vy / m * VR * dt, 34, 286); }
+      // arrows turn the receiver (up straightens him upfield), SPACE runs in the direction he faces
+      const turn = inp.k.r - inp.k.l; if (turn) hd += turn * 280 * dt; else if (inp.k.u) hd -= Math.sign(hd) * Math.min(Math.abs(hd), 420 * dt); hd = ((hd + 540) % 360) - 180;
+      if (inp.k.g) { const rad = hd * Math.PI / 180; R.x = clamp(R.x + Math.sin(rad) * VR * dt, 16, 324); R.y = clamp(R.y - Math.cos(rad) * VR * dt, 34, 286); }
+      if (meBody) meBody.setAttribute('transform', `rotate(${hd.toFixed(0)})`);
       me.setAttribute('transform', `translate(${R.x} ${R.y})`);
       // the wind nudges the ball mid-air
       if (adj && !adjusted && u >= adj.ta) { adjusted = true; P1 = { x: B0.x + (L.x - B0.x) * adj.ta, y: B0.y + (L.y - B0.y) * adj.ta }; cur = { ...L2 }; mgPop(ctx, cur.x, cur.y - 30, '💨 WIND!', 'bad'); Snd.play('mgSwish', 0); }

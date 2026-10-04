@@ -293,14 +293,11 @@ function calAssign(gs, wk, year, ctx, rt, U) {
   gs.forEach(g => sc.set(g, rt(g.a) + rt(g.h) + (div(g.a) === div(g.h) ? 6 : 0) + (g.a === U || g.h === U ? (rt(U) - 70) * 0.6 + rr(0, 8) : 0) + rr(0, 10) - (prime[g.a] >= 4 ? 25 : 0) - (prime[g.h] >= 4 ? 25 : 0) - (prevPrime.has(g.a) ? 22 : 0) - (prevPrime.has(g.h) ? 22 : 0)));
   const sorted = gs.slice().sort((x, y) => sc.get(y) - sc.get(x)), rest = new Set(gs);
   const take = (slot, pred) => { const g = sorted.find(x => rest.has(x) && (!pred || pred(x))); if (g) { g.s = slot; rest.delete(g); } return g; };
-  const thu = calThursday(year, wk), thanks = thu.getUTCMonth() === 10 && thu.getUTCDate() >= 22 && thu.getUTCDate() <= 28;
   if (wk === 18) { take('SNF'); }                                    // the finale is all Sunday (no Saturday games)
   else {
     take('SNF');
-    if (wk <= 2) take('MNE');
     take('MNF');
-    if (thanks) { take('THA', g => g.h === 'DET') || take('THA'); take('THB', g => g.h === 'DAL') || take('THB'); take('THC'); }
-    else if (wk === 1) { const open = sorted.filter(x => rest.has(x)).sort((x, y) => rt(y.h) - rt(x.h))[0]; if (open) { open.s = 'TNF'; rest.delete(open); } }
+    if (wk === 1) { const open = sorted.filter(x => rest.has(x)).sort((x, y) => rt(y.h) - rt(x.h))[0]; if (open) { open.s = 'TNF'; rest.delete(open); } }
     else take('TNF', g => !prevMon.has(g.a) && !prevMon.has(g.h) && !prevThu.has(g.a) && !prevThu.has(g.h)) || take('TNF', g => !prevMon.has(g.a) && !prevMon.has(g.h));
     if (CAL_INTL[wk]) { const g = shuffle([...rest].filter(x => x.u === undefined))[0]; if (g) { g.s = 'INT'; g.v = CAL_INTL[wk]; rest.delete(g); } }
   }

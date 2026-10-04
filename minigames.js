@@ -23,7 +23,7 @@ function mgMods(se) { let perf = 1; (se.buffs || []).forEach(b => { if (b.left >
 function mgAfterGame(se, game, notes) { mgEnsure(se); se.buffs.forEach(b => { b.left--; }); se.buffs = se.buffs.filter(b => b.left > 0); }
 const MG_META = {
   qb: P => ({ icon: '🏈', title: 'POCKET PRESENCE', how: 'Dodge the pass rush inside the pocket and press SPACE when the bar is in the green to throw to your WR. Wait too long and you get sacked.', legend: [['', '← → ↑ ↓ move', 'dodge the rush'], ['', 'SPACE', 'throw in the green'], ['', 'Too slow', 'SACK']] }),
-  rb: P => ({ icon: '🏃', title: 'RUSH FOR THE TD', how: 'Reach the end zone for a touchdown. Dodge the defenders and outrun the tackler.', legend: [['⌨️', '← → keys', 'dodge'], ['🏃', 'Tackler behind you', 'don\'t stumble'], ['🏈', 'End zone', 'TOUCHDOWN']] }),
+  rb: P => ({ icon: '🏃', title: 'RUSH FOR YARDS', how: 'Take the handoff, hit the hole the line opens, then keep dodging tacklers. Every yard is a point (10 more for a touchdown) and your points raise your performance.', legend: [['', '← → ↑ ↓ run', 'find the hole'], ['', 'Every yard', '1 point'], ['', 'Touchdown', '+10 points']] }),
   catch: P => ({ icon: '🙌', title: P.pos === 'TE' ? 'CATCH IT · SEAM' : 'CATCH IT · GO ROUTE', how: 'A three-play drive: catch to move the chains, and the last pass is for the touchdown. Run to where the ball will land.', legend: [['⌨️', 'Arrow keys / drag', 'move'], ['⭕', 'Ring', 'be there first']] }),
   kick: P => ({ icon: '🥅', title: 'KICK IT', how: 'Aim into the wind, stop the bar in the green.', legend: [['💨', 'Wind pushes', 'AIM AGAINST'], ['⏹', 'Power', 'GREEN']] }),
 };
@@ -186,7 +186,7 @@ async function mgRun(ctx) {
     ctx.results.push(ok);
     ctx.combo = ok ? ctx.combo + 1 : 0;
     ctx.ov.querySelector(`.mg-pips [data-p="${i}"]`).className = ok ? 'ok' : 'bad';
-    ctx.ov.querySelector('#mgScore').textContent = `${ctx.results.filter(Boolean).length}/3`;
+    ctx.ov.querySelector('#mgScore').textContent = ctx.kind === 'rb' ? `${ctx.rbPts || 0} PTS` : `${ctx.results.filter(Boolean).length}/3`;
     const cb = ctx.ov.querySelector('#mgCombo'); if (ctx.combo >= 2) { cb.hidden = false; cb.textContent = `🔥 x${ctx.combo}`; cb.classList.remove('pop'); void cb.offsetWidth; cb.classList.add('pop'); } else cb.hidden = true;
     if (ok) { Snd.play('mgGood', 0, Math.min(4, ctx.combo - 1)); mgFlash(ctx, true); } else { Snd.play('mgMiss', 0); mgFlash(ctx, false); }
     await sleep(i < 2 ? 1500 : 900);
@@ -195,14 +195,15 @@ async function mgRun(ctx) {
 }
 function mgFlash(ctx, good) { const s = ctx.stage; s.classList.remove('mg-good', 'mg-badflash'); void s.offsetWidth; s.classList.add(good ? 'mg-good' : 'mg-badflash'); if (good) { Snd.play('mgCrowd', 0.12, 1); burst(s, 14, [ctx.t.c1, ctx.t.c2, '#ffffff', '#ffd23d']); } }
 function mgFinish(ctx) {
-  const se = ctx.env.se, raw = ctx.results.filter(Boolean).length, sc = MG_SC[raw], g = MG_GRADES[sc], good = sc >= 3;
-  const extra = good ? Math.min(0.04, ctx.perfects * 0.01) : 0, perf = Math.min(0.12, g.perf + extra);
+  const se = ctx.env.se, rbm = ctx.kind === 'rb', pts = ctx.rbPts || 0;
+  const raw = rbm ? (pts >= 32 ? 3 : pts >= 18 ? 2 : pts >= 8 ? 1 : 0) : ctx.results.filter(Boolean).length, sc = rbm ? (pts < 8 ? 0 : pts < 18 ? 2 : pts < 32 ? 3 : pts < 52 ? 4 : 5) : MG_SC[raw], g = MG_GRADES[sc], good = sc >= 3;
+  const extra = good && !rbm ? Math.min(0.04, ctx.perfects * 0.01) : 0, perf = rbm ? clamp(-0.04 + pts * 0.0025, -0.05, 0.12) : Math.min(0.12, g.perf + extra);
   const weekly = !!(se.mg && se.mg.weekly), gi = mgGamesIn(se), streak = weekly ? (se.mgTrainAt === gi - 1 && se.mgStreak ? se.mgStreak + 1 : 1) : 0;
-  const wPerf = weekly ? MG_WEEK_PERF[sc] + Math.min(0.03, 0.005 * (streak - 1)) : 0;
-  const fx = weekly ? `+${(wPerf * 100).toFixed(1).replace(/\.0$/, '')}% performance in your next game${streak > 1 ? ` · ${streak}-week training streak` : ''}` : `${perf > 0 ? '+' : '−'}${Math.abs(Math.round(perf * 100))}% performance all season · moves your rating`;
+  const wPerf = weekly ? (rbm ? clamp(0.008 + pts * 0.0011, 0.008, 0.07) : MG_WEEK_PERF[sc]) + Math.min(0.03, 0.005 * (streak - 1)) : 0;
+  const fx = rbm && !weekly ? `${pts} points → ${perf >= 0 ? '+' : '−'}${Math.abs(perf * 100).toFixed(1).replace(/\.0$/, '')}% performance all season · moves your rating` : weekly ? `${rbm ? pts + ' points → ' : ''}+${(wPerf * 100).toFixed(1).replace(/\.0$/, '')}% performance in your next game${streak > 1 ? ` · ${streak}-week training streak` : ''}` : `${perf > 0 ? '+' : '−'}${Math.abs(Math.round(perf * 100))}% performance all season · moves your rating`;
   ctx.stage.innerHTML = `<div class="mg-res ${good ? 'good' : 'bad'}" style="background-image:radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, ${ctx.t.c1} 38%, transparent), transparent)">
     <div class="mg-jersey-big small">${ctx.env.jersey ? ctx.env.jersey('back') : ''}</div>
-    <div class="mg-grade">${g.n}</div><div class="mg-big">${raw}<small>/3</small></div>
+    <div class="mg-grade">${g.n}</div><div class="mg-big">${rbm ? pts : raw}<small>${rbm ? ' PTS' : '/3'}</small></div>
     <div class="mg-stars">${[0, 1, 2].map(i => `<span class="${i < raw ? 'on' : ''}">★</span>`).join('')}</div>
     ${ctx.perfects ? `<div class="mg-perf">✨ ${ctx.perfects} perfect play${ctx.perfects > 1 ? 's' : ''}</div>` : ''}
     <div class="mg-bonus ${good || weekly ? 'good' : 'bad'}">${good || weekly ? '⚡' : '⚠️'} ${fx}</div></div>`;
@@ -401,83 +402,127 @@ function mgInput(ctx) {
 const mgHoldBtn = (key, label) => `<button class="mg-b mg-hold" data-hold="${key}" style="--c:#35e0ff">${label}</button>`;
 
 /* =====================================================================
-   RB — RUSH FOR THE TD
-   Top-down. You carry the ball up the field; defenders are scattered ahead, a tackler chases you. Dodge left/right and reach the line before he catches you.
-   Hitting a defender makes you stumble (you slow down and the chaser gains). Later runs are longer, with defenders that slide and that track you.
+   RB — RUSH FOR YARDS
+   Same formation view as the QB game: the snap, the handoff, and you run: first through the HOLE the line opens, then keep going upfield dodging the linebackers and the secondary.
+   A first hit slows you down, a second one (or two defenders at once) brings you down. Every yard is a point (+10 for a touchdown); the points become the % your performance goes up.
    ===================================================================== */
 function mgRB(ctx, i, st) {
-  const T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2, yds = [24, 28, 32, 36, 40][i], GOAL = yds * 10, RY = 205, XMIN = 26, XMAX = 314;
-  const vf = 62, vc = vf * (1 + 0.02 * i), LAT = 190, IN = 24;    // IN: how far past the goal line he must be (whole body in the end zone) before it counts
-  // defenders ahead, in rows
-  const defs = []; let w = 92 + rr(0, 16);
-  while (w < GOAL - 24) {
-    w += 28 + rnd() * 14; const n = 1 + (rnd() < 0.42 + i * 0.1 ? 1 : 0) + (i >= 2 && rnd() < 0.22 ? 1 : 0), xs = [];
-    for (let k = 0; k < n; k++) { let x, tries = 0; do { x = rr(XMIN + 8, XMAX - 8); tries++; } while (xs.some(q => Math.abs(q - x) < 64) && tries < 20); xs.push(x); defs.push({ w, x, bx: x, type: i >= 1 && rnd() < 0.28 + 0.08 * i ? 'slide' : (i >= 2 && rnd() < 0.22 ? 'track' : 'stand'), ph: rnd() * 6.28, hit: false }); }
-  }
-  const start = 100 - yds, yOfA = A => -(A - start) * 10;   // you start on the opponent's (yds)-yard line; 10 px per yard, upfield = up
-  const dsvg = defs.map((d, k) => mgGuy(0, 0, O1, O2, { s: 1.3, down: true, cls: 'mg-rbd', attrs: `data-k="${k}"` })).join('');
-  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><defs>${mgGrassPat('mgRGp')}<linearGradient id="mgRG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d6c3d"/><stop offset="1" stop-color="#12502b"/></linearGradient>${mgLights('mgRL', T1)}</defs>
-    <rect width="340" height="300" rx="14" fill="url(#mgRG)"/>
-    <g id="mgRW" style="transform:translate(0px,${RY}px)">
-      ${mgFieldInner({ id: 'mgRGp', w: 340, sl: 14, y0: -GOAL - 100, y1: 110, yRef: 0, Aref: start, ppy: 10, Amin: start - 12, Amax: 100, numL: 50, numR: 290 })}
-      ${yOfA(50) < 100 && yOfA(50) > -GOAL - 100 ? `<image href="${(ctx.env.nfl && typeof NFL_MID_LOGO !== 'undefined' && NFL_MID_LOGO[ctx.t.id]) || ctx.t.logo}" x="126" y="${yOfA(50) - 44}" width="88" height="88" opacity=".88" preserveAspectRatio="xMidYMid meet"/>` : ''}
-      ${mgEndZone(ctx, 14, -GOAL - 100, 312, 100, 0.6)}${mgEzGrass('mgRGp', 14, -GOAL - 100, 312, 100)}
-      <line x1="14" x2="326" y1="${-GOAL}" y2="${-GOAL}" stroke="#fff" stroke-width="3.4"/><line x1="14" x2="326" y1="${-GOAL - 100}" y2="${-GOAL - 100}" stroke="#fff" stroke-width="3.4"/>
-      <rect x="0" y="${-GOAL - 122}" width="340" height="22" fill="#f6f7f4"/><g stroke="#ffd23d" stroke-width="3.4" stroke-linecap="round" fill="none"><line x1="158" x2="182" y1="${-GOAL - 114}" y2="${-GOAL - 114}"/><line x1="170" x2="170" y1="${-GOAL - 100}" y2="${-GOAL - 114}"/><circle cx="158" cy="${-GOAL - 114}" r="2.2"/><circle cx="182" cy="${-GOAL - 114}" r="2.2"/></g>
-      ${mgPylon(14, -GOAL)}${mgPylon(326, -GOAL)}${mgPylon(14, -GOAL - 100)}${mgPylon(326, -GOAL - 100)}
-      <line x1="14" x2="326" y1="0" y2="0" stroke="#4aa8ff" stroke-width="3" stroke-opacity=".85"/>${dsvg}</g>
-    <defs><pattern id="mgStripe" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="14" fill="#fff"/></pattern></defs>
-    <g id="mgChaser" class="mg-chaser"><circle r="17" fill="rgba(255,60,60,.16)" class="mg-you" style="stroke:#ff5d5d;stroke-width:2"/>${mgGuy(0, 0, O1, O2, { s: 1.3, run: true })}</g>
-    <g id="mgMe">${mgGuy(0, 0, T1, T2, { s: 1.3, you: true, run: true, num: ctx.number })}${mgBall(0, -2, 0.6, 90)}</g>
-    <g id="mgHud"><rect x="104" y="20" width="132" height="30" rx="15" fill="rgba(5,8,16,.7)" stroke="rgba(255,255,255,.2)"/><text id="mgYd" x="170" y="41" text-anchor="middle" font-size="20" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif">${yds} YDS TO TD</text>
-      <rect x="10" y="60" width="10" height="130" rx="5" fill="rgba(255,255,255,.12)"/><rect id="mgGap" x="10" y="190" width="10" height="130" rx="5" fill="#6dffbb" style="transform-origin:15px 190px;transform:scaleY(-1)"/><text x="15" y="204" text-anchor="middle" font-size="8" fill="#fff" fill-opacity=".7" font-family="Barlow Condensed, sans-serif" letter-spacing=".1em">GAP</text></g>
-    <g id="mgFx"></g></svg><div class="mg-call">RUSH FOR THE TD · ${yds} yds out · ${MG_LV.indexOf(i) + 1}/3</div>`;
-  ctx.ctrl.innerHTML = `<div class="mg-btns two">${mgHoldBtn('l', '◀ LEFT')}${mgHoldBtn('r', 'RIGHT ▶')}</div>`;
-  ctx.say('<b>← →</b> dodge the defenders · get to the <b>END ZONE</b>');
+  const lv = MG_LV.indexOf(i), T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2, LOSY = 150, A0 = 40, GOALY = LOSY - (100 - A0) * 10, RY = 205;
+  if (ctx.rbPts == null) ctx.rbPts = 0;
+  const holeI = lvWeightedMg([0.15, 0.25, 0.2, 0.25, 0.15]), gapX = [84, 134, 170, 206, 256][holeI];
+  const vRB = 84, spd = { DL: 50, LB: [62, 68, 74][lv], S: [70, 75, 80][lv], CB: [70, 74, 78][lv] };
+  const olH = [[104, 166], [137, 166], [170, 166], [203, 166], [236, 166]], dlH = [118, 150, 190, 222], lbH = [[128, 122], [170, 118], [212, 122]], sfH = [[112, 84], [228, 84]], cbH = [[40, 120], [300, 120]];
+  const gid = 'mgRBg', G = (c1, c2, o) => mgGuy(0, 0, c1, c2, o);
+  ctx.stage.innerHTML = `<svg class="mg-svg tall" viewBox="0 0 340 300"><defs>${mgGrassPat(gid)}</defs>
+    <rect width="340" height="300" rx="14" fill="#2b7d47"/>
+    <g id="mgRW" style="transform:translateY(0px)">
+      ${mgFieldInner({ id: gid, w: 340, sl: 14, y0: GOALY - 112, y1: 340, yRef: LOSY, Aref: A0, ppy: 10, Amin: A0 - 16, Amax: 100, numL: 50, numR: 290 })}
+      <image href="${(ctx.env.nfl && typeof NFL_MID_LOGO !== 'undefined' && NFL_MID_LOGO[ctx.t.id]) || ctx.t.logo}" x="126" y="${LOSY - (50 - A0) * 10 - 44}" width="88" height="88" opacity=".88" preserveAspectRatio="xMidYMid meet"/>
+      ${mgEndZone(ctx, 14, GOALY - 100, 312, 100, 0.6)}${mgEzGrass(gid, 14, GOALY - 100, 312, 100)}
+      <line x1="14" x2="326" y1="${GOALY}" y2="${GOALY}" stroke="#fff" stroke-width="3.4"/><line x1="14" x2="326" y1="${GOALY - 100}" y2="${GOALY - 100}" stroke="#fff" stroke-width="3.4"/>
+      ${mgPylon(14, GOALY)}${mgPylon(326, GOALY)}${mgPylon(14, GOALY - 100)}${mgPylon(326, GOALY - 100)}
+      <line x1="14" x2="326" y1="${LOSY}" y2="${LOSY}" stroke="#4aa8ff" stroke-width="2.8" stroke-opacity=".9"/>
+      <g id="mgHole" opacity=".95"><path d="M${gapX - 16} ${LOSY - 6} l16 -18 l16 18 M${gapX - 16} ${LOSY + 8} l16 -18 l16 18" stroke="#6dffbb" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="mg-landring"/><text x="${gapX}" y="${LOSY + 26}" text-anchor="middle" font-size="10" font-weight="800" fill="#6dffbb" stroke="rgba(0,0,0,.6)" stroke-width="2.4" paint-order="stroke" font-family="Barlow Condensed, sans-serif" letter-spacing=".16em">HOLE</text></g>
+      ${olH.map((p, k) => G(T1, T2, { s: 0.92, cls: 'mg-rbd', attrs: `id="mgOL${k}"` })).join('')}
+      ${[0, 1].map(k => G(T1, T2, { s: 0.92, run: true, cls: 'mg-rbd', attrs: `id="mgWR${k}"` })).join('')}${G(T1, T2, { s: 0.92, cls: 'mg-rbd', attrs: 'id="mgTE"' })}
+      ${dlH.map((x, k) => G(O1, O2, { s: 0.92, down: true, cls: 'mg-rbd', attrs: `id="mgDL${k}"` })).join('')}
+      ${lbH.map((p, k) => G(O1, O2, { s: 0.92, down: true, run: true, cls: 'mg-rbd', attrs: `id="mgLB${k}"` })).join('')}
+      ${sfH.map((p, k) => G(O1, O2, { s: 0.92, down: true, run: true, cls: 'mg-rbd', attrs: `id="mgSF${k}"` })).join('')}
+      ${cbH.map((p, k) => G(O1, O2, { s: 0.92, down: true, run: true, cls: 'mg-rbd', attrs: `id="mgCB${k}"` })).join('')}
+      <g id="mgQBg" class="mg-rbd">${mgGuy(0, 0, T1, T2, { s: 0.95, num: '' })}</g>
+      <g id="mgMeG" class="mg-rbd">${mgGuy(0, 0, T1, T2, { s: 1.05, you: true, run: true, num: ctx.number })}</g>
+      <g id="mgBallG">${mgBall(0, 0, 0.62, 0, 'mgBallEl')}</g>
+    </g>
+    <g id="mgHud"><rect x="70" y="8" width="200" height="30" rx="15" fill="rgba(5,8,16,.74)" stroke="rgba(255,255,255,.22)"/><text id="mgYd" x="170" y="29" text-anchor="middle" font-size="18" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" letter-spacing=".04em">0 YDS · 0 PTS</text></g>
+    <g id="mgFx"></g></svg><div class="mg-call">RUSH FOR YARDS · ${lv + 1}/3</div>`;
+  ctx.ctrl.innerHTML = `<div class="mg-btns four">${mgHoldBtn('l', '◀')}${mgHoldBtn('u', '▲')}${mgHoldBtn('d', '▼')}${mgHoldBtn('r', '▶')}</div>`;
+  ctx.say('Take the handoff and hit the <b>HOLE</b> · arrows to run');
   return new Promise(async res => {
-    await sleep(500); if (!ctx.alive()) return res(false);
+    const q = id => ctx.stage.querySelector('#' + id), ang = (dx, dy) => Math.atan2(dx, -dy) * 180 / Math.PI;
+    const P = (id, x, y, f0) => { const e = q(id); return { e, b: e.querySelector('.mg-body'), x, y, f: f0, px: x, py: y }; };
+    const put = (p, dt, face) => { p.e.style.transform = `translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px)`; if (face == null) { const dx = p.x - p.px, dy = p.y - p.py; if (dx * dx + dy * dy > 0.04) face = ang(dx, dy); } if (face != null) { const d = ((face - p.f + 540) % 360) - 180; p.f += d * Math.min(1, dt * 12); p.b.setAttribute('transform', `rotate(${p.f.toFixed(0)})`); } p.px = p.x; p.py = p.y; };
+    const world = q('mgRW'), ydT = q('mgYd'), hole = q('mgHole'), ballE = q('mgBallEl');
+    const me = P('mgMeG', 170, 232, 0), qb = P('mgQBg', 170, 181, 0);
+    const ol = olH.map((h, k) => ({ ...P('mgOL' + k, h[0], h[1], 0), hx: h[0], hy: h[1] }));
+    const dl = dlH.map((x, k) => ({ ...P('mgDL' + k, x, 147, 180), hx: x, kind: 'DL', held: null, free: false, spd: spd.DL, react: 0 }));
+    const lb = lbH.map((h, k) => ({ ...P('mgLB' + k, h[0], h[1], 180), hx: h[0], kind: 'LB', held: null, free: true, spd: spd.LB, react: 0.7 + k * 0.1 }));
+    const sf = sfH.map((h, k) => ({ ...P('mgSF' + k, h[0], h[1], 180), hx: h[0], kind: 'S', held: null, free: true, spd: spd.S, react: 0.8 + k * 0.1 }));
+    const cb = cbH.map((h, k) => ({ ...P('mgCB' + k, h[0], h[1], 180), hx: h[0], kind: 'CB', held: null, free: false, spd: spd.CB, react: 0.5 }));
+    const wr = [0, 1].map(k => ({ ...P('mgWR' + k, k ? 314 : 26, 154, 0) })), te = { ...P('mgTE', 268, 164, 0) };
+    const defs = [...dl, ...lb, ...sf, ...cb];
+    // the line opens the hole: the linemen next to it are driven away from it
+    dl.forEach((d, j) => { d.push = (d.hx < gapX ? -1 : 1) * (holeI === 0 || holeI === 4 ? 13 : 16); d.sealed = true; d.tFree = 2.6 + rr(0, 0.8); });
+    // who blocks whom: [blocker, defender, how long he holds him]
+    const holds = [[ol[0], dl[0]], [ol[1], dl[1]], [ol[3], dl[2]], [ol[4], dl[3]], [wr[0], cb[0]], [wr[1], cb[1]]].map(([o, d], n) => ({ o, d, tEnd: n < 4 ? 2.6 + rr(0, 0.9) : 1.9 + rr(0, 0.9) }));
+    const center = ol[2]; let centerTarget = lb[holeI <= 1 ? 0 : holeI >= 3 ? 2 : 1];
+    [qb, me, ...ol, ...defs, ...wr, te].forEach(p => put(p, 1, p.f));
+    ballE.setAttribute('transform', `translate(170 ${qb.y - 8}) rotate(90) scale(0.62)`);
+    await sleep(650); if (!ctx.alive()) return res(false);
     const inp = mgInput(ctx);
-    const R = { x: 170, w: 0, stun: 0 }, C = { x: 170, w: -(78 - 3 * i) }, els = [...ctx.stage.querySelectorAll('.mg-rbd')], world = ctx.stage.querySelector('#mgRW'), me = ctx.stage.querySelector('#mgMe'), ch = ctx.stage.querySelector('#mgChaser'), ydT = ctx.stage.querySelector('#mgYd'), gapB = ctx.stage.querySelector('#mgGap');
-    let last = performance.now(), t = 0, ended = false, stumbles = 0, raf = 0, lean = 0, scored = false;
-    ctx.say('<b>GO!</b>', 'go'); Snd.play('mgSnap', 0);
-    const end = async (win) => {
-      if (ended) return; ended = true; cancelAnimationFrame(raf); inp.dispose(); ctx.ctrl.innerHTML = '';
-      const got = Math.max(0, Math.min(yds, Math.round(R.w / 10)));
-      if (win) {
-        const perfect = stumbles === 0; if (perfect) ctx.perfects++;
-        mgPop(ctx, 170, 100, perfect ? 'UNTOUCHED TD!' : 'TOUCHDOWN!', 'good'); mgShake(ctx);
-        ctx.say(`🏈 <b>TOUCHDOWN!</b> ${yds}-yard run${perfect ? ' · ✨ untouched' : stumbles ? ` · ${stumbles} stumble${stumbles > 1 ? 's' : ''}` : ''}`, 'good'); res(true);
-      } else {
-        mgPop(ctx, 170, 120, 'STOPPED SHORT!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx);
-        ctx.say(`❌ Tackled just ${Math.max(1, yds - got)} yard${yds - got === 1 ? '' : 's'} short of the end zone<span class="mg-tip">Dodge the defenders — every hit lets the tackler catch up.</span>`, 'bad'); res(false);
-      }
+    ctx.say('<b>HIKE!</b> Hit the hole!', 'go'); Snd.play('mgSnap', 0.02);
+    let t = 0, last = performance.now(), ended = false, raf = 0, best = 0, stun = 0, hits = 0, hitT = -9;
+    const cleanup = () => { ended = true; cancelAnimationFrame(raf); inp.dispose(); };
+    const finish = async (td, why) => {
+      if (ended) return; cleanup(); ctx.ctrl.innerHTML = '';
+      const yds = Math.max(0, Math.round(best)), pts = yds + (td ? 10 : 0); ctx.rbPts += pts;
+      const sx = me.x, sy = me.y + Math.max(0, RY - me.y);
+      mgPop(ctx, 170, 120, td ? 'TOUCHDOWN!' : yds >= 10 ? 'BIG GAIN!' : yds >= 4 ? `+${yds} YDS` : 'TACKLED!', yds >= 4 || td ? 'good' : 'bad'); mgShake(ctx); Snd.play(td ? 'td' : yds >= 4 ? 'mgPat' : 'mgHit', td ? 0.05 : 0);
+      ctx.say(`${yds >= 4 || td ? '✅' : '❌'} ${td ? '<b>TOUCHDOWN!</b> ' : ''}${yds}-yard run · <b>+${pts} pts</b>${td ? ' (10 for the touchdown)' : ''}${why ? `<span class="mg-tip">${why}</span>` : ''}`, yds >= 4 || td ? 'good' : 'bad');
+      if (yds >= 12 && !td) ctx.perfects++; if (td) ctx.perfects++;
+      res(yds >= 4 || td);
     };
+    const ease = u => u * u * (3 - 2 * u), toward = (p, tx, ty, sp2, dt) => { const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy) || 1, st2 = Math.min(d, sp2 * dt); p.x += dx / d * st2; p.y += dy / d * st2; return d; };
     const frame = now => {
-      if (!ctx.alive()) { inp.dispose(); return; }
-      const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
-      // steering
-      let dir = (inp.k.r - inp.k.l); if (inp.tx !== null) dir = clamp((inp.tx - R.x) / 14, -1, 1);
-      R.x = clamp(R.x + dir * LAT * dt, XMIN, XMAX); lean += (dir * 14 - lean) * Math.min(1, dt * 10);
-      R.stun = Math.max(0, R.stun - dt); R.w += vf * (R.stun > 0 ? 0.3 : 1) * dt; C.w += vc * dt; C.x += clamp(R.x - C.x, -62 * dt, 62 * dt);
+      if (ended) return; if (!ctx.alive()) { cleanup(); return; }
+      const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt; stun = Math.max(0, stun - dt);
+      // ---- you: the handoff, then free running ----
+      let vx = inp.k.r - inp.k.l, vy = inp.k.d - inp.k.u; if (inp.tx !== null) { vx = inp.tx - me.x; vy = inp.ty - (me.y + Math.max(0, RY - me.y)); if (Math.hypot(vx, vy) < 8) { vx = 0; vy = 0; } }
+      if (t >= 0.45) { const m = Math.hypot(vx, vy); if (m > 0) { const sp = vRB * (stun > 0 ? 0.4 : 1) * (vy > 0 ? 0.7 : 1); me.x = clamp(me.x + vx / m * sp * dt, 22, 318); me.y += vy / m * sp * dt; } } else { me.y -= 8 * dt; }
+      best = Math.max(best, (LOSY - me.y) / 10);
+      // ---- the quarterback hands off, then the ball is yours ----
+      qb.x = 170 + (t < 0.3 ? 0 : 6 * Math.sin(Math.min(1, (t - 0.3) / 0.2) * 3)); qb.y = 181 + (t < 0.4 ? 0 : 3); put(qb, dt, t < 0.3 ? 0 : -50);
+      const bx = t < 0.3 ? qb.x : t < 0.45 ? qb.x + (me.x - qb.x) * ((t - 0.3) / 0.15) : me.x, by = (t < 0.3 ? qb.y - 8 : t < 0.45 ? qb.y - 8 + (me.y - 6 - (qb.y - 8)) * ((t - 0.3) / 0.15) : me.y - 6);
+      ballE.setAttribute('transform', `translate(${bx.toFixed(1)} ${by.toFixed(1)}) rotate(90) scale(0.62)`);
+      // ---- the line: it surges, opens the hole and the second level reacts ----
+      const sur = ease(Math.min(1, t / 0.6));
+      ol.forEach((o, k) => { o.x = o.hx; o.y = o.hy - 7 * sur; });
+      holes: { const hd = holds; hd.forEach(h => { if (t < h.tEnd) { if (h.d.kind === 'CB') { const cx = h.d.hx; toward(h.o, cx, h.d.y + 13, 70, dt); h.d.x += (h.o.x - h.d.x) * Math.min(1, dt * 6); h.d.y += ((h.o.y - 13) - h.d.y) * Math.min(1, dt * 6); h.d.x += Math.sin(t * 9 + h.d.hx) * 0.4; } else { const push = h.d.sealed ? h.d.push : 0, u = ease(Math.min(1, Math.max(0, (t - 0.1) / 0.7))); h.d.x = h.d.hx + push * u + Math.sin(t * 8 + h.d.hx) * 1.5; h.d.y = h.o.y - 13 + Math.cos(t * 7 + h.d.hx) * 1; } } else h.released = true; }); }
+      // the center climbs to the linebacker who is going to fill the hole; the tight end seals the edge
+      { const lbT = centerTarget; if (t > 0.4 && t < 2.2) toward(center, lbT.x, lbT.y + 14, 110, dt); else if (t >= 2.2) {} else { center.x = center.hx; center.y = center.hy - 7 * sur; } if (t > 0.4 && (Math.hypot(center.x - lbT.x, center.y - lbT.y) < 22 || t > 0.95) && t < 2.2) { lbT.held = center; } if (t >= 2.2 && lbT.held === center) lbT.held = null; }
+      { const edge = dl[3]; if (t > 0.3 && t < 2.4) toward(te, edge.x + 8, edge.y + 14, 55, dt); }
+      wr.forEach((w, k) => { const c = cb[k]; if (t < 0.2) return; if (t < holds[4 + k].tEnd) toward(w, c.x, c.y + 13, 76, dt); else toward(w, w.x + (k ? -20 : 20), w.y - 12, 40, dt); });
+      // ---- the defense reads the run and pursues (linemen once their block is over), the linebacker fills the hole ----
+      lb.forEach(d => { if (d.held) { d.x += Math.sin(t * 9) * 0.5; return; } });
+      let nearest = 999, hitBy = null;
       defs.forEach(d => {
-        if (d.type === 'slide') d.x = clamp(d.bx + Math.sin(t * 1.7 + d.ph) * 38, XMIN, XMAX);
-        else if (d.type === 'track' && !d.hit) { const ah = d.w - R.w; if (ah > 0 && ah < 150) d.x = clamp(d.x + clamp(R.x - d.x, -1, 1) * (30 + 5 * i) * dt, XMIN, XMAX); }
-        if (!d.hit && Math.abs(d.w - R.w) < 15 && Math.abs(d.x - R.x) < 17) { d.hit = true; R.stun = 0.7; stumbles++; Snd.play('mgHit', 0); mgShake(ctx); }
+        if (d === centerTarget && !d.held && t >= 0.4 && t < 1.1) { toward(d, gapX, LOSY - 14, 58, dt); return; }                      // the linebacker fills the hole
+        const releasedHold = holds.some(h => h.d === d && h.released);
+        if (d.kind === 'DL') { if (!d.free && (releasedHold && t >= d.tFree)) d.free = true; }
+        if (d.kind === 'CB') { if (!d.free && releasedHold) d.free = true; }
+        if (!d.free || d.held || t < d.react) { if (d.kind === 'LB' && !d.held && t >= 0.4 && t < 1.1 && d === centerTarget) toward(d, gapX, LOSY - 16, 58, dt); return; }
+        const lead = 0.35, tx = me.x + (me.x - me.px) * lead * 6, ty = me.y + (me.y - me.py) * lead * 6, sp = d.spd * (stun > 0 ? 1.05 : 1) * (d.kind === 'DL' ? 1 : 0.5 + 0.5 * Math.min(1, Math.max(0, t - d.react) / 1.4));
+        toward(d, tx, ty, sp, dt);
+        const dist = Math.hypot(d.x - me.x, d.y - me.y); nearest = Math.min(nearest, dist); if (dist < 12.5 && t >= 0.45) { hitBy = hitBy && hitBy !== d ? 'multi' : d; }
       });
-      // draw
-      world.style.transform = `translate(0px,${RY + R.w}px)`;
-      els.forEach((e, k) => { const d = defs[k]; e.style.transform = `translate(${d.x}px,${-d.w}px) rotate(${d.hit ? 90 : 0}deg)`; e.style.opacity = d.hit ? 0.55 : 1; });
-      me.style.transform = `translate(${R.x}px,${RY}px) rotate(${lean * 0.9}deg)`; ch.style.transform = `translate(${C.x}px,${RY + (R.w - C.w)}px)`;
-      const gap = R.w - C.w; gapB.style.transform = `scaleY(${-clamp(gap / 90, 0.03, 1)})`; gapB.setAttribute('fill', gap < 28 ? '#ff5d5d' : gap < 55 ? '#ffd23d' : '#6dffbb');
-      ydT.textContent = `${Math.max(0, Math.ceil((GOAL + IN - R.w) / 10))} YDS TO TD`;
-      if (R.w >= GOAL + IN && !scored) { scored = true; Snd.play('td', 0.05); mgPop(ctx, 170, 100, 'TOUCHDOWN!', 'good'); }      // his whole body is inside the end zone: now it is a touchdown (not before), and nobody can stop him
-      if (R.w >= GOAL + 50) return end(true);                         // he runs into the end zone before the play is over
-      if (!scored && C.w >= R.w - 14 && Math.abs(C.x - R.x) < 20) return end(false);
+      defs.forEach((d, a) => { for (let b = a + 1; b < defs.length; b++) { const e = defs[b], dx = e.x - d.x, dy = e.y - d.y, dd = Math.hypot(dx, dy); if (dd > 0 && dd < 11 && !(d.held || e.held)) { const pu = (11 - dd) * 0.35; d.x -= dx / dd * pu; d.y -= dy / dd * pu; e.x += dx / dd * pu; e.y += dy / dd * pu; } } });
+      defs.forEach(d => put(d, dt, d.free && !d.held ? ang(me.x - d.x, me.y - d.y) : (d.kind === 'DL' ? 180 : null)));
+      ol.forEach(o => put(o, dt, 0)); wr.forEach(w => put(w, dt)); put(te, dt, 0);
+      // ---- tackles: a first hit slows you down, a second one (or two defenders at once) ends the run ----
+      if (hitBy === 'multi' || (hitBy && stun > 0 && t - hitT > 0.12)) return finish(false, hitBy === 'multi' ? 'Two defenders got to you.' : 'You got hit twice — dodge them!');
+      if (hitBy && stun <= 0) { stun = 0.6; hitT = t; hits++; mgPop(ctx, me.x, Math.max(30, me.y + Math.max(0, RY - me.y) - 22), 'HIT!', 'bad'); Snd.play('mgHit', 0); const dxh = me.x - hitBy.x; hitBy.x -= (dxh >= 0 ? 8 : -8); hitBy.y += 6; }
+      me.px = me.px; put(me, dt, vx || vy ? ang(vx, vy) : null);
+      // ---- camera, HUD, the end zone ----
+      const cy = Math.max(0, RY - me.y); world.style.transform = `translateY(${cy.toFixed(1)}px)`;
+      const yd = Math.max(0, Math.round(best)), pts = yd; ydT.textContent = `${yd} YDS · ${ctx.rbPts + pts} PTS`;
+      hole.setAttribute('opacity', clamp(1 - Math.max(0, t - 1.3) / 0.8, 0, 1).toFixed(2));
+      if (me.y <= GOALY - 14) return finish(true);
+      if (t > 15) return finish(false, 'Time ran out.');
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
   });
 }
+const lvWeightedMg = w => { let r = rnd() * w.reduce((a, b) => a + b, 0), i = 0; while (i < w.length - 1 && (r -= w[i]) > 0) i++; return i; };
 
 /* =====================================================================
    WR / TE — CATCH IT

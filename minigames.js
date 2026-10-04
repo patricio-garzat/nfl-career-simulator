@@ -62,7 +62,7 @@ const mgLights = (id, c1) => `<radialGradient id="${id}"><stop offset="0" stop-c
 const mgFlares = (id, w = 340) => [[18, 8], [w / 3, 2], [w * 2 / 3, 2], [w - 18, 8]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="46" fill="url(#${id})" class="mg-flare"/>`).join('');
 // uniform colors of the mini game players (jersey f, helmet h, helmet stripe s); the teams not listed wear their primary color jersey and secondary color helmet
 const MG_UNI = {
-  NO: { f: '#FFFFFF', h: '#D3BC8D' }, NE: { h: '#9AA3AD' }, NYJ: { h: '#125740' }, LAC: { h: '#FFFFFF' },
+  NO: { f: '#FFFFFF', h: '#D3BC8D' }, NE: { h: '#9AA3AD', s: '#C8102E' }, NYJ: { h: '#125740' }, LAC: { h: '#FFFFFF' },
   BAL: { f: '#241773', h: '#000000' }, LAR: { f: '#003594', h: '#003594', s: '#FFA300' }, MIN: { f: '#4F2683', h: '#4F2683', s: '#FFC62F' },
   CIN: { f: '#FFFFFF', h: '#FB4F14', s: '#000000' }, MIA: { h: '#FFFFFF', s: '#F26A24' }, KC: { h: '#FFFFFF' }, PIT: { f: '#FFFFFF', h: '#101010', s: '#FFB612' },
 };

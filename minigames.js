@@ -221,7 +221,7 @@ function mgAmbience() { Snd.crowd('assets/sounds/crowd-stadium.m4a', mgSndVol('n
 async function mgPre(ctx, ms) { Snd.players('assets/sounds/players-huddle.mp3', mgSndVol('nfl_players_vol3', 75.16), 1, Math.max(0, 4 - ms / 1000)); await sleep(ms); }
 async function mgRun(ctx) {
   const live = ctx.env.nfl && typeof lvFieldSVG === 'function' && typeof TEAM !== 'undefined' && TEAM[ctx.t.id] && TEAM[ctx.o.id] && typeof mgRBLive === 'function';
-  ctx.k = 1; ctx.rot = 0;
+  ctx.k = 1; ctx.rot = 0; ctx.stage.classList.remove('mg-live-stage', 'mg-ls-tall');
   const fn = (live ? { qb: typeof mgQBLive === 'function' ? mgQBLive : mgQB, rb: mgRBLive, catch: typeof mgCatchLive === 'function' ? mgCatchLive : mgCatch, kick: mgKick } : { qb: mgQB, rb: mgRB, catch: mgCatch, kick: mgKick })[ctx.kind], st = {};
   ctx.ctrl.innerHTML = ''; ctx.say('');
   for (let i = 0; i < 3; i++) {
@@ -240,6 +240,7 @@ async function mgRun(ctx) {
 }
 function mgFlash(ctx, good) { const s = ctx.stage; s.classList.remove('mg-good', 'mg-badflash'); void s.offsetWidth; s.classList.add(good ? 'mg-good' : 'mg-badflash'); if (good) { Snd.play('mgCrowd', 0.12, 1); burst(s, 14, [ctx.t.c1, ctx.t.c2, '#ffffff', '#ffd23d']); } }
 function mgFinish(ctx) {
+  ctx.stage.classList.remove('mg-live-stage', 'mg-ls-tall');
   const se = ctx.env.se, rbm = ctx.kind === 'rb', pts = Math.round((ctx.rbPts || 0) * 10) / 10;
   const raw = rbm ? (pts >= 7 ? 3 : pts >= 4 ? 2 : pts >= 2 ? 1 : 0) : ctx.results.filter(Boolean).length, sc = rbm ? (pts < 2 ? 0 : pts < 4 ? 2 : pts < 7 ? 3 : pts < 11 ? 4 : 5) : MG_SC[raw], g = MG_GRADES[sc], good = sc >= 3;
   const extra = good && !rbm ? Math.min(0.04, ctx.perfects * 0.01) : 0, perf = rbm ? clamp(-0.04 + pts * 0.0125, -0.05, 0.12) : Math.min(0.12, g.perf + extra);

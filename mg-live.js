@@ -6,7 +6,7 @@
    Your team always attacks to the right, 1 yard = 10 px, script time = real time.
    ===================================================================== */
 const MGL_K = 1.6;                      // size of the HUD and the labels
-const MGL_W = 590, MGL_H = 690;         // the camera window (screen units): the whole width of the field (both sidelines and the white border) and about 69 yards of its length
+const MGL_W = 575, MGL_H = 495;         // the camera window (screen units): exactly the width of the field with its white border (the two outer edges touch the window of the mini game); the height follows the shape of the window
 // The field is turned 90°: your team attacks from the bottom of the screen to the top. Everything (formations, routes, speeds) is computed in the live field's own coordinates
 // (x towards the end zone, y across); the whole field group is rotated -90° (screen = (y, -x)) and the camera follows the play.
 
@@ -18,19 +18,24 @@ const mgLiveCol = ctx => {
 };
 // builds the stage: the live field, the line of scrimmage and the actors of the formation. `hud` is the SVG of the score bug (or '').
 function mgLiveInit(ctx, play, hud, extra = '', win = null) {
-  const col = mgLiveCol(ctx), WW = win ? win.w : MGL_W, WH = win ? win.h : MGL_H;
+  const col = mgLiveCol(ctx), WW = MGL_W;
+  ctx.stage.classList.add('mg-live-stage'); ctx.stage.classList.toggle('mg-ls-tall', ctx.kind === 'qb');
+  let WH = MGL_H;
   ctx.k = MGL_K; ctx.rot = 90;
   const sc = lvScene(play, { myDir: 1, myId: ctx.t.id, oppId: ctx.o.id, col });
   let svg = lvFieldSVG(ctx.t.id, ctx.o.id, false);
-  svg = svg.replace('class="lv-field"', `class="lv-field mg-svg mg-live" style="--ar:${(WW / WH).toFixed(4)}"`)
-    .replace(/(<svg[^>]*viewBox=")[^"]*(")/, `$1-66 -1270 ${WW} ${WH}$2`)
+  svg = svg.replace('class="lv-field"', `class="lv-field mg-svg mg-live" preserveAspectRatio="xMidYMid slice"`)
+    .replace(/(<svg[^>]*viewBox=")[^"]*(")/, `$1-66 -1270 ${WW} ${MGL_H}$2`)
     .replace(/(<svg[^>]*>)/, '$1<g id="mgRot" transform="rotate(-90)">')
     .replace('<g id="lvActors"></g><g id="lvFx"></g></svg>', `${extra}<g id="lvActors"></g><g id="mgFx"></g></g><g id="mgHudWrap">${hud}</g></svg>`);
   ctx.stage.innerHTML = svg;
+  { const sr = ctx.stage.getBoundingClientRect(); if (sr.width > 50 && sr.height > 50) WH = clamp(WW * sr.height / sr.width, 220, 900); }       // the camera window has the shape of the mini game window: the field fills it edge to edge
   const los = ctx.stage.querySelector('#lvLos'); if (los) { los.setAttribute('x', lvX(sc.los) - 2); los.setAttribute('opacity', 0.9); }
-  const F = lvPlan(play), actors = lvMakeActors(sc, play), T = lvTimeline(actors);
+  const F = lvPlan(play), actors = lvMakeActors(sc, play);
+  if (actors.tag) { actors.tag.el.remove(); delete actors.tag; }                       // no name tag
+  const T = lvTimeline(actors);
   Object.values(actors).forEach(a => { if (a.el && a.el.querySelectorAll) { a.el.querySelectorAll('.lv-pr').forEach(tx => tx.remove()); a.el.querySelectorAll('text').forEach(tx => tx.setAttribute('transform', 'rotate(90)')); } });      // no position letters; your number stays upright
-  const L = { col, sc, F, actors, T, svg: ctx.stage.querySelector('svg.mg-live'), hud: ctx.stage.querySelector('#mgHud'), press: ctx.stage.querySelector('#mgPress'), cx: lvX(sc.los) + 150, cy: lvY(0), W: WW, H: WH };
+  const L = { col, sc, F, actors, T, svg: ctx.stage.querySelector('svg.mg-live'), hud: ctx.stage.querySelector('#mgHud'), press: ctx.stage.querySelector('#mgPress'), cx: lvX(sc.los) + 150, cy: lvY(0), W: WW, H: WH, lead: WH * (ctx.kind === 'qb' ? 0.36 : 0.26) };
   L.hudW = L.hud ? L.hud.getBBox().width : 0;
   mgLiveCam(ctx, L, L.cx, L.cy, 1);
   return L;
@@ -114,18 +119,16 @@ function mgRBLive(ctx, i, st) {
   T.move('ball', T.posAt('QB', SN + 0.22), SN, SN + 0.22, { arc: 3 }); T.follow('ball', 'QB', SN + 0.22, SN + 0.45, 0, 0, { bl: 0 });
   T.run('QB', [to(O('QB')[0] - 2.0, O('QB')[1] + sgn(O('RB')[1] || 1) * 1.4)], SN + 0.5, 4);
   T.move('RB', to(O('RB')[0] + 0.4, O('RB')[1]), SN, SN + 0.45, { prof: 1, pa: 0.4, pd: 0.4 });
-  // the hole marker: two chevrons pointing at the end zone
   const hx = losX + 14, hy = lvY(gapV);
-  ctx.stage.querySelector('#mgHole').innerHTML = `<g class="mg-landring"><path d="M${hx - 16} ${hy - 20} l16 20 l-16 20 M${hx + 4} ${hy - 20} l16 20 l-16 20" stroke="#6dffbb" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>${mgTag(hx + 4, hy + 46, 'HOLE', '#3fe38c', 10, ctx.k, 90)}`;
   ctx.dbg = { hx, hy, tdX };
-  ctx.say('Hit the <b>HOLE</b> · hold <b>SPACE</b> to run, <b>◀ ▶</b> to turn');
+  ctx.say('Find the gap in the line · hold <b>SPACE</b> to run, <b>◀ ▶</b> to turn');
   return new Promise(async res => {
     const ydN = ctx.stage.querySelector('#mgYdN'), ptN = ctx.stage.querySelector('#mgPtN'), holeG = ctx.stage.querySelector('#mgHole');
-    let t = await mgLivePreSnap(ctx, L, { x: losX + 150, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null;
+    let t = await mgLivePreSnap(ctx, L, { x: losX + L.lead * 0.5, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null;
     ctx.ctrl.innerHTML = `<div class="mg-btns three" style="grid-template-columns:1fr 1.7fr 1fr">${mgHoldBtn('l', '◀')}<button class="mg-b mg-hold mg-go" data-hold="g" style="--c:#c5ff3a">RUN<small>SPACE</small></button>${mgHoldBtn('r', '▶')}</div>`;
     if (!ctx.alive()) return res(false);
     inp = mgInput(ctx);
-    ctx.say('<b>HIKE!</b> Hit the hole!', 'go'); Snd.play('mgSnap', 0.02);
+    ctx.say('<b>HIKE!</b> Find the gap!', 'go'); Snd.play('mgSnap', 0.02);
     const me = actors.RB, ball = actors.ball;
     me.dyn = true; { const p = T.posAt('RB', SN + 0.45); me.mx = p.x; me.my = p.y; }
     let best = 0, stun = 0, hits = 0, hitT = -9, hd = 0, mpx = me.mx, mpy = me.my, mpx_prev = me.mx, mpy_prev = me.my, handed = false;
@@ -153,7 +156,7 @@ function mgRBLive(ctx, i, st) {
         handed = true;
         if (inp.k.g) { const sp = 84 * (stun > 0 ? 0.4 : 1) * (vx < 0 ? 0.7 : 1); mpx = clamp(mpx + vx * sp * dt, lvX(-8), lvX(108)); mpy = clamp(mpy + vy * sp * dt, yMin, yMax); }
       }
-      mgLiveMe(L, me, mpx, mpy); mgLiveFace(me, rad, 0.5); mgLiveCam(ctx, L, mpx + 130, mpy, dt);
+      mgLiveMe(L, me, mpx, mpy); mgLiveFace(me, rad, 0.5); mgLiveCam(ctx, L, mpx + L.lead, mpy, dt);
       best = Math.max(best, (mpx - losX) / 10);
       if (handed) { ball.el.setAttribute('transform', `translate(${(mpx + 7 * Math.cos(rad) + 5).toFixed(1)} ${(mpy + 7 * Math.sin(rad) + 4).toFixed(1)}) scale(.85)`); }
       // ---- the defense: scripted until blocked / reaction time is over, then pursuit with lead ----
@@ -287,7 +290,7 @@ function mgCatchLive(ctx, i, st) {
   ctx.dbg = { me: meRole };
   return new Promise(async res => {
     const ring = ctx.stage.querySelector('#mgRing');
-    let t = await mgLivePreSnap(ctx, L, { x: losX + 150, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null;
+    let t = await mgLivePreSnap(ctx, L, { x: losX + L.lead * 0.5, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null;
     ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns three" style="grid-template-columns:1fr 1.7fr 1fr">${mgHoldBtn('l', '◀')}<button class="mg-b mg-hold mg-go" data-hold="g" style="--c:#c5ff3a">RUN<small>SPACE</small></button>${mgHoldBtn('r', '▶')}</div>`;
     if (!ctx.alive()) return res(false);
     inp = mgInput(ctx);
@@ -328,7 +331,7 @@ function mgCatchLive(ctx, i, st) {
       const turn = inp.k.r - inp.k.l; if (turn) hd += turn * 280 * dt; else if (inp.k.u) hd -= Math.sign(hd) * Math.min(Math.abs(hd), 420 * dt); hd = ((hd + 540) % 360) - 180;
       const rad = hd * Math.PI / 180;
       if (inp.k.g) { mpx = clamp(mpx + Math.cos(rad) * VR * dt, lvX(-8), lvX(108)); mpy = clamp(mpy + Math.sin(rad) * VR * dt, yMin, yMax); }
-      mgLiveMe(L, me, mpx, mpy); mgLiveFace(me, rad, 0.5); mgLiveCam(ctx, L, mpx + 120, mpy, dt);
+      mgLiveMe(L, me, mpx, mpy); mgLiveFace(me, rad, 0.5); mgLiveCam(ctx, L, mpx + L.lead, mpy, dt);
       // ---- the throw: the ball leaves the quarterback and the ring shows where it will land ----
       if (!released && tau >= tRel) {
         released = true; const q = T.posAt('QB', SN + tRel); Q0 = { x: q.x, y: q.y }; Snd.play('mgThrow', 0); ctx.say('<b>BALL IS UP!</b> Run to the ring', 'go');
@@ -381,7 +384,7 @@ function mgQBLive(ctx, i, st) {
   ctx.dbg = { pT, zone };
   return new Promise(async res => {
     const press = ctx.stage.querySelector('#mgPress'), tgt = ctx.stage.querySelector('#mgTgt'), qbA = actors.QB, ball = actors.ball, wr = actors.WR1;
-    let t = await mgLivePreSnap(ctx, L, { x: losX + 150, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null, minD = 999, Q = { x: 0, y: 0, vx: 0, vy: 0 };
+    let t = await mgLivePreSnap(ctx, L, { x: losX + L.lead * 0.5, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null, minD = 999, Q = { x: 0, y: 0, vx: 0, vy: 0 };
     ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-power"><div class="mg-py" style="left:${(pT - 0.2) * 100}%;width:40%"></div><div class="mg-pz" style="left:${(pT - zone / 2) * 100}%;width:${zone * 100}%"></div><i id="mgPI"></i></div><div class="mg-btns five">${mgHoldBtn('l', '◀')}${mgHoldBtn('u', '▲')}${mgHoldBtn('d', '▼')}${mgHoldBtn('r', '▶')}<button class="mg-b big" id="mgThrow" style="--c:#c5ff3a">THROW <small>SPACE</small></button></div>`;
     if (!ctx.alive()) return res(false);
     inp = mgInput(ctx);
@@ -450,7 +453,7 @@ function mgQBLive(ctx, i, st) {
       const v = marker(); pi.style.left = (v * 100) + '%';
       { const wp = T.posAt('WR1', t); tgt.setAttribute('transform', `translate(${wp.x.toFixed(1)} ${wp.y.toFixed(1)})`); }
       press.setAttribute('opacity', clamp(1 - minD / 95, 0, 0.7).toFixed(2));
-      mgLiveCam(ctx, L, Q.x + 190, (Q.y + lvY(0)) / 2, dt);
+      mgLiveCam(ctx, L, Q.x + L.lead, lvY(0), dt);
       if (minD < 17) return sack('A rusher got to you.'); if (tau >= tMax) return sack('You held it too long.');
       raf = requestAnimationFrame(frame);
     };

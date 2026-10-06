@@ -81,54 +81,85 @@ const mgLiveSet = (a, x, y) => { a.x = x; a.y = y; a.el.setAttribute('transform'
    RB — RUSH FOR YARDS (live field)
    Snap, handoff, run through the hole the line opens, then dodge the second level. SPACE runs, the arrows turn. 0.1 point per yard, 6 for a touchdown.
    ===================================================================== */
+
+// three lanes through the line (lateral yards from the middle of the field): left, middle, right
+const MGR_LANE = [-5.2, 0, 5.2];
+// a defensive front: where each defender lines up ([u, v] = yards beyond the ball, yards across) and which lane it plugs (null = none, every lane is open)
+function mgRBFront(closed) {
+  const j = () => rr(-0.25, 0.25), P = (u, v) => [u + j() * 0.4, v + j()];
+  let n, def;
+  if (closed == null) {
+    const k = pick(['spread', 'wide', 'even']);
+    if (k === 'spread') { n = 'Spread · light box'; def = { DL1: P(0.95, -6.5), DL2: P(0.95, -2.2), DL3: P(0.95, 2.2), DL4: P(0.95, 6.5), LB1: P(6.2, -4.5), LB2: P(6.6, 0), LB3: P(6.2, 4.5), S1: P(13.5, -4), S2: P(13.5, 4) }; }
+    else if (k === 'wide') { n = 'Wide-9'; def = { DL1: P(0.95, -8.6), DL2: P(0.95, -2.6), DL3: P(0.95, 2.6), DL4: P(0.95, 8.6), LB1: P(5.6, -3.6), LB2: P(5.8, 0), LB3: P(5.6, 3.6), S1: P(12.5, -2), S2: P(12.5, 2) }; }
+    else { n = 'Even'; def = { DL1: P(0.95, -5.4), DL2: P(0.95, -1.8), DL3: P(0.95, 1.8), DL4: P(0.95, 5.4), LB1: P(5.8, -5), LB2: P(6, 0), LB3: P(5.8, 5), S1: P(13, -3), S2: P(13, 3) }; }
+    return { n, closed: null, def };
+  }
+  const flavor = pick(['stack', 'blitz']);
+  if (closed === 1) {                                   // the middle is plugged: both A-gap linemen, the middle linebacker and a safety walked down
+    n = flavor === 'stack' ? 'Bear · stacked middle' : 'A-gap blitz';
+    def = flavor === 'stack'
+      ? { DL1: P(0.95, -5.6), DL2: P(0.95, -0.9), DL3: P(0.95, 0.9), DL4: P(0.95, 5.6), LB1: P(4.6, -3.3), LB2: P(2.4, 0), LB3: P(4.6, 3.3), S1: P(5.8, 0.3), S2: P(11, 6) }
+      : { DL1: P(0.95, -5.4), DL2: P(0.95, -0.9), DL3: P(0.95, 0.9), DL4: P(0.95, 5.4), LB1: P(3.4, -2.8), LB2: P(1.1, 0), LB3: P(3.4, 2.8), S1: P(4.4, -0.4), S2: P(10, 6) };
+    return { n, closed, def };
+  }
+  const d = closed === 0 ? -1 : 1, out = closed === 0 ? ['DL1', 'DL2', 'DL3', 'DL4', 'LB1', 'LB2', 'LB3', 'S1', 'S2'] : ['DL4', 'DL3', 'DL2', 'DL1', 'LB3', 'LB2', 'LB1', 'S2', 'S1'];
+  const [dOut, dIn1, dIn2, dFar, lOut, lMid, lFar, sDown, sFar] = out;                       // roles from the plugged side to the far side
+  def = flavor === 'stack'
+    ? { [dOut]: P(0.95, 5.2 * d), [dIn1]: P(0.95, 2 * d), [dIn2]: P(0.95, -2 * d), [dFar]: P(0.95, -5.6 * d), [lOut]: P(2.4, 5.2 * d), [lMid]: P(4.9, -0.8 * d), [lFar]: P(4.8, -5.5 * d), [sDown]: P(5.6, 7 * d), [sFar]: P(9, -6 * d) }
+    : { [dOut]: P(0.95, 4.6 * d), [dIn1]: P(0.95, 1.9 * d), [dIn2]: P(0.95, -1.9 * d), [dFar]: P(0.95, -5.4 * d), [lOut]: P(1.1, 6.8 * d), [lMid]: P(4.9, -0.5 * d), [lFar]: P(4.8, -5.2 * d), [sDown]: P(4.2, 4.2 * d), [sFar]: P(9, -6 * d) };
+  n = (d < 0 ? 'Left' : 'Right') + (flavor === 'stack' ? ' · stacked box' : ' · edge blitz look');
+  return { n, closed, def };
+}
 function mgRBLive(ctx, i, st) {
   const lv = MG_LV.indexOf(i), SN = LV_SN, LOS_ABS = 40, play = { kind: 'run', off: 'me', los: LOS_ABS, down: 1, dist: 10, hurry: false };
   const col = mgLiveCol(ctx), tc = col[ctx.t.id] || ctx.t.c1;
   const hud = mgBug([{ w: 34, fill: tc, on: textOn(tc), txt: [[ctx.t.id, 'n']] }, { w: 56, fill: '#0b1220', txt: [['0', 'n', 'mgYdN'], [' YDS', 'l']] }, { w: 62, fill: '#13203a', txt: [['0', 'n', 'mgPtN'], [' PTS', 'l']] }], -58, 600, MGL_K);
   if (ctx.rbPts == null) ctx.rbPts = 0;
-  // the hole: one of the gaps of the line (lateral yards from the middle)
-  const gapV = [-5, -3, -1, 1, 3, 5][lvWeightedMg([0.1, 0.2, 0.2, 0.2, 0.2, 0.1])];
-  const holeSvg = `<g id="mgHole" pointer-events="none"></g>`;
-  const L = mgLiveInit(ctx, play, hud, holeSvg), { sc, F, actors, T } = L;
+  // three lanes (left, middle, right of the line); the defense plugs one of them or none: at least two are always open. You read the front to guess which.
+  const front = mgRBFront(rnd() < 0.72 ? randInt(0, 2) : null), closed = front.closed, open = [0, 1, 2].filter(l => l !== closed);
+  const laneOf = v => { let b = 0; MGR_LANE.forEach((g, k) => { if (Math.abs(v - g) < Math.abs(v - MGR_LANE[b])) b = k; }); return b; };
+  const L = mgLiveInit(ctx, play, hud, ''), { sc, F, actors, T } = L;
+  Object.assign(F.def, front.def);
   const to = (u, v) => sc.P(u, v), O = r => F.off[r], D = r => F.def[r], dd = r => r + '_d', defKeys = Object.keys(F.def), sgn = lvSgn;
   const OLS = ['OL1', 'OL2', 'OL3', 'OL4', 'OL5'], DLS = ['DL1', 'DL2', 'DL3', 'DL4'], LBS = ['LB1', 'LB2', 'LB3'];
   const losX = lvX(sc.los), goalX = lvX(100), tdX = goalX + 30, yMin = lvY(-25.8), yMax = lvY(25.8);
   // ---- script (everything that is not you) ----
   mgLivePre(L);
+  const rel = {};                                                  // when each defender stops being blocked / starts reacting (seconds after the snap)
+  const plug = {}; DLS.forEach(d => { plug[d] = closed != null && laneOf(D(d)[1]) === closed; });
   const pairDL = {}; DLS.forEach(d => { pairDL[d] = OLS.filter(r => r !== 'OL3').sort((a, b) => Math.abs(O(a)[1] - D(d)[1]) - Math.abs(O(b)[1] - D(d)[1]))[0]; });
-  const pushV = {}; DLS.forEach(d => { const dv = D(d)[1]; pushV[d] = dv < gapV ? Math.min(0, gapV - 3.4 - dv) : Math.max(0, gapV + 3.4 - dv); });
-  const tFree = {}; DLS.forEach(d => { tFree[d] = 2.8 + rr(0, 0.9); });
+  // the linemen of the open lanes are driven out of them (the lanes are 6.4 yards wide); the ones of the plugged lane stay and fill it
+  const pushV = {}; DLS.forEach(d => { let v = D(d)[1]; if (!plug[d]) for (let k = 0; k < 2; k++) open.forEach(l => { const g = MGR_LANE[l]; if (Math.abs(v - g) < 3.2) v = (v < g || (v === g && d < 'DL3')) ? g - 3.4 : g + 3.4; }); pushV[d] = v - D(d)[1]; });
+  const tFree = {}; DLS.forEach(d => { tFree[d] = plug[d] ? 0.5 : 2.8 + rr(0, 0.9); rel[dd(d)] = tFree[d]; });
   const shMap = {}; OLS.forEach(r => { const ds = DLS.filter(d => pairDL[d] === r); shMap[r] = ds.length ? ds.reduce((a, d) => a + pushV[d], 0) / ds.length : 0; });
   OLS.filter(r => r !== 'OL3').forEach(r => T.move(r, to(O(r)[0] + 0.9, O(r)[1] + shMap[r]), SN + 0.05, SN + 0.75, { prof: 1, pa: 0.4, pd: 0.5 }));
   DLS.forEach(d => { const o = pairDL[d]; T.follow(dd(d), o, SN + 0.05, SN + tFree[d], 12.5, ((D(d)[1] + pushV[d]) - (O(o)[1] + shMap[o])) * 10, { wob: 3, fq: 7 + rnd() * 3, bl: 0.4 }); });
-  const inside = gapV <= 0 ? 1 : -1, lbf = LBS.slice().sort((a, b) => Math.abs(D(a)[1] - gapV) - Math.abs(D(b)[1] - gapV))[0];   // the linebacker who fills the hole, held by the center
-  T.move(dd(lbf), to(2.4, gapV + inside * 1.9), SN + 0.25, SN + 0.95, { prof: 1, pa: 0.3, pd: 0.4 });
-  T.follow('OL3', dd(lbf), SN + 0.3, SN + 2.2, -11, 0, { bl: 0.6, wob: 2, fq: 8 });
+  // second level: the linebackers of the plugged lane (and a safety who walked down) attack at once; the others read the play first, one of them is picked up by the center
+  const lbOpen = LBS.filter(r => laneOf(D(r)[1]) !== closed || closed == null), lbc = lbOpen.length ? pick(lbOpen) : null;
+  LBS.forEach((r, k) => { rel[dd(r)] = closed != null && laneOf(D(r)[1]) === closed ? 0.55 : 1.3 + k * 0.15; });
+  ['S1', 'S2'].forEach((r, k) => { rel[dd(r)] = closed != null && D(r)[0] < 8 && laneOf(D(r)[1]) === closed ? 0.65 : 1.8 + k * 0.1; });
+  if (lbc) { rel[dd(lbc)] = 2.2; T.follow('OL3', dd(lbc), SN + 0.3, SN + 2.2, -11, 0, { bl: 0.6, wob: 2, fq: 8 }); }
   const edge = DLS.slice().filter(d => sgn(D(d)[1]) === sgn(O('TE')[1])).sort((a, b) => Math.abs(D(b)[1]) - Math.abs(D(a)[1]))[0] || 'DL4';
-  T.follow('TE', dd(edge), SN + 0.25, SN + 2.6, -9, (O('TE')[1] - D(edge)[1]) * 4, { wob: 2.4, bl: 0.6 });
-  const rel = {};                                                  // when each defender stops being blocked / starts reacting (seconds after the snap)
-  DLS.forEach(d => { rel[dd(d)] = tFree[d]; });
+  T.follow('TE', dd(edge), SN + 0.25, SN + Math.min(2.6, tFree[edge]), -9, (O('TE')[1] - D(edge)[1]) * 4, { wob: 2.4, bl: 0.6 });
   ['CB1', 'CB2'].forEach((c, k) => { rel[dd(c)] = 2.2 + rr(0, 0.9); T.follow('WR' + (k + 1), dd(c), SN + 0.2, SN + rel[dd(c)], -8, 0, { bl: 0.7, wob: 2, fq: 6 + rnd() * 3 }); });
-  const slotT = ['LB3', 'S2'].sort((a, b) => Math.abs(D(a)[1] - O('WR3')[1]) - Math.abs(D(b)[1] - O('WR3')[1]))[0];
-  rel[dd(slotT)] = 2.3 + rr(0, 0.6); T.follow('WR3', dd(slotT), SN + 0.3, SN + rel[dd(slotT)], -8, 0, { bl: 0.7, wob: 2, fq: 6 + rnd() * 3 });
-  rel[dd(lbf)] = 2.2;
-  LBS.filter(r => r !== lbf && r !== slotT).forEach((r, k) => { rel[dd(r)] = 1.0 + k * 0.12; });
-  ['S1', 'S2'].filter(r => r !== slotT).forEach((r, k) => { rel[dd(r)] = 1.3 + k * 0.1; });
+  const slotT = ['LB3', 'S2'].filter(r => r !== lbc && !(closed != null && rel[dd(r)] < 1)).sort((a, b) => Math.abs(D(a)[1] - O('WR3')[1]) - Math.abs(D(b)[1] - O('WR3')[1]))[0];
+  if (slotT) { rel[dd(slotT)] = 2.3 + rr(0, 0.6); T.follow('WR3', dd(slotT), SN + 0.3, SN + rel[dd(slotT)], -8, 0, { bl: 0.7, wob: 2, fq: 6 + rnd() * 3 }); }
   const spd = { DL: 54, LB: [66, 72, 78][lv], S: [74, 79, 84][lv], CB: [74, 78, 82][lv] };
   const qb = actors.QB, rbA = actors.RB;
   T.move('ball', T.posAt('QB', SN + 0.22), SN, SN + 0.22, { arc: 3 }); T.follow('ball', 'QB', SN + 0.22, SN + 0.45, 0, 0, { bl: 0 });
   T.run('QB', [to(O('QB')[0] - 2.0, O('QB')[1] + sgn(O('RB')[1] || 1) * 1.4)], SN + 0.5, 4);
   T.move('RB', to(O('RB')[0] + 0.4, O('RB')[1]), SN, SN + 0.45, { prof: 1, pa: 0.4, pd: 0.4 });
-  const hx = losX + 14, hy = lvY(gapV);
-  ctx.dbg = { hx, hy, tdX };
-  ctx.say('Find the gap in the line · hold <b>SPACE</b> to run, <b>◀ ▶</b> to turn');
+  const hx = losX + 14, hy = lvY(MGR_LANE[pick(open)]);
+  ctx.dbg = { hx, hy, tdX, front: front.n, closed };
+  ctx.say('Read the defense · pick the <b>open lane</b> · hold <b>SPACE</b> to run, <b>◀ ▶</b> to turn');
   return new Promise(async res => {
     const ydN = ctx.stage.querySelector('#mgYdN'), ptN = ctx.stage.querySelector('#mgPtN'), holeG = ctx.stage.querySelector('#mgHole');
     let t = await mgLivePreSnap(ctx, L, { x: losX + L.lead * 0.5, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null;
     ctx.ctrl.innerHTML = `<div class="mg-btns three" style="grid-template-columns:1fr 1.7fr 1fr">${mgHoldBtn('l', '◀')}<button class="mg-b mg-hold mg-go" data-hold="g" style="--c:#c5ff3a">RUN<small>SPACE</small></button>${mgHoldBtn('r', '▶')}</div>`;
     if (!ctx.alive()) return res(false);
     inp = mgInput(ctx);
-    ctx.say('<b>HIKE!</b> Find the gap!', 'go'); Snd.play('mgSnap', 0.02);
+    ctx.say('<b>HIKE!</b> Pick your lane!', 'go'); Snd.play('mgSnap', 0.02);
     const me = actors.RB, ball = actors.ball;
     me.dyn = true; { const p = T.posAt('RB', SN + 0.45); me.mx = p.x; me.my = p.y; }
     let best = 0, stun = 0, hits = 0, hitT = -9, hd = 0, mpx = me.mx, mpy = me.my, mpx_prev = me.mx, mpy_prev = me.my, handed = false;
@@ -136,7 +167,7 @@ function mgRBLive(ctx, i, st) {
     const cleanup = () => { ended = true; cancelAnimationFrame(raf); inp.dispose(); };
     const finish = async (td, why) => {
       if (ended) return; cleanup(); ctx.ctrl.innerHTML = '';
-      const yds = Math.max(0, Math.round(best)), pts = Math.round((yds * 0.1 + (td ? 6 : 0)) * 10) / 10; (ctx.dbg.fin = ctx.dbg.fin || []).push([yds, td, why || '', Math.round(tau0())]); ctx.rbPts = Math.round((ctx.rbPts + pts) * 10) / 10;
+      const yds = Math.max(0, Math.round(best)), pts = Math.round((yds * 0.1 + (td ? 6 : 0)) * 10) / 10;  ctx.rbPts = Math.round((ctx.rbPts + pts) * 10) / 10;
       mgLivePop(ctx, L, me.x + 34, me.y, td ? 'TOUCHDOWN!' : yds >= 10 ? 'BIG GAIN!' : yds >= 4 ? `+${yds} YDS` : 'TACKLED!', yds >= 4 || td ? 'good' : 'bad'); mgShake(ctx); Snd.play(td ? 'td' : yds >= 4 ? 'mgPat' : 'mgHit', td ? 0.05 : 0);
       ctx.say(`${yds >= 4 || td ? '✅' : '❌'} ${td ? '<b>TOUCHDOWN!</b> ' : ''}${yds}-yard run · <b>+${mgPts(pts)} pts</b>${td ? ' (6 for the touchdown)' : ''}${why ? `<span class="mg-tip">${why}</span>` : ''}`, yds >= 4 || td ? 'good' : 'bad');
       if (yds >= 12 && !td) ctx.perfects++; if (td) ctx.perfects++;
@@ -165,7 +196,7 @@ function mgRBLive(ctx, i, st) {
       chasers.forEach(c => {
         if (!c.dyn && tau >= c.rel) { const p = T.posAt(c.id, t); c.x = p.x; c.y = p.y; c.dyn = true; c.t0 = tau; }
         if (!c.dyn) return;
-        const ramp = c.kind === 'DL' ? 1 : 0.5 + 0.5 * Math.min(1, (tau - c.rel) / 1.4), sp2 = c.spd * ramp * (stun > 0 ? 1.05 : 1);
+        const ramp = c.kind === 'DL' ? 1 : 0.45 + 0.55 * Math.min(1, (tau - c.rel) / 1.8), sp2 = c.spd * ramp * (stun > 0 ? 1.05 : 1);
         const aimX = mpx + (mpx - mpx_prev) * lead, aimY = mpy + (mpy - mpy_prev) * lead;
         const dx = aimX - c.x, dy = aimY - c.y, d = Math.hypot(dx, dy) || 1, st2 = Math.min(d, sp2 * dt); c.x += dx / d * st2; c.y += dy / d * st2;
         const dist = Math.hypot(c.x - mpx, c.y - mpy); nearest = Math.min(nearest, dist);

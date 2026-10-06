@@ -294,7 +294,8 @@ function lvEndZone(x, team, rot, endIdx) {
   const d = LV_EZ[team.id], top = LV_PAD, cx = x + 50, cy = lvY(0);
   if (!d) {                                                        // safety net: a team with no design gets its color and name
     const bg = team.c1, txt = lum(bg) > 0.5 ? '#101418' : '#FFFFFF';
-    return `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="${bg}"/><g transform="translate(${cx} ${cy}) rotate(${rot})"><text text-anchor="middle" y="22" font-family="'Anton',sans-serif" font-size="70" fill="${txt}">${esc(team.nick.toUpperCase())}</text></g>`;
+    const nm = String(team.nick || team.name || '').toUpperCase(), fs = team.logo ? Math.min(40, 400 / Math.max(6, nm.length)) : Math.min(70, 430 / Math.max(5, nm.length) * 1.6);
+    return `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="${bg}"/><g transform="translate(${cx} ${cy}) rotate(${rot})">${team.logo ? `<image href="${team.logo}" x="-62" y="-130" width="124" height="124" preserveAspectRatio="xMidYMid meet"/>` : ''}<text text-anchor="middle" y="${team.logo ? 52 : 22}" font-family="'Anton',sans-serif" font-size="${fs.toFixed(1)}" fill="${txt}">${esc(nm)}</text></g>`;
   }
   const items = d.ends[Math.min(endIdx, d.ends.length - 1)];
   const turf = `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="#2d8647"/>`;   // unpainted grass: a single flat green
@@ -350,7 +351,7 @@ function lvFieldSVG(away, home, sb) {
     const x0 = lvX(25), x1 = lvX(75), y0 = outer ? bandY - 46 : bandY + bandH + 46, yn = outer ? bandY - 2 : bandY + bandH + 2, c = team.c1, mid = (x0 + x1) / 2, ly = (y0 + yn) / 2;
     const dark = lum(c) < 0.45;
     const pts = `${x0 + 14},${y0} ${x1 - 14},${y0} ${x1},${yn} ${x0},${yn}`;
-    return `<polygon points="${pts}" fill="${c}"/><polygon points="${pts}" fill="url(#lvGrass)"/><polygon points="${pts}" fill="url(#lvGrass)" opacity=".8"/><image href="${logoUrl(team.id)}" x="${mid - 24}" y="${ly - 24}" width="48" height="48" opacity="${dark ? 1 : .95}" preserveAspectRatio="xMidYMid meet"/>`;
+    return `<polygon points="${pts}" fill="${c}"/><polygon points="${pts}" fill="url(#lvGrass)"/><polygon points="${pts}" fill="url(#lvGrass)" opacity=".8"/><image href="${team.logo || logoUrl(team.id)}" x="${mid - 24}" y="${ly - 24}" width="48" height="48" opacity="${dark ? 1 : .95}" preserveAspectRatio="xMidYMid meet"/>`;
   };
   const dashes = `<rect x="-46" y="${bandY - 24}" width="1292" height="${bandH + 48}" fill="none" stroke="#f0dc9a" stroke-opacity=".75" stroke-width="2" stroke-dasharray="9 7"/><rect x="-42" y="${bandY - 20}" width="1284" height="${bandH + 40}" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.4" stroke-dasharray="9 7"/>`;
   const bandTxt = (t, x, rot, dy = 0) => `<text transform="translate(${x} ${cy + dy}) rotate(${rot})" text-anchor="middle" font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="12" letter-spacing="2.2" fill="#2f8a4a" opacity=".9">${t}</text>`;
@@ -364,7 +365,7 @@ function lvFieldSVG(away, home, sb) {
     <image href="${NFL_LOGO}" x="${lvX(15) - 19}" y="${bot - 64 - 19}" width="38" height="38" opacity=".9" preserveAspectRatio="xMidYMid meet"/>
     <image href="${NFL_LOGO}" x="${lvX(85) - 19}" y="${top + 64 - 19}" width="38" height="38" opacity=".9" preserveAspectRatio="xMidYMid meet" transform="rotate(180 ${lvX(85)} ${top + 64})"/>
     ${sb ? `<image href="${NFL_LOGO}" x="${lvX(50) - 90}" y="${cy - 90}" width="180" height="180" opacity=".95" preserveAspectRatio="xMidYMid meet"/>${[20, 80].map(y => `<image href="super-bowl-trophy.png" x="${lvX(y) - 40}" y="${cy - 49}" width="80" height="98" opacity=".95" preserveAspectRatio="xMidYMid meet"/>`).join('')}`   // Super Bowl: the NFL shield at midfield, a small Lombardi trophy on each 20
-      : `<image href="${NFL_MID_LOGO[home] || logoUrl(home)}" x="${lvX(50) - 90}" y="${cy - 90}" width="180" height="180" opacity=".92" preserveAspectRatio="xMidYMid meet"/>`}
+      : `<image href="${NFL_MID_LOGO[home] || H.logo || logoUrl(home)}" x="${lvX(50) - 90}" y="${cy - 90}" width="180" height="180" opacity=".92" preserveAspectRatio="xMidYMid meet"/>`}
     ${pylons}${post(-10, 1)}${post(1210, -1)}
     <rect id="lvLos" y="${LV_PAD}" width="4" height="${LV_FH}" fill="#4aa8ff" opacity="0"/><rect id="lvFd" y="${LV_PAD}" width="4" height="${LV_FH}" fill="#ffd23d" opacity="0"/>
     <g id="lvActors"></g><g id="lvFx"></g></svg>`;

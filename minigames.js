@@ -197,6 +197,10 @@ function mgOpen(env) {
   env.o = opp;
   mgUniOf(t, env.nfl); mgUniOf(opp, env.nfl);
   if (typeof lvDelta === 'function' && lvDelta(t.uf, opp.uf) < 22) { opp.uf = opp.c2 || '#ffffff'; opp.uh = opp.c1; opp.us = ''; }     // same-looking jerseys: the rival wears its other color
+  // the college / youth seasons play the very same mini games: their teams are registered as temporary teams of the live-game field, and the player needs a "career" object while it is open
+  const tmpTeams = [];
+  if (typeof TEAM !== 'undefined') [t, opp].forEach(x => { if (x && x.id != null && !TEAM[x.id]) { TEAM[x.id] = { id: x.id, city: '', nick: x.nick || x.name || '', name: x.name || x.nick || '', c1: x.c1, c2: x.c2, logo: x.logo, conf: '', div: '', temp: true }; tmpTeams.push(x.id); } });
+  const shimS = typeof S !== 'undefined' && !S; if (shimS) S = { player: { ...P, number: env.number }, teamId: t.id };
   const ov = document.createElement('div'); ov.className = 'mg-overlay'; ov.style.cssText = `${env.theme};--o1:${opp.c1 || '#444'};--o2:${opp.c2 || '#fff'}`;
   ov.innerHTML = `<div class="mg-bgart"><img class="a" src="${t.logo}" alt=""><img class="b" src="${opp.logo}" alt=""></div><div class="mg-wrap">
     <div class="mg-top"><span class="mg-tag">${se.mg.weekly ? `WEEK ${mgGamesIn(se) + 1} TRAINING` : 'PRESEASON CAMP'}</span><button class="mini mg-skip" data-mg="skip">SKIP</button></div>
@@ -205,7 +209,7 @@ function mgOpen(env) {
     <div class="mg-stage" id="mgStage"></div><div class="mg-msg" id="mgMsg"></div><div class="mg-ctrl" id="mgCtrl"></div></div>`;
   document.body.appendChild(ov);
   const stage = ov.querySelector('#mgStage'), msg = ov.querySelector('#mgMsg'), ctrl = ov.querySelector('#mgCtrl');
-  const ctx = { env, number: env.number, ov, stage, msg, ctrl, t, o: opp, P, kind, alive: () => ov.isConnected, say: (h, cls = '') => { msg.className = 'mg-msg ' + cls; msg.innerHTML = h; }, results: [], perfects: 0, combo: 0 };
+  const ctx = { env, number: env.number, ov, stage, msg, ctrl, t, o: opp, P, kind, tmpTeams, shimS, alive: () => ov.isConnected, say: (h, cls = '') => { msg.className = 'mg-msg ' + cls; msg.innerHTML = h; }, results: [], perfects: 0, combo: 0 };
   MGX = ctx;
   stage.innerHTML = `<div class="mg-intro" style="background-image:radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, ${t.c1} 40%, transparent), transparent)">
     <img class="mg-intro-logo" src="${t.logo}" alt=""><h2>${esc(meta.title)}</h2><p>${esc(meta.how)}</p>
@@ -220,7 +224,7 @@ function mgAmbience() { Snd.crowd('assets/sounds/crowd-stadium.m4a', mgSndVol('n
 // waits `ms` before the snap while the players' noise plays, so that second 4 of the clip lands on the snap
 async function mgPre(ctx, ms) { Snd.players('assets/sounds/players-huddle.mp3', mgSndVol('nfl_players_vol3', 75.16), 1, Math.max(0, 4 - ms / 1000)); await sleep(ms); }
 async function mgRun(ctx) {
-  const live = ctx.env.nfl && typeof lvFieldSVG === 'function' && typeof TEAM !== 'undefined' && TEAM[ctx.t.id] && TEAM[ctx.o.id] && typeof mgRBLive === 'function';
+  const live = typeof lvFieldSVG === 'function' && typeof TEAM !== 'undefined' && TEAM[ctx.t.id] && TEAM[ctx.o.id] && typeof mgRBLive === 'function';
   ctx.k = 1; ctx.rot = 0; ctx.stage.classList.remove('mg-live-stage', 'mg-ls-tall');
   const fn = (live ? { qb: typeof mgQBLive === 'function' ? mgQBLive : mgQB, rb: mgRBLive, catch: typeof mgCatchLive === 'function' ? mgCatchLive : mgCatch, kick: mgKick } : { qb: mgQB, rb: mgRB, catch: mgCatch, kick: mgKick })[ctx.kind], st = {};
   ctx.ctrl.innerHTML = ''; ctx.say('');
@@ -270,8 +274,9 @@ function mgFinish(ctx) {
   Snd.play(sc >= 4 ? 'bigFanfare' : good ? 'win' : 'lose', 0.1);
   if (sc >= 4) burst(ctx.stage, sc === 5 ? 70 : 40);
 }
-function mgSkip() { Snd.stopCrowd(900); Snd.stopPlayers(500); const env = MGX && MGX.env, se = env && env.se; if (se) { se.mg = null; se.mgSince = 0; se.mgIn = randInt(3, 5); if (env.save) saveGame(); } const o = document.querySelector('.mg-overlay'); if (o) o.remove(); MGX = null; if (env) env.onDone(); }
-function mgDone() { Snd.stopCrowd(1800); Snd.stopPlayers(900); const env = MGX && MGX.env; const o = document.querySelector('.mg-overlay'); if (o) o.remove(); MGX = null; if (env) env.onDone(); }
+function mgCleanup(ctx) { if (!ctx) return; (ctx.tmpTeams || []).forEach(id => { if (TEAM[id] && TEAM[id].temp) delete TEAM[id]; }); if (ctx.shimS) S = null; }
+function mgSkip() { mgCleanup(MGX); Snd.stopCrowd(900); Snd.stopPlayers(500); const env = MGX && MGX.env, se = env && env.se; if (se) { se.mg = null; se.mgSince = 0; se.mgIn = randInt(3, 5); if (env.save) saveGame(); } const o = document.querySelector('.mg-overlay'); if (o) o.remove(); MGX = null; if (env) env.onDone(); }
+function mgDone() { mgCleanup(MGX); Snd.stopCrowd(1800); Snd.stopPlayers(900); const env = MGX && MGX.env; const o = document.querySelector('.mg-overlay'); if (o) o.remove(); MGX = null; if (env) env.onDone(); }
 document.addEventListener('click', e => {
   const b = e.target.closest && e.target.closest('[data-mg]'); if (!b || !MGX) return;
   const k = b.dataset.mg;

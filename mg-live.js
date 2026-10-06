@@ -11,6 +11,8 @@ const MGL_W = 575, MGL_H = 495;         // the camera window (screen units): exa
 // (x towards the end zone, y across); the whole field group is rotated -90° (screen = (y, -x)) and the camera follows the play.
 
 // team colors on the field: never two dark teams — if both are dark, the rival (the visitor) wears its secondary / light color (or white)
+// short name of a team for the score bug: the NFL abbreviation, or the initials of a college / youth club
+const mgAbbr = t => { const T = TEAM[t.id]; if (T && !T.temp) return t.id; const w = String(t.nick || t.name || '').replace(/[^A-Za-z0-9 ]/g, '').trim().split(/\s+/).filter(Boolean); if (!w.length) return '--'; return (w.length === 1 ? w[0].slice(0, 4) : w.map(x => x[0]).join('').slice(0, 4)).toUpperCase(); };
 const mgLiveCol = ctx => {
   const col = lvColors(ctx.t.id, ctx.o.id), a = col[ctx.t.id], b = col[ctx.o.id];
   if (lum(a) < 0.3 && lum(b) < 0.3) { const sec = TEAM[ctx.o.id].c2; col[ctx.o.id] = lum(sec) >= 0.3 && lvDelta(sec, a) >= 22 ? sec : '#FFFFFF'; }
@@ -114,7 +116,7 @@ function mgRBFront(closed) {
 function mgRBLive(ctx, i, st) {
   const lv = MG_LV.indexOf(i), SN = LV_SN, LOS_ABS = 40, play = { kind: 'run', off: 'me', los: LOS_ABS, down: 1, dist: 10, hurry: false };
   const col = mgLiveCol(ctx), tc = col[ctx.t.id] || ctx.t.c1;
-  const hud = mgBug([{ w: 34, fill: tc, on: textOn(tc), txt: [[ctx.t.id, 'n']] }, { w: 56, fill: '#0b1220', txt: [['0', 'n', 'mgYdN'], [' YDS', 'l']] }, { w: 62, fill: '#13203a', txt: [['0', 'n', 'mgPtN'], [' PTS', 'l']] }], -58, 600, MGL_K);
+  const hud = mgBug([{ w: 34, fill: tc, on: textOn(tc), txt: [[mgAbbr(ctx.t), 'n']] }, { w: 56, fill: '#0b1220', txt: [['0', 'n', 'mgYdN'], [' YDS', 'l']] }, { w: 62, fill: '#13203a', txt: [['0', 'n', 'mgPtN'], [' PTS', 'l']] }], -58, 600, MGL_K);
   if (ctx.rbPts == null) ctx.rbPts = 0;
   if (!ctx.rbRuns) ctx.rbRuns = [];
   // three lanes (left, middle, right of the line); the defense plugs one of them or none: at least two are always open. You read the front to guess which.
@@ -209,7 +211,7 @@ function mgRBLive(ctx, i, st) {
       // ---- tackles: a first hit slows you down, a second one (or two defenders at once) ends the run ----
       if (hitBy === 'multi' || (hitBy && stun > 0 && tau - hitT > 0.12)) return finish(false, hitBy === 'multi' ? 'Two defenders got to you.' : 'You got hit twice — dodge them!');
       if (hitBy && stun <= 0) { stun = 0.6; hitT = tau; hits++; mgLivePop(ctx, L, mpx + 34, mpy, 'HIT!', 'bad'); Snd.play('mgHit', 0); const bx = mpx - hitBy.x, by = mpy - hitBy.y, bl = Math.hypot(bx, by) || 1; hitBy.x -= bx / bl * 12; hitBy.y -= by / bl * 12; }
-      const yd = Math.round((mpx - losX) / 10); ydN.textContent = yd < 0 ? '−' + (-yd) : yd; ptN.textContent = mgPts(Math.round((ctx.rbPts + yd * 0.1) * 10) / 10);
+      const yd = Math.max(0, Math.round((mpx - losX) / 10)); ydN.textContent = yd;       // the counter starts at the line of scrimmage (a loss only shows when you are brought down) ptN.textContent = mgPts(Math.round((ctx.rbPts + yd * 0.1) * 10) / 10);
       if (holeG) holeG.setAttribute('opacity', clamp(1 - Math.max(0, tau - 1.3) / 0.8, 0, 1).toFixed(2));
       if (mpx >= tdX) return finish(true);
       if (tau > 22) return finish(false, 'Time ran out.');
@@ -293,7 +295,7 @@ function mgCatchLive(ctx, i, st) {
   const depth = td ? gl + rr(3, 5.5) : clamp(Math.round(rr(8 + lv * 1.5, 14 + lv * 2)), 6, Math.max(6, gl - 6));
   const play = { kind: 'catch', off: 'me', los: A, down, dist: toGo, yards: Math.round(depth), hurry: false };
   const col = mgLiveCol(ctx), tc = col[ctx.t.id] || ctx.t.c1;
-  const ord = n => ['', '1ST', '2ND', '3RD', '4TH'][n] || n + 'TH', spot = a => (a > 50 ? `${ctx.o.id} ${Math.round(100 - a)}` : a === 50 ? 'MIDFIELD' : `${ctx.t.id} ${Math.round(a)}`);
+  const ord = n => ['', '1ST', '2ND', '3RD', '4TH'][n] || n + 'TH', spot = a => (a > 50 ? `${mgAbbr(ctx.o)} ${Math.round(100 - a)}` : a === 50 ? 'MIDFIELD' : `${mgAbbr(ctx.t)} ${Math.round(a)}`);
   const hud = mgBug([{ w: 66, fill: tc, on: textOn(tc), txt: [[`${ord(down)} & ${gl <= 10 ? 'GOAL' : toGo}`, 'n']] }, { w: 62, fill: '#0b1220', txt: [[spot(A), 'n']] }], -58, 600, MGL_K);
   const L = mgLiveInit(ctx, play, hud, '<g id="mgRing" pointer-events="none"></g>'), { sc, F, actors, T } = L;
   const fdEl = ctx.stage.querySelector('#lvFd'); if (fdEl && A + toGo < 100) { fdEl.setAttribute('x', lvX(A + toGo) - 2); fdEl.setAttribute('opacity', 0.85); }
@@ -347,7 +349,7 @@ function mgCatchLive(ctx, i, st) {
         if (perfect) ctx.perfects++;
         st.A = na; if (first) { st.down = 1; st.toGo = Math.min(10, 100 - na); } else { st.down = down + 1; st.toGo = Math.max(1, toGo - gain); }
         mgLivePop(ctx, L, mpx + 34, mpy, scored ? 'TOUCHDOWN!' : perfect ? 'PERFECT!' : 'CAUGHT!', 'good'); Snd.play(scored ? 'td' : 'mgPat', scored ? 0.05 : 0); mgShake(ctx);
-        const spotNow = a => (a > 50 ? `${ctx.o.id} ${Math.round(100 - a)}` : a === 50 ? 'MIDFIELD' : `${ctx.t.id} ${Math.round(a)}`);
+        const spotNow = a => (a > 50 ? `${mgAbbr(ctx.o)} ${Math.round(100 - a)}` : a === 50 ? 'MIDFIELD' : `${mgAbbr(ctx.t)} ${Math.round(a)}`);
         ctx.say(scored ? `🏈 <b>TOUCHDOWN!</b> ${mgYardsStr(gain)} in the end zone` : `✅ ${perfect ? '✨ Dead center! ' : 'Caught it! '}${mgYardsStr(gain)}${first ? ' · <b>1ST DOWN</b>' : ''} · ball on the ${spotNow(na)}`, 'good'); res(true);
       } else {
         st.down = down + 1;
@@ -395,7 +397,7 @@ function mgCatchLive(ctx, i, st) {
 function mgQBLive(ctx, i, st) {
   const lv = MG_LV.indexOf(i), SN = LV_SN, nR = [2, 3, 4][lv], tMax = [6.4, 5.8, 5.2][lv], vq = 92, vr = [50, 58, 66][lv], zone = [0.28, 0.22, 0.17][lv], sp = [0.85, 1.0, 1.15][lv];
   const pT = rr(0.34, 0.68), LOS_ABS = randInt(28, 44), play = { kind: 'qbPass', off: 'me', los: LOS_ABS, down: 1, dist: 10, yards: 14, hurry: false };
-  const col = mgLiveCol(ctx), tc = col[ctx.t.id] || ctx.t.c1, spot = a => (a > 50 ? `${ctx.o.id} ${Math.round(100 - a)}` : a === 50 ? 'MIDFIELD' : `${ctx.t.id} ${Math.round(a)}`);
+  const col = mgLiveCol(ctx), tc = col[ctx.t.id] || ctx.t.c1, spot = a => (a > 50 ? `${mgAbbr(ctx.o)} ${Math.round(100 - a)}` : a === 50 ? 'MIDFIELD' : `${mgAbbr(ctx.t)} ${Math.round(a)}`);
   const hud = mgBug([{ w: 66, fill: tc, on: textOn(tc), txt: [['1ST & 10', 'n']] }, { w: 62, fill: '#0b1220', txt: [[spot(LOS_ABS), 'n']] }], -58, 600, MGL_K)
     + '<defs><radialGradient id="mgPrG" cx="50%" cy="60%" r="65%"><stop offset=".55" stop-color="#ff2d2d" stop-opacity="0"/><stop offset="1" stop-color="#ff2d2d" stop-opacity=".8"/></radialGradient></defs><rect id="mgPress" x="-1500" y="-1500" width="4200" height="3200" fill="url(#mgPrG)" opacity="0" pointer-events="none"/>';
   const L = mgLiveInit(ctx, play, hud, '<g id="mgTgt" pointer-events="none"></g>'), { sc, F, actors, T } = L;

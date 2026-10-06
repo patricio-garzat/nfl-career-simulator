@@ -23,7 +23,7 @@ function mgMods(se) { let perf = 1; (se.buffs || []).forEach(b => { if (b.left >
 function mgAfterGame(se, game, notes) { mgEnsure(se); se.buffs.forEach(b => { b.left--; }); se.buffs = se.buffs.filter(b => b.left > 0); }
 const MG_META = {
   qb: P => ({ icon: '🏈', title: 'POCKET PRESENCE', how: 'Dodge the pass rush inside the pocket and press SPACE when the bar is in the green to throw to your WR. Wait too long and you get sacked.', legend: [['', '← → ↑ ↓ move', 'dodge the rush'], ['', 'SPACE', 'throw in the green'], ['', 'Too slow', 'SACK']] }),
-  rb: P => ({ icon: '🏃', title: 'RUSH FOR YARDS', how: 'Take the handoff, hit the hole the line opens, then keep dodging tacklers. Hold SPACE to run and use the arrows to turn. Every yard is 0.2 points and a touchdown is worth 5 — your points raise your performance.', legend: [['', 'SPACE', 'run forward'], ['', '← →', 'turn'], ['', 'Every yard', '0.2 points'], ['', 'Touchdown', '5 points']] }),
+  rb: P => ({ icon: '🏃', title: 'RUSH FOR YARDS', how: 'Take the handoff, hit the hole the line opens, then keep dodging tacklers. Hold SPACE to run and use the arrows to turn. Every yard is 0.1 points and a touchdown is worth 6 — your points raise your performance.', legend: [['', 'SPACE', 'run forward'], ['', '← →', 'turn'], ['', 'Every yard', '0.1 points'], ['', 'Touchdown', '6 points']] }),
   catch: P => ({ icon: '🙌', title: P.pos === 'TE' ? 'CATCH IT · SEAM' : 'CATCH IT · GO ROUTE', how: 'A three-play drive: catch to move the chains, and the last pass is for the touchdown. Hold SPACE to run and use the arrows to turn: get to where the ball will land.', legend: [['⌨️', 'SPACE', 'run forward'], ['⌨️', '← →', 'turn'], ['⭕', 'Ring', 'be there first']] }),
   kick: P => ({ icon: '🥅', title: 'KICK IT', how: 'Aim into the wind, stop the bar in the green.', legend: [['💨', 'Wind pushes', 'AIM AGAINST'], ['⏹', 'Power', 'GREEN']] }),
 };
@@ -455,7 +455,7 @@ const mgHoldBtn = (key, label) => `<button class="mg-b mg-hold" data-hold="${key
 /* =====================================================================
    RB — RUSH FOR YARDS
    Same formation view as the QB game: the snap, the handoff, and you run: first through the HOLE the line opens, then keep going upfield dodging the linebackers and the secondary.
-   A first hit slows you down, a second one (or two defenders at once) brings you down. Every yard is 0.2 points and a touchdown is 5; the points become the % your performance goes up.
+   A first hit slows you down, a second one (or two defenders at once) brings you down. Every yard is 0.1 points and a touchdown is 6; the points become the % your performance goes up.
    ===================================================================== */
 function mgRB(ctx, i, st) {
   const lv = MG_LV.indexOf(i), T1 = ctx.t.c1, T2 = ctx.t.c2, O1 = ctx.o.c1, O2 = ctx.o.c2, U1 = ctx.t.uf, U2 = mgHel(ctx.t), V1 = ctx.o.uf, V2 = mgHel(ctx.o), LOSY = 150, A0 = 40, GOALY = LOSY - (100 - A0) * 10, RY = 205;
@@ -517,10 +517,10 @@ function mgRB(ctx, i, st) {
     const cleanup = () => { ended = true; cancelAnimationFrame(raf); inp.dispose(); };
     const finish = async (td, why) => {
       if (ended) return; cleanup(); ctx.ctrl.innerHTML = '';
-      const yds = Math.max(0, Math.round(best)), pts = Math.round((yds * 0.2 + (td ? 5 : 0)) * 10) / 10; ctx.rbPts = Math.round((ctx.rbPts + pts) * 10) / 10;
+      const yds = Math.max(0, Math.round(best)), pts = Math.round((yds * 0.1 + (td ? 6 : 0)) * 10) / 10; ctx.rbPts = Math.round((ctx.rbPts + pts) * 10) / 10;
       const sx = me.x, sy = me.y + Math.max(0, RY - me.y);
       mgPop(ctx, 170, 120, td ? 'TOUCHDOWN!' : yds >= 10 ? 'BIG GAIN!' : yds >= 4 ? `+${yds} YDS` : 'TACKLED!', yds >= 4 || td ? 'good' : 'bad'); mgShake(ctx); Snd.play(td ? 'td' : yds >= 4 ? 'mgPat' : 'mgHit', td ? 0.05 : 0);
-      ctx.say(`${yds >= 4 || td ? '✅' : '❌'} ${td ? '<b>TOUCHDOWN!</b> ' : ''}${yds}-yard run · <b>+${mgPts(pts)} pts</b>${td ? ' (5 for the touchdown)' : ''}${why ? `<span class="mg-tip">${why}</span>` : ''}`, yds >= 4 || td ? 'good' : 'bad');
+      ctx.say(`${yds >= 4 || td ? '✅' : '❌'} ${td ? '<b>TOUCHDOWN!</b> ' : ''}${yds}-yard run · <b>+${mgPts(pts)} pts</b>${td ? ' (6 for the touchdown)' : ''}${why ? `<span class="mg-tip">${why}</span>` : ''}`, yds >= 4 || td ? 'good' : 'bad');
       if (yds >= 12 && !td) ctx.perfects++; if (td) ctx.perfects++;
       res(yds >= 4 || td);
     };
@@ -568,7 +568,7 @@ function mgRB(ctx, i, st) {
       put(me, dt, hd);
       // ---- camera, HUD, the end zone ----
       const cy = Math.max(0, RY - me.y); world.setAttribute('transform', `translate(0 ${cy.toFixed(1)})`);
-      const yd = Math.max(0, Math.round(best)), pts = yd * 0.2; ydN.textContent = yd; ptN.textContent = mgPts(ctx.rbPts + pts);
+      const yd = Math.max(0, Math.round(best)), pts = yd * 0.1; ydN.textContent = yd; ptN.textContent = mgPts(ctx.rbPts + pts);
       hole.setAttribute('opacity', clamp(1 - Math.max(0, t - 1.3) / 0.8, 0, 1).toFixed(2));
       if (me.y <= GOALY - 30) return finish(true);
       if (t > 15) return finish(false, 'Time ran out.');

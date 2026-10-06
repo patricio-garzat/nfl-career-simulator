@@ -179,14 +179,14 @@ document.addEventListener('keydown', e => {
   if ([' ', 'Spacebar', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown'].includes(e.key) && !/^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '')) e.preventDefault();
 }, { capture: true });
 // a small broadcast score bug for the top of the field: flat blocks (team color + dark), white condensed type. segs: [{ w, fill, txt, id, big }], txt is an array of [text, kind, id] where kind 'n' = number and 'l' = small label
-function mgBug(segs, y = 6) {
-  const H = 18, total = segs.reduce((a, g) => a + g.w, 0), x0 = (340 - total) / 2; let x = 0;
+function mgBug(segs, y = 6, cx = 170, k = 1) {
+  const H = 18, total = segs.reduce((a, g) => a + g.w, 0), x0 = cx - total * k / 2; let x = 0;
   const body = segs.map((g, i) => {
     const t = g.txt.map(([tx, k, id]) => k === 'n' ? `<tspan ${id ? `id="${id}"` : ''} font-size="12.5" font-weight="800" fill="${g.on || '#fff'}">${tx}</tspan>` : `<tspan font-size="8.5" font-weight="700" fill="${g.on || '#fff'}" fill-opacity=".72" letter-spacing=".1em">${tx}</tspan>`).join('');
     const out = `<rect x="${x}" y="0" width="${g.w}" height="${H}" fill="${g.fill}"/>${i ? `<rect x="${x}" y="0" width="1" height="${H}" fill="#fff" fill-opacity=".16"/>` : ''}<text x="${x + g.w / 2}" y="12.6" text-anchor="middle" font-family="Barlow Condensed, sans-serif" letter-spacing=".04em">${t}</text>`;
     x += g.w; return out;
   }).join('');
-  return `<g id="mgHud" transform="translate(${x0.toFixed(1)} ${y})" style="filter:drop-shadow(0 1.5px 2.5px rgba(0,0,0,.45))" pointer-events="none"><defs><clipPath id="mgBugC"><rect width="${total}" height="${H}" rx="3"/></clipPath></defs><g clip-path="url(#mgBugC)">${body}<rect width="${total}" height="1" fill="#fff" fill-opacity=".28"/></g></g>`;
+  return `<g id="mgHud" transform="translate(${x0.toFixed(1)} ${y}) scale(${k})" style="filter:drop-shadow(0 1.5px 2.5px rgba(0,0,0,.45))" pointer-events="none"><defs><clipPath id="mgBugC"><rect width="${total}" height="${H}" rx="3"/></clipPath></defs><g clip-path="url(#mgBugC)">${body}<rect width="${total}" height="1" fill="#fff" fill-opacity=".28"/></g></g>`;
 }
 const mgPts = n => String(Math.round(n * 10) / 10);
 function mgOpen(env) {
@@ -220,7 +220,9 @@ function mgAmbience() { Snd.crowd('assets/sounds/crowd-stadium.m4a', mgSndVol('n
 // waits `ms` before the snap while the players' noise plays, so that second 4 of the clip lands on the snap
 async function mgPre(ctx, ms) { Snd.players('assets/sounds/players-huddle.mp3', mgSndVol('nfl_players_vol3', 75.16), 1, Math.max(0, 4 - ms / 1000)); await sleep(ms); }
 async function mgRun(ctx) {
-  const fn = { qb: mgQB, rb: mgRB, catch: mgCatch, kick: mgKick }[ctx.kind], st = {};
+  const live = ctx.env.nfl && typeof lvFieldSVG === 'function' && typeof TEAM !== 'undefined' && TEAM[ctx.t.id] && TEAM[ctx.o.id] && typeof mgRBLive === 'function';
+  ctx.k = 1;
+  const fn = (live ? { qb: typeof mgQBLive === 'function' ? mgQBLive : mgQB, rb: mgRBLive, catch: typeof mgCatchLive === 'function' ? mgCatchLive : mgCatch, kick: mgKick } : { qb: mgQB, rb: mgRB, catch: mgCatch, kick: mgKick })[ctx.kind], st = {};
   ctx.ctrl.innerHTML = ''; ctx.say('');
   for (let i = 0; i < 3; i++) {
     if (!ctx.alive()) return;
@@ -280,11 +282,11 @@ function mgChoice(ctx, secs) {
 const mgPickBtn = (ctx, sel) => { ctx.ov.querySelectorAll(sel).forEach(el => el.addEventListener('pointerdown', ev => { ev.preventDefault(); if (ctx.pick) ctx.pick(el.dataset.pick); }, { once: true })); };
 // broadcast-style labels: a skewed dark plate with a colored accent bar (small tag for HOLE / TARGET / YOU, bigger plates for the play calls)
 const mgPlate = (w, h, acc, fill = '#0c172a', stroke = 'rgba(255,255,255,.3)') => { const sk = h * 0.2, p = (dy = 0) => `${-w / 2 + sk},${-h / 2 + dy} ${w / 2 + sk},${-h / 2 + dy} ${w / 2 - sk},${h / 2 + dy} ${-w / 2 - sk},${h / 2 + dy}`; return `<polygon points="${p(h * 0.12)}" fill="#000" opacity=".32"/><polygon points="${p()}" fill="${fill}" stroke="${stroke}" stroke-width=".8"/><polygon points="${-w / 2 + sk},${-h / 2} ${-w / 2 + sk + h * 0.3},${-h / 2} ${-w / 2 - sk + h * 0.3},${h / 2} ${-w / 2 - sk},${h / 2}" fill="${acc}"/>`; };
-const mgTag = (cx, cy, txt, acc = '#35c2ff', fs = 9.5) => { const w = txt.length * (fs * 0.5 + 1.3) + 20, h = fs + 9; return `<g transform="translate(${cx} ${cy})" pointer-events="none">${mgPlate(w, h, acc)}<text x="${(h * 0.15).toFixed(1)}" y="${(fs * 0.36).toFixed(1)}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" letter-spacing=".12em">${txt}</text></g>`; };
+const mgTag = (cx, cy, txt, acc = '#35c2ff', fs = 9.5, k = 1) => { const w = txt.length * (fs * 0.5 + 1.3) + 20, h = fs + 9; return `<g transform="translate(${cx} ${cy}) scale(${k})" pointer-events="none">${mgPlate(w, h, acc)}<text x="${(h * 0.15).toFixed(1)}" y="${(fs * 0.36).toFixed(1)}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" letter-spacing=".12em">${txt}</text></g>`; };
 const mgPop = (ctx, x, y, txt, cls) => {
   const fx = ctx.stage.querySelector('#mgFx'); if (!fx) return;
   const td = /touchdown/i.test(txt), fs = td ? 24 : 17, w = String(txt).length * (fs * 0.5 + 1.6) + (td ? 44 : 34), h = fs + (td ? 16 : 13), acc = td ? '#0a1426' : cls === 'good' ? '#3fe38c' : cls === 'bad' ? '#ff5d5d' : '#35c2ff';
-  fx.innerHTML = `<g transform="translate(${x} ${y - 8})" pointer-events="none"><g class="mg-pop ${td ? 'td' : cls}">${mgPlate(w, h, acc, td ? '#f6c21a' : '#0c172a', td ? '#fff3b0' : 'rgba(255,255,255,.3)')}<text x="${(h * 0.15).toFixed(1)}" y="${(fs * 0.36).toFixed(1)}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="${td ? '#0a1426' : '#fff'}" font-family="Barlow Condensed, sans-serif" letter-spacing=".1em">${txt}</text></g></g>`;
+  const k = ctx.k || 1; fx.innerHTML = `<g transform="translate(${x} ${y - 8 * k}) scale(${k})" pointer-events="none"><g class="mg-pop ${td ? 'td' : cls}">${mgPlate(w, h, acc, td ? '#f6c21a' : '#0c172a', td ? '#fff3b0' : 'rgba(255,255,255,.3)')}<text x="${(h * 0.15).toFixed(1)}" y="${(fs * 0.36).toFixed(1)}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="${td ? '#0a1426' : '#fff'}" font-family="Barlow Condensed, sans-serif" letter-spacing=".1em">${txt}</text></g></g>`;
 };
 const mgShake = ctx => { ctx.stage.classList.remove('mg-shake'); void ctx.stage.offsetWidth; ctx.stage.classList.add('mg-shake'); };
 

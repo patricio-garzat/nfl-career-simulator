@@ -1309,8 +1309,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .lv-banner.td:not(.final) { background: linear-gradient(100deg, #f6c21a, #ffde66 60%, #f6c21a); color: #0a1426; } .lv-banner.td:not(.final)::before { background: #0a1426; }
 .lv-banner.quarter:not(.final) { font-size: clamp(18px, 3.6vw, 40px); letter-spacing: .16em; }
 
-/* mini games on the live field */
-.mg-svg.mg-live { width: 100%; height: auto; max-width: none; max-height: none; min-height: 0; margin: 0 auto; border-radius: 12px; display: block; }
-.mg-stage:has(.mg-live) { background: #0b1220; background-image: none; }
-@media (min-width: 721px) { .mg-stage:has(.mg-live) { flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; } .mg-svg.mg-live { height: 100%; } }
-.mg-wrap:has(.mg-live) { max-width: min(1180px, 100%); }
+/* mini games on the live field (turned 90°: the play goes from the bottom of the screen to the top) */
+.mg-svg.mg-live { width: 100%; height: auto; aspect-ratio: var(--ar, 0.81); max-width: 100%; min-height: 0; margin: 0 auto; border-radius: 12px; display: block; }
+@media (max-width: 720px) { .mg-svg.mg-live { width: min(100%, calc((100dvh - 370px) * var(--ar, 0.81))); } }
+@media (min-width: 721px) { .mg-stage:has(.mg-live) { flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; } .mg-svg.mg-live { width: auto; height: 100%; } }

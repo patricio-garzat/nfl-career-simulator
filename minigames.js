@@ -221,7 +221,7 @@ function mgAmbience() { Snd.crowd('assets/sounds/crowd-stadium.m4a', mgSndVol('n
 async function mgPre(ctx, ms) { Snd.players('assets/sounds/players-huddle.mp3', mgSndVol('nfl_players_vol3', 75.16), 1, Math.max(0, 4 - ms / 1000)); await sleep(ms); }
 async function mgRun(ctx) {
   const live = ctx.env.nfl && typeof lvFieldSVG === 'function' && typeof TEAM !== 'undefined' && TEAM[ctx.t.id] && TEAM[ctx.o.id] && typeof mgRBLive === 'function';
-  ctx.k = 1;
+  ctx.k = 1; ctx.rot = 0;
   const fn = (live ? { qb: typeof mgQBLive === 'function' ? mgQBLive : mgQB, rb: mgRBLive, catch: typeof mgCatchLive === 'function' ? mgCatchLive : mgCatch, kick: mgKick } : { qb: mgQB, rb: mgRB, catch: mgCatch, kick: mgKick })[ctx.kind], st = {};
   ctx.ctrl.innerHTML = ''; ctx.say('');
   for (let i = 0; i < 3; i++) {
@@ -282,11 +282,11 @@ function mgChoice(ctx, secs) {
 const mgPickBtn = (ctx, sel) => { ctx.ov.querySelectorAll(sel).forEach(el => el.addEventListener('pointerdown', ev => { ev.preventDefault(); if (ctx.pick) ctx.pick(el.dataset.pick); }, { once: true })); };
 // broadcast-style labels: a skewed dark plate with a colored accent bar (small tag for HOLE / TARGET / YOU, bigger plates for the play calls)
 const mgPlate = (w, h, acc, fill = '#0c172a', stroke = 'rgba(255,255,255,.3)') => { const sk = h * 0.2, p = (dy = 0) => `${-w / 2 + sk},${-h / 2 + dy} ${w / 2 + sk},${-h / 2 + dy} ${w / 2 - sk},${h / 2 + dy} ${-w / 2 - sk},${h / 2 + dy}`; return `<polygon points="${p(h * 0.12)}" fill="#000" opacity=".32"/><polygon points="${p()}" fill="${fill}" stroke="${stroke}" stroke-width=".8"/><polygon points="${-w / 2 + sk},${-h / 2} ${-w / 2 + sk + h * 0.3},${-h / 2} ${-w / 2 - sk + h * 0.3},${h / 2} ${-w / 2 - sk},${h / 2}" fill="${acc}"/>`; };
-const mgTag = (cx, cy, txt, acc = '#35c2ff', fs = 9.5, k = 1) => { const w = txt.length * (fs * 0.5 + 1.3) + 20, h = fs + 9; return `<g transform="translate(${cx} ${cy}) scale(${k})" pointer-events="none">${mgPlate(w, h, acc)}<text x="${(h * 0.15).toFixed(1)}" y="${(fs * 0.36).toFixed(1)}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" letter-spacing=".12em">${txt}</text></g>`; };
+const mgTag = (cx, cy, txt, acc = '#35c2ff', fs = 9.5, k = 1, rot = 0) => { const w = txt.length * (fs * 0.5 + 1.3) + 20, h = fs + 9; return `<g transform="translate(${cx} ${cy}) rotate(${rot}) scale(${k})" pointer-events="none">${mgPlate(w, h, acc)}<text x="${(h * 0.15).toFixed(1)}" y="${(fs * 0.36).toFixed(1)}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="#fff" font-family="Barlow Condensed, sans-serif" letter-spacing=".12em">${txt}</text></g>`; };
 const mgPop = (ctx, x, y, txt, cls) => {
   const fx = ctx.stage.querySelector('#mgFx'); if (!fx) return;
   const td = /touchdown/i.test(txt), fs = td ? 24 : 17, w = String(txt).length * (fs * 0.5 + 1.6) + (td ? 44 : 34), h = fs + (td ? 16 : 13), acc = td ? '#0a1426' : cls === 'good' ? '#3fe38c' : cls === 'bad' ? '#ff5d5d' : '#35c2ff';
-  const k = ctx.k || 1; fx.innerHTML = `<g transform="translate(${x} ${y - 8 * k}) scale(${k})" pointer-events="none"><g class="mg-pop ${td ? 'td' : cls}">${mgPlate(w, h, acc, td ? '#f6c21a' : '#0c172a', td ? '#fff3b0' : 'rgba(255,255,255,.3)')}<text x="${(h * 0.15).toFixed(1)}" y="${(fs * 0.36).toFixed(1)}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="${td ? '#0a1426' : '#fff'}" font-family="Barlow Condensed, sans-serif" letter-spacing=".1em">${txt}</text></g></g>`;
+  const k = ctx.k || 1; fx.innerHTML = `<g transform="translate(${x} ${y - 8 * k}) rotate(${ctx.rot || 0}) scale(${k})" pointer-events="none"><g class="mg-pop ${td ? 'td' : cls}">${mgPlate(w, h, acc, td ? '#f6c21a' : '#0c172a', td ? '#fff3b0' : 'rgba(255,255,255,.3)')}<text x="${(h * 0.15).toFixed(1)}" y="${(fs * 0.36).toFixed(1)}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="${td ? '#0a1426' : '#fff'}" font-family="Barlow Condensed, sans-serif" letter-spacing=".1em">${txt}</text></g></g>`;
 };
 const mgShake = ctx => { ctx.stage.classList.remove('mg-shake'); void ctx.stage.offsetWidth; ctx.stage.classList.add('mg-shake'); };
 

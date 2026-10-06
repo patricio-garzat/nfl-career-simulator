@@ -5,33 +5,45 @@
    linemen block, receivers run real routes, defenders drop into zones. Only YOUR player (and whoever chases him) is simulated live.
    Your team always attacks to the right, 1 yard = 10 px, script time = real time.
    ===================================================================== */
-const MGL_K = 2;                       // size of the HUD and the labels on this big field
+const MGL_K = 1.6;                      // size of the HUD and the labels
+const MGL_W = 400, MGL_H = 495;         // the camera window (screen units): about 40 x 50 yards of the field
+// The field is turned 90°: your team attacks from the bottom of the screen to the top. Everything (formations, routes, speeds) is computed in the live field's own coordinates
+// (x towards the end zone, y across); the whole field group is rotated -90° (screen = (y, -x)) and the camera follows the play.
 
 const mgLiveCol = ctx => lvColors(ctx.t.id, ctx.o.id);
 // builds the stage: the live field, the line of scrimmage and the actors of the formation. `hud` is the SVG of the score bug (or '').
-function mgLiveInit(ctx, play, hud, extra = '') {
-  const col = mgLiveCol(ctx);
-  ctx.k = MGL_K;
+function mgLiveInit(ctx, play, hud, extra = '', win = null) {
+  const col = mgLiveCol(ctx), WW = win ? win.w : MGL_W, WH = win ? win.h : MGL_H;
+  ctx.k = MGL_K; ctx.rot = 90;
   const sc = lvScene(play, { myDir: 1, myId: ctx.t.id, oppId: ctx.o.id, col });
   let svg = lvFieldSVG(ctx.t.id, ctx.o.id, false);
-  svg = svg.replace('class="lv-field"', 'class="lv-field mg-svg mg-live"').replace('<g id="lvActors"></g><g id="lvFx"></g></svg>', `${extra}<g id="lvActors"></g><g id="mgFx"></g>${hud}</svg>`);
+  svg = svg.replace('class="lv-field"', `class="lv-field mg-svg mg-live" style="--ar:${(WW / WH).toFixed(4)}"`)
+    .replace(/(<svg[^>]*viewBox=")[^"]*(")/, `$1-66 -1270 ${WW} ${WH}$2`)
+    .replace(/(<svg[^>]*>)/, '$1<g id="mgRot" transform="rotate(-90)">')
+    .replace('<g id="lvActors"></g><g id="lvFx"></g></svg>', `${extra}<g id="lvActors"></g><g id="mgFx"></g></g><g id="mgHudWrap">${hud}</g></svg>`);
   ctx.stage.innerHTML = svg;
   const los = ctx.stage.querySelector('#lvLos'); if (los) { los.setAttribute('x', lvX(sc.los) - 2); los.setAttribute('opacity', 0.9); }
   const F = lvPlan(play), actors = lvMakeActors(sc, play), T = lvTimeline(actors);
-  const L = { col, sc, F, actors, T, z: 1, vb: { x: -70, y: -66, w: 1340, h: 685 }, svg: ctx.stage.querySelector('svg.mg-live'), hud: ctx.stage.querySelector('#mgHud') };
-  // on a phone the whole field would make the players tiny: the camera zooms in and follows your player
-  if (window.innerWidth <= 720) { L.z = 2.1; ctx.k = 1.9; L.cx = lvX(sc.los) + 60; L.cy = lvY(0); L.hudW = L.hud ? L.hud.getBBox().width : 0; mgLiveCam(ctx, L, L.cx, L.cy, 1); }
+  Object.values(actors).forEach(a => { if (a.el && a.el.querySelectorAll) a.el.querySelectorAll('text').forEach(tx => tx.setAttribute('transform', 'rotate(90)')); });      // the labels stay upright
+  const L = { col, sc, F, actors, T, svg: ctx.stage.querySelector('svg.mg-live'), hud: ctx.stage.querySelector('#mgHud'), press: ctx.stage.querySelector('#mgPress'), cx: lvX(sc.los) + 150, cy: lvY(0), W: WW, H: WH };
+  L.hudW = L.hud ? L.hud.getBBox().width : 0;
+  mgLiveCam(ctx, L, L.cx, L.cy, 1);
   return L;
 }
 // camera: centre of the view (px of the field), smoothed; the score bug stays at the top of the screen
 function mgLiveCam(ctx, L, fx, fy, dt) {
-  if (L.z <= 1) return;
-  const k = Math.min(1, dt * 3.5), W = L.vb.w / L.z, H = L.vb.h / L.z;
+  const k = Math.min(1, dt * 3.5), W = L.W, H = L.H;
   L.cx += (fx - L.cx) * k; L.cy += (fy - L.cy) * k;
-  const x = clamp(L.cx - W / 2, L.vb.x, L.vb.x + L.vb.w - W), y = clamp(L.cy - H / 2, L.vb.y, L.vb.y + L.vb.h - H);
-  L.svg.setAttribute('viewBox', `${x.toFixed(1)} ${y.toFixed(1)} ${W.toFixed(1)} ${H.toFixed(1)}`);
-  if (L.hud) { const hk = 1.9; L.hud.setAttribute('transform', `translate(${(x + W / 2 - L.hudW * hk / 2).toFixed(1)} ${(y + 6).toFixed(1)}) scale(${hk.toFixed(3)})`); }
+  const sx = L.cy, sy = -L.cx;                                                             // field -> screen
+  const x = clamp(sx - W / 2, -66, 619 - W), y = clamp(sy - H / 2, -1270, 70 - H);
+  L.svg.setAttribute('viewBox', `${x.toFixed(1)} ${y.toFixed(1)} ${W} ${H}`);
+  if (L.hud) { const hk = MGL_K; L.hud.setAttribute('transform', `translate(${(x + W / 2 - L.hudW * hk / 2).toFixed(1)} ${(y + 6).toFixed(1)}) scale(${hk})`); }
+  if (L.press) { L.press.setAttribute('x', x); L.press.setAttribute('y', y); L.press.setAttribute('width', W); L.press.setAttribute('height', H); }
 }
+// a play call near the action, kept inside the camera window
+function mgLivePop(ctx, L, x, y, txt, cls) { const m = 80; mgPop(ctx, x, clamp(y, L.cy - L.W / 2 + m, L.cy + L.W / 2 - m), txt, cls); }
+// renders the timeline and keeps the player's name tag upright
+function mgLiveRender(L, t) { L.T.render(t); const tg = L.actors.tag; if (tg) { const x = tg.el.getAttribute('x'), y = tg.el.getAttribute('y'); tg.el.setAttribute('transform', `rotate(90 ${x} ${y})`); } }
 // the huddle breaks and lines up, exactly like the live game (the snap is at script second LV_SN)
 function mgLivePre(L, defShadow) {
   const { T, sc, F } = L, SN = LV_SN, to = (u, v) => sc.P(u, v), dd = r => r + '_d', defKeys = Object.keys(F.def);
@@ -49,10 +61,10 @@ function mgLiveFace(a, ang, k = 0.35) { let d = ang - a.face; d = Math.atan2(Mat
 async function mgLivePreSnap(ctx, L, ref) {
   Snd.players('assets/sounds/players-huddle.mp3', mgSndVol('nfl_players_vol3', 75.16), 1, Math.max(0, 4 - LV_SN));
   const f0 = performance.now(); let t = 0;
-  await new Promise(r => { const step = () => { if (!ctx.alive()) return r(); t = (performance.now() - f0) / 1000; L.T.render(t); mgLiveCam(ctx, L, ref.x, ref.y, 0.016); if (t >= LV_SN) return r(); requestAnimationFrame(step); }; step(); });
+  await new Promise(r => { const step = () => { if (!ctx.alive()) return r(); t = (performance.now() - f0) / 1000; mgLiveRender(L, t); mgLiveCam(ctx, L, ref.x, ref.y, 0.016); if (t >= LV_SN) return r(); requestAnimationFrame(step); }; step(); });
   return t;
 }
-function mgLiveMe(L, me, x, y) { mgLiveSet(me, x, y); const tg = L.actors.tag; if (tg) { tg.el.setAttribute('x', x); tg.el.setAttribute('y', y - 21); } }
+function mgLiveMe(L, me, x, y) { mgLiveSet(me, x, y); const tg = L.actors.tag; if (tg) { tg.el.setAttribute('x', x); tg.el.setAttribute('y', y - 21); tg.el.setAttribute('transform', `rotate(90 ${x} ${y - 21})`); } }
 const mgLiveSet = (a, x, y) => { a.x = x; a.y = y; a.el.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`); };
 
 /* =====================================================================
@@ -99,12 +111,12 @@ function mgRBLive(ctx, i, st) {
   T.move('RB', to(O('RB')[0] + 0.4, O('RB')[1]), SN, SN + 0.45, { prof: 1, pa: 0.4, pd: 0.4 });
   // the hole marker: two chevrons pointing at the end zone
   const hx = losX + 14, hy = lvY(gapV);
-  ctx.stage.querySelector('#mgHole').innerHTML = `<g class="mg-landring"><path d="M${hx - 16} ${hy - 20} l16 20 l-16 20 M${hx + 4} ${hy - 20} l16 20 l-16 20" stroke="#6dffbb" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>${mgTag(hx + 4, hy + 46, 'HOLE', '#3fe38c', 10, ctx.k)}`;
+  ctx.stage.querySelector('#mgHole').innerHTML = `<g class="mg-landring"><path d="M${hx - 16} ${hy - 20} l16 20 l-16 20 M${hx + 4} ${hy - 20} l16 20 l-16 20" stroke="#6dffbb" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>${mgTag(hx + 4, hy + 46, 'HOLE', '#3fe38c', 10, ctx.k, 90)}`;
   ctx.dbg = { hx, hy, tdX };
   ctx.say('Hit the <b>HOLE</b> · hold <b>SPACE</b> to run, <b>◀ ▶</b> to turn');
   return new Promise(async res => {
     const ydN = ctx.stage.querySelector('#mgYdN'), ptN = ctx.stage.querySelector('#mgPtN'), holeG = ctx.stage.querySelector('#mgHole');
-    let t = await mgLivePreSnap(ctx, L, { x: losX + 40, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null;
+    let t = await mgLivePreSnap(ctx, L, { x: losX + 150, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null;
     ctx.ctrl.innerHTML = `<div class="mg-btns three" style="grid-template-columns:1fr 1.7fr 1fr">${mgHoldBtn('l', '◀')}<button class="mg-b mg-hold mg-go" data-hold="g" style="--c:#c5ff3a">RUN<small>SPACE</small></button>${mgHoldBtn('r', '▶')}</div>`;
     if (!ctx.alive()) return res(false);
     inp = mgInput(ctx);
@@ -117,7 +129,7 @@ function mgRBLive(ctx, i, st) {
     const finish = async (td, why) => {
       if (ended) return; cleanup(); ctx.ctrl.innerHTML = '';
       const yds = Math.max(0, Math.round(best)), pts = Math.round((yds * 0.1 + (td ? 6 : 0)) * 10) / 10; (ctx.dbg.fin = ctx.dbg.fin || []).push([yds, td, why || '', Math.round(tau0())]); ctx.rbPts = Math.round((ctx.rbPts + pts) * 10) / 10;
-      mgPop(ctx, clamp(me.x, 250, 1000), me.y - 30, td ? 'TOUCHDOWN!' : yds >= 10 ? 'BIG GAIN!' : yds >= 4 ? `+${yds} YDS` : 'TACKLED!', yds >= 4 || td ? 'good' : 'bad'); mgShake(ctx); Snd.play(td ? 'td' : yds >= 4 ? 'mgPat' : 'mgHit', td ? 0.05 : 0);
+      mgLivePop(ctx, L, me.x + 34, me.y, td ? 'TOUCHDOWN!' : yds >= 10 ? 'BIG GAIN!' : yds >= 4 ? `+${yds} YDS` : 'TACKLED!', yds >= 4 || td ? 'good' : 'bad'); mgShake(ctx); Snd.play(td ? 'td' : yds >= 4 ? 'mgPat' : 'mgHit', td ? 0.05 : 0);
       ctx.say(`${yds >= 4 || td ? '✅' : '❌'} ${td ? '<b>TOUCHDOWN!</b> ' : ''}${yds}-yard run · <b>+${mgPts(pts)} pts</b>${td ? ' (6 for the touchdown)' : ''}${why ? `<span class="mg-tip">${why}</span>` : ''}`, yds >= 4 || td ? 'good' : 'bad');
       if (yds >= 12 && !td) ctx.perfects++; if (td) ctx.perfects++;
       Snd.stopPlayers(800);
@@ -127,7 +139,7 @@ function mgRBLive(ctx, i, st) {
     const frame = now => {
       if (ended) return; if (!ctx.alive()) { cleanup(); return; }
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt; const tau = t - SN; stun = Math.max(0, stun - dt);
-      T.render(t);                                                                         // everything scripted: the line, the blockers, the quarterback, the ball
+      mgLiveRender(L, t);                                                                         // everything scripted: the line, the blockers, the quarterback, the ball
       // ---- you: the handoff, then free running (arrows turn, SPACE runs) ----
       const turn = inp.k.r - inp.k.l; if (turn) hd += turn * 230 * dt; else if (inp.k.u) hd -= Math.sign(hd) * Math.min(Math.abs(hd), 400 * dt); hd = ((hd + 540) % 360) - 180;
       const rad = hd * Math.PI / 180, vx = Math.cos(rad), vy = Math.sin(rad);
@@ -136,7 +148,7 @@ function mgRBLive(ctx, i, st) {
         handed = true;
         if (inp.k.g) { const sp = 84 * (stun > 0 ? 0.4 : 1) * (vx < 0 ? 0.7 : 1); mpx = clamp(mpx + vx * sp * dt, lvX(-8), lvX(108)); mpy = clamp(mpy + vy * sp * dt, yMin, yMax); }
       }
-      mgLiveMe(L, me, mpx, mpy); mgLiveFace(me, rad, 0.5); mgLiveCam(ctx, L, mpx + 70, mpy, dt);
+      mgLiveMe(L, me, mpx, mpy); mgLiveFace(me, rad, 0.5); mgLiveCam(ctx, L, mpx + 130, mpy, dt);
       best = Math.max(best, (mpx - losX) / 10);
       if (handed) { ball.el.setAttribute('transform', `translate(${(mpx + 7 * Math.cos(rad) + 5).toFixed(1)} ${(mpy + 7 * Math.sin(rad) + 4).toFixed(1)}) scale(.85)`); }
       // ---- the defense: scripted until blocked / reaction time is over, then pursuit with lead ----
@@ -156,7 +168,7 @@ function mgRBLive(ctx, i, st) {
       mpx_prev = mpx; mpy_prev = mpy;
       // ---- tackles: a first hit slows you down, a second one (or two defenders at once) ends the run ----
       if (hitBy === 'multi' || (hitBy && stun > 0 && tau - hitT > 0.12)) return finish(false, hitBy === 'multi' ? 'Two defenders got to you.' : 'You got hit twice — dodge them!');
-      if (hitBy && stun <= 0) { stun = 0.6; hitT = tau; hits++; mgPop(ctx, clamp(mpx, 250, 1000), mpy - 30, 'HIT!', 'bad'); Snd.play('mgHit', 0); const bx = mpx - hitBy.x, by = mpy - hitBy.y, bl = Math.hypot(bx, by) || 1; hitBy.x -= bx / bl * 12; hitBy.y -= by / bl * 12; }
+      if (hitBy && stun <= 0) { stun = 0.6; hitT = tau; hits++; mgLivePop(ctx, L, mpx + 34, mpy, 'HIT!', 'bad'); Snd.play('mgHit', 0); const bx = mpx - hitBy.x, by = mpy - hitBy.y, bl = Math.hypot(bx, by) || 1; hitBy.x -= bx / bl * 12; hitBy.y -= by / bl * 12; }
       const yd = Math.max(0, Math.round(best)); ydN.textContent = yd; ptN.textContent = mgPts(ctx.rbPts + yd * 0.1);
       if (holeG) holeG.setAttribute('opacity', clamp(1 - Math.max(0, tau - 1.3) / 0.8, 0, 1).toFixed(2));
       if (mpx >= tdX) return finish(true);
@@ -270,7 +282,7 @@ function mgCatchLive(ctx, i, st) {
   ctx.dbg = { me: meRole };
   return new Promise(async res => {
     const ring = ctx.stage.querySelector('#mgRing');
-    let t = await mgLivePreSnap(ctx, L, { x: losX + 60, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null;
+    let t = await mgLivePreSnap(ctx, L, { x: losX + 150, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null;
     ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns three" style="grid-template-columns:1fr 1.7fr 1fr">${mgHoldBtn('l', '◀')}<button class="mg-b mg-hold mg-go" data-hold="g" style="--c:#c5ff3a">RUN<small>SPACE</small></button>${mgHoldBtn('r', '▶')}</div>`;
     if (!ctx.alive()) return res(false);
     inp = mgInput(ctx);
@@ -282,7 +294,7 @@ function mgCatchLive(ctx, i, st) {
     const cleanup = () => { ended = true; cancelAnimationFrame(raf); inp.dispose(); };
     const drawRing = () => {
       ring.innerHTML = `<path d="M${Q0.x.toFixed(1)} ${Q0.y.toFixed(1)} L${(adjusted ? P1 : cur).x.toFixed(1)} ${(adjusted ? P1 : cur).y.toFixed(1)}" stroke="#fff" stroke-opacity=".7" stroke-width="3" stroke-dasharray="6 8" stroke-linecap="round" fill="none"/><path d="M${P1 ? P1.x.toFixed(1) : Q0.x.toFixed(1)} ${P1 ? P1.y.toFixed(1) : Q0.y.toFixed(1)} L${cur.x.toFixed(1)} ${cur.y.toFixed(1)}" stroke="#fff" stroke-opacity=".7" stroke-width="3" stroke-dasharray="6 8" stroke-linecap="round" fill="none"/>
-        <g transform="translate(${cur.x.toFixed(1)} ${cur.y.toFixed(1)})"><circle r="${R_CATCH}" fill="${td ? '#ffd23d' : '#c5ff3a'}" fill-opacity=".2" stroke="${td ? '#ffd23d' : '#c5ff3a'}" stroke-width="3" class="mg-landring"/><circle r="8" fill="none" stroke="#fff" stroke-opacity=".8" stroke-dasharray="2 3"/>${td ? mgTag(0, -R_CATCH - 16, 'TD', '#ffd23d', 10, ctx.k) : ''}</g>`;
+        <g transform="translate(${cur.x.toFixed(1)} ${cur.y.toFixed(1)})"><circle r="${R_CATCH}" fill="${td ? '#ffd23d' : '#c5ff3a'}" fill-opacity=".2" stroke="${td ? '#ffd23d' : '#c5ff3a'}" stroke-width="3" class="mg-landring"/><circle r="8" fill="none" stroke="#fff" stroke-opacity=".8" stroke-dasharray="2 3"/>${td ? mgTag(0, -R_CATCH - 16, 'TD', '#ffd23d', 10, ctx.k, 90) : ''}</g>`;
     };
     const finish = async () => {
       ended = true; cancelAnimationFrame(raf); inp.dispose(); ctx.ctrl.innerHTML = '';
@@ -294,24 +306,24 @@ function mgCatchLive(ctx, i, st) {
         const gain = Math.max(1, Math.round((cur.x - losX) / 10)), na = Math.min(100, A + gain), scored = td && na >= 100, first = !scored && gain >= toGo;
         if (perfect) ctx.perfects++;
         st.A = na; if (first) { st.down = 1; st.toGo = Math.min(10, 100 - na); } else { st.down = down + 1; st.toGo = Math.max(1, toGo - gain); }
-        mgPop(ctx, clamp(mpx, 250, 1000), mpy - 30, scored ? 'TOUCHDOWN!' : perfect ? 'PERFECT!' : 'CAUGHT!', 'good'); Snd.play(scored ? 'td' : 'mgPat', scored ? 0.05 : 0); mgShake(ctx);
+        mgLivePop(ctx, L, mpx + 34, mpy, scored ? 'TOUCHDOWN!' : perfect ? 'PERFECT!' : 'CAUGHT!', 'good'); Snd.play(scored ? 'td' : 'mgPat', scored ? 0.05 : 0); mgShake(ctx);
         const spotNow = a => (a > 50 ? `${ctx.o.id} ${Math.round(100 - a)}` : a === 50 ? 'MIDFIELD' : `${ctx.t.id} ${Math.round(a)}`);
         ctx.say(scored ? `🏈 <b>TOUCHDOWN!</b> ${mgYardsStr(gain)} in the end zone` : `✅ ${perfect ? '✨ Dead center! ' : 'Caught it! '}${mgYardsStr(gain)}${first ? ' · <b>1ST DOWN</b>' : ''} · ball on the ${spotNow(na)}`, 'good'); res(true);
       } else {
         st.down = down + 1;
-        const broke = hasD && dD < dR && dD <= 28; mgPop(ctx, clamp(cur.x, 250, 1000), cur.y - 30, broke ? 'BROKEN UP' : 'TOO FAR', 'bad'); Snd.play(broke ? 'mgHit' : 'mgPat', 0); if (broke) mgShake(ctx);
+        const broke = hasD && dD < dR && dD <= 28; mgLivePop(ctx, L, cur.x + 34, cur.y, broke ? 'BROKEN UP' : 'TOO FAR', 'bad'); Snd.play(broke ? 'mgHit' : 'mgPat', 0); if (broke) mgShake(ctx);
         ctx.say(`❌ ${broke ? 'The defender got there first' : `Missed it by ${Math.round(dR / 10)} yds`}<span class="mg-tip">Watch the ring — it can move in the air.</span>`, 'bad'); res(false);
       }
     };
     const frame = now => {
       if (ended) return; if (!ctx.alive()) { cleanup(); return; }
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt; const tau = t - SN;
-      T.render(t);
+      mgLiveRender(L, t);
       // ---- you: arrows turn, SPACE runs ----
       const turn = inp.k.r - inp.k.l; if (turn) hd += turn * 280 * dt; else if (inp.k.u) hd -= Math.sign(hd) * Math.min(Math.abs(hd), 420 * dt); hd = ((hd + 540) % 360) - 180;
       const rad = hd * Math.PI / 180;
       if (inp.k.g) { mpx = clamp(mpx + Math.cos(rad) * VR * dt, lvX(-8), lvX(108)); mpy = clamp(mpy + Math.sin(rad) * VR * dt, yMin, yMax); }
-      mgLiveMe(L, me, mpx, mpy); mgLiveFace(me, rad, 0.5); mgLiveCam(ctx, L, mpx + 60, mpy, dt);
+      mgLiveMe(L, me, mpx, mpy); mgLiveFace(me, rad, 0.5); mgLiveCam(ctx, L, mpx + 120, mpy, dt);
       // ---- the throw: the ball leaves the quarterback and the ring shows where it will land ----
       if (!released && tau >= tRel) {
         released = true; const q = T.posAt('QB', SN + tRel); Q0 = { x: q.x, y: q.y }; Snd.play('mgThrow', 0); ctx.say('<b>BALL IS UP!</b> Run to the ring', 'go');
@@ -321,9 +333,9 @@ function mgCatchLive(ctx, i, st) {
       }
       if (released) {
         const u = Math.min(1, (tau - tRel) / Tf);
-        if (adj && !adjusted && u >= adj.ta) { adjusted = true; P1 = { x: Q0.x + (cur.x - Q0.x) * adj.ta, y: Q0.y + (cur.y - Q0.y) * adj.ta }; cur = { ...L2 }; mgPop(ctx, clamp(cur.x, 250, 1000), cur.y - 30, '💨 WIND!', 'bad'); Snd.play('mgSwish', 0); drawRing(); }
+        if (adj && !adjusted && u >= adj.ta) { adjusted = true; P1 = { x: Q0.x + (cur.x - Q0.x) * adj.ta, y: Q0.y + (cur.y - Q0.y) * adj.ta }; cur = { ...L2 }; mgLivePop(ctx, L, cur.x + 34, cur.y, '💨 WIND!', 'bad'); Snd.play('mgSwish', 0); drawRing(); }
         const bp = adjusted ? { x: P1.x + (cur.x - P1.x) * ((u - adj.ta) / (1 - adj.ta)), y: P1.y + (cur.y - P1.y) * ((u - adj.ta) / (1 - adj.ta)) } : { x: Q0.x + (cur.x - Q0.x) * u, y: Q0.y + (cur.y - Q0.y) * u };
-        const h = Math.sin(Math.PI * u) * 34; ball.el.setAttribute('transform', `translate(${bp.x.toFixed(1)} ${(bp.y - h).toFixed(1)}) scale(${(1 + h / 60).toFixed(2)}) rotate(${(u * 720).toFixed(0)})`);
+        const h = Math.sin(Math.PI * u) * 34; ball.el.setAttribute('transform', `translate(${(bp.x + h).toFixed(1)} ${bp.y.toFixed(1)}) scale(${(1 + h / 60).toFixed(2)}) rotate(${(u * 720).toFixed(0)})`);
         // the defender races to the same spot
         if (D1.on) { const dx = cur.x - D1.x, dy = cur.y - D1.y, dm = Math.hypot(dx, dy); if (dm > 14) { D1.x += dx / dm * VD * dt; D1.y += dy / dm * VD * dt; } mgLiveSet(defA, D1.x, D1.y); mgLiveFace(defA, Math.atan2(dy, dx), 0.3); }
         if (u >= 1) return finish();
@@ -346,7 +358,7 @@ function mgQBLive(ctx, i, st) {
   const col = mgLiveCol(ctx), tc = col[ctx.t.id] || ctx.t.c1, spot = a => (a > 50 ? `${ctx.o.id} ${Math.round(100 - a)}` : a === 50 ? 'MIDFIELD' : `${ctx.t.id} ${Math.round(a)}`);
   const hud = mgBug([{ w: 66, fill: tc, on: textOn(tc), txt: [['1ST & 10', 'n']] }, { w: 62, fill: '#0b1220', txt: [[spot(LOS_ABS), 'n']] }], -58, 600, MGL_K)
     + '<defs><radialGradient id="mgPrG" cx="50%" cy="60%" r="65%"><stop offset=".55" stop-color="#ff2d2d" stop-opacity="0"/><stop offset="1" stop-color="#ff2d2d" stop-opacity=".8"/></radialGradient></defs><rect id="mgPress" x="-1500" y="-1500" width="4200" height="3200" fill="url(#mgPrG)" opacity="0" pointer-events="none"/>';
-  const L = mgLiveInit(ctx, play, hud, '<g id="mgTgt" pointer-events="none"></g>'), { sc, F, actors, T } = L;
+  const L = mgLiveInit(ctx, play, hud, '<g id="mgTgt" pointer-events="none"></g>', { w: 540, h: 660 }), { sc, F, actors, T } = L;
   const PS = mgLivePassScript(L), { R, FOL, O, D, dd, to } = PS, losX = lvX(sc.los), yMin = lvY(-25.8), yMax = lvY(25.8);
   mgLivePre(L);
   // ---- scripted play: the target's route (we know where he will be), the other routes, coverage, protection ----
@@ -364,7 +376,7 @@ function mgQBLive(ctx, i, st) {
   ctx.dbg = { pT, zone };
   return new Promise(async res => {
     const press = ctx.stage.querySelector('#mgPress'), tgt = ctx.stage.querySelector('#mgTgt'), qbA = actors.QB, ball = actors.ball, wr = actors.WR1;
-    let t = await mgLivePreSnap(ctx, L, { x: losX - 40, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null, minD = 999, Q = { x: 0, y: 0, vx: 0, vy: 0 };
+    let t = await mgLivePreSnap(ctx, L, { x: losX + 150, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null, minD = 999, Q = { x: 0, y: 0, vx: 0, vy: 0 };
     ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-power"><div class="mg-py" style="left:${(pT - 0.2) * 100}%;width:40%"></div><div class="mg-pz" style="left:${(pT - zone / 2) * 100}%;width:${zone * 100}%"></div><i id="mgPI"></i></div><div class="mg-btns five">${mgHoldBtn('l', '◀')}${mgHoldBtn('u', '▲')}${mgHoldBtn('d', '▼')}${mgHoldBtn('r', '▶')}<button class="mg-b big" id="mgThrow" style="--c:#c5ff3a">THROW <small>SPACE</small></button></div>`;
     if (!ctx.alive()) return res(false);
     inp = mgInput(ctx);
@@ -373,15 +385,15 @@ function mgQBLive(ctx, i, st) {
     ctx.say('<b>HIKE!</b> Stay alive · <b>SPACE</b> in the green', 'go'); Snd.play('mgSnap', 0.02);
     { const p = T.posAt('QB', SN); Q.x = p.x; Q.y = p.y; }
     const qMin = losX - 120, qMax = losX - 18, q0y = Q.y, dropX = sc.P(dropU, 0).x;
-    tgt.innerHTML = `<g class="mg-landring"><circle r="22" fill="none" stroke="#ffd23d" stroke-width="3" stroke-dasharray="6 6"/></g>${mgTag(0, -36, 'TARGET', '#ffd23d', 9.5, ctx.k)}`;
+    tgt.innerHTML = `<g class="mg-landring"><circle r="22" fill="none" stroke="#ffd23d" stroke-width="3" stroke-dasharray="6 6"/></g>${mgTag(0, -36, 'TARGET', '#ffd23d', 9.5, ctx.k, 90)}`;
     const cleanup = () => { ended = true; cancelAnimationFrame(raf); inp.dispose(); document.removeEventListener('keydown', onKey); };
     const marker = () => { const ph = ((t - SN) * sp) % 2; return ph < 1 ? ph : 2 - ph; };
     const sack = async why => {
       if (ended) return; cleanup(); ctx.ctrl.innerHTML = ''; Snd.stopPlayers(800);
-      mgPop(ctx, clamp(Q.x, 250, 1000), Q.y - 30, 'SACK!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx);
+      mgLivePop(ctx, L, Q.x + 34, Q.y, 'SACK!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx);
       ctx.say(`❌ SACKED! ${why}<span class="mg-tip">Throw before the rush gets to you — move to buy time.</span>`, 'bad'); res(false);
     };
-    const fly = (x0, y0, x1, y1, ms, arc) => new Promise(r => { const f0 = performance.now(), step = () => { if (!ctx.alive()) return r(); const k = Math.min(1, (performance.now() - f0) / ms), x = x0 + (x1 - x0) * k, y = y0 + (y1 - y0) * k - Math.sin(Math.PI * k) * arc; ball.el.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${(1 + Math.sin(Math.PI * k) * 0.5).toFixed(2)}) rotate(${(k * 540).toFixed(0)})`); if (k < 1) requestAnimationFrame(step); else r(); }; step(); });
+    const fly = (x0, y0, x1, y1, ms, arc) => new Promise(r => { const f0 = performance.now(), step = () => { if (!ctx.alive()) return r(); const k = Math.min(1, (performance.now() - f0) / ms), x = x0 + (x1 - x0) * k, y = y0 + (y1 - y0) * k, hh = Math.sin(Math.PI * k) * arc; ball.el.setAttribute('transform', `translate(${(x + hh).toFixed(1)} ${y.toFixed(1)}) scale(${(1 + Math.sin(Math.PI * k) * 0.5).toFixed(2)}) rotate(${(k * 540).toFixed(0)})`); if (k < 1) requestAnimationFrame(step); else r(); }; step(); });
     const doThrow = async () => {
       if (ended) return; const v = marker(), perr = Math.abs(v - pT), close = minD; cleanup(); ctx.ctrl.innerHTML = ''; Snd.stopPlayers(800);
       const inGreen = perr <= zone / 2, inYellow = perr <= 0.2, perfect = inGreen && perr <= zone * 0.2 && close > 55;
@@ -390,15 +402,15 @@ function mgQBLive(ctx, i, st) {
       await fly(Q.x, Q.y, wx, wy, 560, 40); if (!ctx.alive()) return res(false);
       if (inGreen) {
         const yds = Math.max(2, Math.round((wx - losX) / 10 + rr(0, 3)));
-        mgPop(ctx, clamp(wx, 250, 1000), wy - 30, perfect ? 'PERFECT!' : mgYardsStr(yds), 'good'); Snd.play('mgPat', 0); if (yds >= 12) Snd.play('td', 0.12);
+        mgLivePop(ctx, L, wx + 34, wy, perfect ? 'PERFECT!' : mgYardsStr(yds), 'good'); Snd.play('mgPat', 0); if (yds >= 12) Snd.play('td', 0.12);
         if (perfect) ctx.perfects++;
         ctx.say(`✅ ${perfect ? '✨ Perfect throw! ' : 'Complete! '}${mgYardsStr(yds)}`, 'good'); res(true);
       } else if (inYellow) {
         ball.el.setAttribute('transform', `translate(${wx + (v < pT ? -26 : 26)} ${wy + 18}) rotate(30)`);
-        mgPop(ctx, clamp(wx, 250, 1000), wy - 30, 'INCOMPLETE', 'bad'); Snd.play('mgPat', 0);
+        mgLivePop(ctx, L, wx + 34, wy, 'INCOMPLETE', 'bad'); Snd.play('mgPat', 0);
         ctx.say(`❌ Off target — ${v < pT ? 'too early' : 'too late'}<span class="mg-tip">Press SPACE when the marker is inside the green.</span>`, 'bad'); res(false);
       } else {
-        mgPop(ctx, clamp(wx, 250, 1000), wy - 30, 'INTERCEPTED!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx);
+        mgLivePop(ctx, L, wx + 34, wy, 'INTERCEPTED!', 'bad'); Snd.play('mgHit', 0); mgShake(ctx);
         ctx.say(`❌ Intercepted — the timing was way off<span class="mg-tip">Wait for the green zone.</span>`, 'bad'); res(false);
       }
     };
@@ -408,7 +420,7 @@ function mgQBLive(ctx, i, st) {
     const frame = now => {
       if (ended) return; if (!ctx.alive()) { cleanup(); return; }
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt; const tau = t - SN;
-      T.render(t);
+      mgLiveRender(L, t);
       // ---- you: the drop-back, then steer the quarterback inside the pocket ----
       let vx = inp.k.r - inp.k.l, vy = inp.k.d - inp.k.u; const m = Math.hypot(vx, vy), ox = Q.x, oy = Q.y;
       if (m > 0) { Q.x = clamp(Q.x + vx / m * vq * dt, qMin, qMax); Q.y = clamp(Q.y + vy / m * vq * dt, Math.max(yMin, q0y - 80), Math.min(yMax, q0y + 80)); }
@@ -419,7 +431,7 @@ function mgQBLive(ctx, i, st) {
       // ---- the rush: blocked until they win, then a swim / spin / bull rush and a curved chase that leads the quarterback ----
       minD = 999;
       rush.forEach(r => {
-        if (!r.free && tau >= r.tf) { const p = T.posAt(r.id, SN + r.tf); r.x = p.x; r.y = p.y; r.free = true; r.t0 = tau; mgPop(ctx, clamp(r.x, 250, 1000), r.y - 30, r.mv === 0 ? 'BULL RUSH!' : r.mv < 0 ? 'SWIM!' : 'SPIN!', 'bad'); }
+        if (!r.free && tau >= r.tf) { const p = T.posAt(r.id, SN + r.tf); r.x = p.x; r.y = p.y; r.free = true; r.t0 = tau; mgLivePop(ctx, L, r.x + 34, r.y, r.mv === 0 ? 'BULL RUSH!' : r.mv < 0 ? 'SWIM!' : 'SPIN!', 'bad'); }
         if (!r.free) return;
         const age = tau - r.t0, side = r.y < lvY(0) ? -1 : 1;
         if (age < 0.3 && r.mv !== 0) { r.y += side * (r.mv === 1 ? 70 : 52) * dt; r.x += 14 * dt; }
@@ -433,7 +445,7 @@ function mgQBLive(ctx, i, st) {
       const v = marker(); pi.style.left = (v * 100) + '%';
       { const wp = T.posAt('WR1', t); tgt.setAttribute('transform', `translate(${wp.x.toFixed(1)} ${wp.y.toFixed(1)})`); }
       press.setAttribute('opacity', clamp(1 - minD / 95, 0, 0.7).toFixed(2));
-      mgLiveCam(ctx, L, Q.x + 90, Q.y, dt);
+      mgLiveCam(ctx, L, Q.x + 190, (Q.y + lvY(0)) / 2, dt);
       if (minD < 17) return sack('A rusher got to you.'); if (tau >= tMax) return sack('You held it too long.');
       raf = requestAnimationFrame(frame);
     };

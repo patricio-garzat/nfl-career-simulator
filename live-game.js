@@ -294,8 +294,12 @@ function lvEndZone(x, team, rot, endIdx) {
   const d = LV_EZ[team.id], top = LV_PAD, cx = x + 50, cy = lvY(0);
   if (!d) {                                                        // safety net: a team with no design gets its color and name
     const bg = team.c1, txt = lum(bg) > 0.5 ? '#101418' : '#FFFFFF';
-    const nm = String(team.nick || team.name || '').toUpperCase(), fs = team.logo ? Math.min(40, 400 / Math.max(6, nm.length)) : Math.min(70, 430 / Math.max(5, nm.length) * 1.6);
-    return `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="${bg}"/><g transform="translate(${cx} ${cy}) rotate(${rot})">${team.logo ? `<image href="${team.logo}" x="-62" y="-130" width="124" height="124" preserveAspectRatio="xMidYMid meet"/>` : ''}<text text-anchor="middle" y="${team.logo ? 52 : 22}" font-family="'Anton',sans-serif" font-size="${fs.toFixed(1)}" fill="${txt}">${esc(nm)}</text></g>`;
+    if (team.logo) {                                              // colleges and clubs: just the logo with a white outline, centered on the team's primary color
+      const fid = 'lvLogoOut' + Math.round(x);
+      return `<defs><filter id="${fid}" x="-20%" y="-20%" width="140%" height="140%"><feMorphology in="SourceAlpha" operator="dilate" radius="2.4" result="d"/><feFlood flood-color="#ffffff"/><feComposite in2="d" operator="in" result="o"/><feMerge><feMergeNode in="o"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="${bg}"/><g transform="translate(${cx} ${cy}) rotate(${rot})"><image href="${team.logo}" x="-40" y="-40" width="80" height="80" preserveAspectRatio="xMidYMid meet" filter="url(#${fid})"/></g>`;
+    }
+    const nm = String(team.nick || team.name || '').toUpperCase(), fs = Math.min(70, 430 / Math.max(5, nm.length) * 1.6);
+    return `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="${bg}"/><g transform="translate(${cx} ${cy}) rotate(${rot})"><text text-anchor="middle" y="22" font-family="'Anton',sans-serif" font-size="${fs.toFixed(1)}" fill="${txt}">${esc(nm)}</text></g>`;
   }
   const items = d.ends[Math.min(endIdx, d.ends.length - 1)];
   const turf = `<rect x="${x}" y="${top}" width="100" height="${LV_FH}" fill="#2d8647"/>`;   // unpainted grass: a single flat green

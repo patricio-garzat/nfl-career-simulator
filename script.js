@@ -2112,7 +2112,8 @@ function barClass(v) { return v >= 88 ? 'elite' : v >= 75 ? 'hi' : v >= 60 ? 'mi
 function attrBars(P) {
   return POS[P.pos].attrs.map(([n]) => `<div class="attr"><span>${n}</span><b>${P.attrs[n]}</b><div class="bar ${barClass(P.attrs[n])}"><i style="--w:${P.attrs[n]}%"></i></div></div>`).join('');
 }
-const ovrRing = (ovr, cls = '') => `<div class="ovr-ring ${cls}" style="--p:${ovr}"><span class="n">${ovr}</span><small>OVR</small></div>`;
+// the overall, with the two small decimals the mini games add (5 points = +0.1) up and to the side of the number
+const ovrRing = (ovr, cls = '', frac = 0) => { const v = ovr + (frac || 0), whole = Math.floor(v + 1e-9), dec = Math.min(99, Math.round((v - whole) * 100)); return `<div class="ovr-ring ${cls}" style="--p:${v.toFixed(2)}"><span class="n">${frac ? whole : ovr}${frac ? `<sup>.${String(dec).padStart(2, '0')}</sup>` : ''}</span><small>OVR</small></div>`; };
 const awardChips = list => (list && list.length ? list.map(a => `<span class="award">${a.icon} ${esc(a.label)}</span>`).join('') : '');
 
 /* ---------------------------------------------------------------------
@@ -2261,7 +2262,7 @@ function renderPreview() {
     <div class="eyebrow">STEP 2 OF 2 · PRE-SEASON</div><h2 class="h-xl">YOUR PLAYER</h2>
     <div class="card player-card pop">
       <div class="pc-top">
-        ${ovrRing(P.ovr, 'big')}
+        ${ovrRing(P.ovr, 'big', P.mgFrac)}
         <div class="pc-id">
           <div class="pc-name">${esc(P.name)}</div>
           <div class="chips">${posBadge(P.pos)}<span class="chip">${POS[P.pos].name}</span>${P.college ? collegeChip(P.college) : ''}${youthChip(P.youth)}<span class="chip">AGE ${P.age}</span></div>
@@ -2373,7 +2374,7 @@ function renderDashboard() {
           <h1 class="player-name">${esc(P.name)}</h1>
           <div class="chips">${posBadge(P.pos)}<span class="chip">#${playerNumber()}</span><span class="chip">AGE ${P.age}</span><span class="chip">${se.year} SEASON</span>${collegeChip(P.college)}<span class="chip ${P.dev === 'Normal' ? '' : 'gold'}">${P.dev === 'Normal' ? '' : '★ '}${P.dev}</span></div>
         </div></div>
-      ${ovrRing(P.ovr, 'big')}
+      ${ovrRing(P.ovr, 'big', P.mgFrac)}
     </header>
     ${inj}${tradeBanner}${mgBannerHTML(se)}${mgWeeklyHTML(se)}
     <div class="dash-grid">

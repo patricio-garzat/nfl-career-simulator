@@ -1325,3 +1325,7 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 @media (max-width: 720px) { .mg-stats b { font-size: 22px; } .mg-runs span { font-size: 13px; padding: 5px 10px; } }
 .mg-res.rb { padding: 8px 12px; gap: 4px; } .mg-res.rb .mg-intro-logo { width: 54px; height: 54px; animation: none; } .mg-res.rb .mg-grade { font-size: 32px; } .mg-res.rb .mg-big { font-size: 46px; } .mg-res.rb .mg-bonus { margin-top: 2px; }
 .mg-stage:has(.mg-res.rb) { overflow-y: auto; }
+
+/* the overall with its two small decimals */
+.ovr-ring .n sup { font-size: .3em; vertical-align: top; position: relative; top: .08em; margin-left: 2px; letter-spacing: 0; font-weight: 700; color: var(--acc); line-height: 1; }
+.dashx .ovr-ring .n sup { color: var(--tb); }

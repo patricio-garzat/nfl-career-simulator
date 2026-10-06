@@ -268,7 +268,13 @@ function mgFinish(ctx) {
   ctx.say(''); ctx.ctrl.innerHTML = `<button class="btn btn-primary btn-xl" data-mg="done">CONTINUE</button>`;
   if (weekly) { se.buffs.push({ left: 1, perf: wPerf, label: 'Week ' + (gi + 1) + ' training' }); se.mgTrainAt = gi; se.mgStreak = streak; }
   else { se.buffs.push({ left: 99, perf, label: 'Camp ' + g.n.toLowerCase() }); if (sc >= 4) se.train.ment = Math.min(1.5, (se.train.ment || 0) + 0.25); }
-  let grew = 0; if (ctx.env.nfl && typeof seasonGrow === 'function') { const notes = []; grew = seasonGrow(se, weekly ? [0, 0, 0.12, 0.35, 0.6, 0.9][sc] : [0, 0, 0.2, 0.7, 1.2, 1.7][sc], notes, weekly ? 'weekly training' : 'preseason camp'); if (grew) { const bx = ctx.stage.querySelector('.mg-bonus'); if (bx) bx.insertAdjacentHTML('afterend', `<div class="mg-bonus good">📈 RATING +${grew} → ${S.player.ovr}${notes.some(x => x.includes('DEPTH')) ? ' · moved up the depth chart' : ''}</div>`); } }
+  // the overall moves with the points of the game: every 5 points = +0.1 (negative points take it away); a full +1.0 raises the real rating
+  { const P = ctx.P, gain = rbm ? pts : raw * 2 + (ctx.perfects || 0), dO = Math.round(gain / 50 * 100) / 100; let up = 0;
+    P.mgFrac = clamp(Math.round(((P.mgFrac || 0) + dO) * 100) / 100, -0.99, 9);
+    while (P.mgFrac >= 1 && P.ovr < 99) { let n = 1; if (ctx.env.nfl && typeof growOvr === 'function' && typeof S !== 'undefined' && S && S.player === P) n = growOvr(1); else P.ovr = Math.min(99, P.ovr + 1); if (!n) break; up += n; P.mgFrac = Math.round((P.mgFrac - 1) * 100) / 100; }
+    const shown = P.ovr + (P.mgFrac || 0), bx = ctx.stage.querySelector('.mg-bonus');
+    if (bx) bx.insertAdjacentHTML('afterend', `<div class="mg-bonus ${dO >= 0 ? 'good' : 'bad'}">📈 OVERALL ${dO >= 0 ? '+' : '−'}${Math.abs(dO).toFixed(2)} · ${shown.toFixed(2)}${up ? ` · RATING +${up}` : ''}</div>`);
+    if (ctx.env.save) saveGame(); }
   se.mgLog.push({ kind: ctx.kind, score: sc, wk: se.mg ? se.mg.wk : 0, weekly }); se.mg = null; se.mgSince = 0; se.mgIn = randInt(3, 5);
   if (ctx.env.save) saveGame();
   Snd.play(sc >= 4 ? 'bigFanfare' : good ? 'win' : 'lose', 0.1);

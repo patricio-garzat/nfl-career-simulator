@@ -6,7 +6,7 @@
    Your team always attacks to the right, 1 yard = 10 px, script time = real time.
    ===================================================================== */
 const MGL_K = 1.6;                      // size of the HUD and the labels
-const MGL_W = 400, MGL_H = 495;         // the camera window (screen units): about 40 x 50 yards of the field
+const MGL_W = 590, MGL_H = 690;         // the camera window (screen units): the whole width of the field (both sidelines and the white border) and about 69 yards of its length
 // The field is turned 90°: your team attacks from the bottom of the screen to the top. Everything (formations, routes, speeds) is computed in the live field's own coordinates
 // (x towards the end zone, y across); the whole field group is rotated -90° (screen = (y, -x)) and the camera follows the play.
 
@@ -33,7 +33,7 @@ function mgLiveInit(ctx, play, hud, extra = '', win = null) {
 // camera: centre of the view (px of the field), smoothed; the score bug stays at the top of the screen
 function mgLiveCam(ctx, L, fx, fy, dt) {
   const k = Math.min(1, dt * 3.5), W = L.W, H = L.H;
-  L.cx += (fx - L.cx) * k; L.cy += (fy - L.cy) * k;
+  L.cx += (fx - L.cx) * k; L.cy = lvY(0);                                                   // the camera only follows the play up and down the field: both sidelines are always in view
   const sx = L.cy, sy = -L.cx;                                                             // field -> screen
   const x = clamp(sx - W / 2, -66, 619 - W), y = clamp(sy - H / 2, -1270, 70 - H);
   L.svg.setAttribute('viewBox', `${x.toFixed(1)} ${y.toFixed(1)} ${W} ${H}`);
@@ -358,7 +358,7 @@ function mgQBLive(ctx, i, st) {
   const col = mgLiveCol(ctx), tc = col[ctx.t.id] || ctx.t.c1, spot = a => (a > 50 ? `${ctx.o.id} ${Math.round(100 - a)}` : a === 50 ? 'MIDFIELD' : `${ctx.t.id} ${Math.round(a)}`);
   const hud = mgBug([{ w: 66, fill: tc, on: textOn(tc), txt: [['1ST & 10', 'n']] }, { w: 62, fill: '#0b1220', txt: [[spot(LOS_ABS), 'n']] }], -58, 600, MGL_K)
     + '<defs><radialGradient id="mgPrG" cx="50%" cy="60%" r="65%"><stop offset=".55" stop-color="#ff2d2d" stop-opacity="0"/><stop offset="1" stop-color="#ff2d2d" stop-opacity=".8"/></radialGradient></defs><rect id="mgPress" x="-1500" y="-1500" width="4200" height="3200" fill="url(#mgPrG)" opacity="0" pointer-events="none"/>';
-  const L = mgLiveInit(ctx, play, hud, '<g id="mgTgt" pointer-events="none"></g>', { w: 540, h: 660 }), { sc, F, actors, T } = L;
+  const L = mgLiveInit(ctx, play, hud, '<g id="mgTgt" pointer-events="none"></g>'), { sc, F, actors, T } = L;
   const PS = mgLivePassScript(L), { R, FOL, O, D, dd, to } = PS, losX = lvX(sc.los), yMin = lvY(-25.8), yMax = lvY(25.8);
   mgLivePre(L);
   // ---- scripted play: the target's route (we know where he will be), the other routes, coverage, protection ----

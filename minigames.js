@@ -239,6 +239,13 @@ async function mgRun(ctx) {
   mgFinish(ctx);
 }
 function mgFlash(ctx, good) { const s = ctx.stage; s.classList.remove('mg-good', 'mg-badflash'); void s.offsetWidth; s.classList.add(good ? 'mg-good' : 'mg-badflash'); if (good) { Snd.play('mgCrowd', 0.12, 1); burst(s, 14, [ctx.t.c1, ctx.t.c2, '#ffffff', '#ffd23d']); } }
+// the stat line of the RB game: yards, per carry, longest run, touchdowns and every run
+function mgRBStats(ctx) {
+  const r = ctx.rbRuns || []; if (!r.length) return '';
+  const tot = r.reduce((a, x) => a + x.yds, 0), lng = Math.max(...r.map(x => x.yds)), tds = r.filter(x => x.td).length, avg = Math.round(tot / r.length * 10) / 10, f = n => (n < 0 ? '−' : '') + Math.abs(n);
+  return `<div class="mg-stats">${[[f(tot), 'YARDS'], [f(avg), 'YDS / CARRY'], [f(lng), 'LONGEST'], [tds, 'TOUCHDOWNS']].map(([v, l]) => `<div><b>${v}</b><small>${l}</small></div>`).join('')}</div>
+    <div class="mg-runs">${r.map((x, i) => `<span class="${x.td ? 'td' : x.yds < 0 ? 'neg' : ''}"><i>RUN ${i + 1}</i>${x.td ? 'TD · ' : ''}${x.yds > 0 ? '+' : x.yds < 0 ? '−' : ''}${Math.abs(x.yds)} yds<em>${x.pts < 0 ? '−' : '+'}${mgPts(Math.abs(x.pts))}</em></span>`).join('')}</div>`;
+}
 function mgFinish(ctx) {
   ctx.stage.classList.remove('mg-live-stage', 'mg-ls-tall');
   const se = ctx.env.se, rbm = ctx.kind === 'rb', pts = Math.round((ctx.rbPts || 0) * 10) / 10;
@@ -247,10 +254,11 @@ function mgFinish(ctx) {
   const weekly = !!(se.mg && se.mg.weekly), gi = mgGamesIn(se), streak = weekly ? (se.mgTrainAt === gi - 1 && se.mgStreak ? se.mgStreak + 1 : 1) : 0;
   const wPerf = weekly ? (rbm ? clamp(0.008 + pts * 0.0055, 0.008, 0.07) : MG_WEEK_PERF[sc]) + Math.min(0.03, 0.005 * (streak - 1)) : 0;
   const fx = rbm && !weekly ? `${mgPts(pts)} points → ${perf >= 0 ? '+' : '−'}${Math.abs(perf * 100).toFixed(1).replace(/\.0$/, '')}% performance all season · moves your rating` : weekly ? `${rbm ? mgPts(pts) + ' points → ' : ''}+${(wPerf * 100).toFixed(1).replace(/\.0$/, '')}% performance in your next game${streak > 1 ? ` · ${streak}-week training streak` : ''}` : `${perf > 0 ? '+' : '−'}${Math.abs(Math.round(perf * 100))}% performance all season · moves your rating`;
-  ctx.stage.innerHTML = `<div class="mg-res ${good ? 'good' : 'bad'}" style="background-image:radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, ${ctx.t.c1} 38%, transparent), transparent)">
+  ctx.stage.innerHTML = `<div class="mg-res ${good ? 'good' : 'bad'}${rbm ? ' rb' : ''}" style="background-image:radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, ${ctx.t.c1} 38%, transparent), transparent)">
     <img class="mg-intro-logo small" src="${ctx.t.logo}" alt="">
     <div class="mg-grade">${g.n}</div><div class="mg-big">${rbm ? mgPts(pts) : raw}<small>${rbm ? ' PTS' : '/3'}</small></div>
     <div class="mg-stars">${[0, 1, 2].map(i => `<span class="${i < raw ? 'on' : ''}">★</span>`).join('')}</div>
+    ${rbm ? mgRBStats(ctx) : ''}
     ${ctx.perfects ? `<div class="mg-perf">✨ ${ctx.perfects} perfect play${ctx.perfects > 1 ? 's' : ''}</div>` : ''}
     <div class="mg-bonus ${good || weekly ? 'good' : 'bad'}">${good || weekly ? '⚡' : '⚠️'} ${fx}</div></div>`;
   ctx.say(''); ctx.ctrl.innerHTML = `<button class="btn btn-primary btn-xl" data-mg="done">CONTINUE</button>`;

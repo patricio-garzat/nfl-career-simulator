@@ -116,6 +116,7 @@ function mgRBLive(ctx, i, st) {
   const col = mgLiveCol(ctx), tc = col[ctx.t.id] || ctx.t.c1;
   const hud = mgBug([{ w: 34, fill: tc, on: textOn(tc), txt: [[ctx.t.id, 'n']] }, { w: 56, fill: '#0b1220', txt: [['0', 'n', 'mgYdN'], [' YDS', 'l']] }, { w: 62, fill: '#13203a', txt: [['0', 'n', 'mgPtN'], [' PTS', 'l']] }], -58, 600, MGL_K);
   if (ctx.rbPts == null) ctx.rbPts = 0;
+  if (!ctx.rbRuns) ctx.rbRuns = [];
   // three lanes (left, middle, right of the line); the defense plugs one of them or none: at least two are always open. You read the front to guess which.
   const front = mgRBFront(rnd() < 0.72 ? randInt(0, 2) : null), closed = front.closed, open = [0, 1, 2].filter(l => l !== closed);
   const laneOf = v => { let b = 0; MGR_LANE.forEach((g, k) => { if (Math.abs(v - g) < Math.abs(v - MGR_LANE[b])) b = k; }); return b; };
@@ -167,9 +168,10 @@ function mgRBLive(ctx, i, st) {
     const cleanup = () => { ended = true; cancelAnimationFrame(raf); inp.dispose(); };
     const finish = async (td, why) => {
       if (ended) return; cleanup(); ctx.ctrl.innerHTML = '';
-      const yds = Math.max(0, Math.round(best)), pts = Math.round((yds * 0.1 + (td ? 6 : 0)) * 10) / 10;  ctx.rbPts = Math.round((ctx.rbPts + pts) * 10) / 10;
-      mgLivePop(ctx, L, me.x + 34, me.y, td ? 'TOUCHDOWN!' : yds >= 10 ? 'BIG GAIN!' : yds >= 4 ? `+${yds} YDS` : 'TACKLED!', yds >= 4 || td ? 'good' : 'bad'); mgShake(ctx); Snd.play(td ? 'td' : yds >= 4 ? 'mgPat' : 'mgHit', td ? 0.05 : 0);
-      ctx.say(`${yds >= 4 || td ? '✅' : '❌'} ${td ? '<b>TOUCHDOWN!</b> ' : ''}${yds}-yard run · <b>+${mgPts(pts)} pts</b>${td ? ' (6 for the touchdown)' : ''}${why ? `<span class="mg-tip">${why}</span>` : ''}`, yds >= 4 || td ? 'good' : 'bad');
+      const yds = td ? Math.round((goalX - losX) / 10) : Math.round((mpx - losX) / 10), pts = Math.round((yds * 0.1 + (td ? 6 : 0)) * 10) / 10;  ctx.rbPts = Math.round((ctx.rbPts + pts) * 10) / 10;       // yards = where you are brought down (negative behind the line)
+      (ctx.rbRuns = ctx.rbRuns || []).push({ yds, td, pts });
+      mgLivePop(ctx, L, me.x + 34, me.y, td ? 'TOUCHDOWN!' : yds >= 10 ? 'BIG GAIN!' : yds >= 4 ? `+${yds} YDS` : yds < 0 ? `LOSS · −${-yds} YDS` : 'TACKLED!', yds >= 4 || td ? 'good' : 'bad'); mgShake(ctx); Snd.play(td ? 'td' : yds >= 4 ? 'mgPat' : 'mgHit', td ? 0.05 : 0);
+      ctx.say(`${yds >= 4 || td ? '✅' : '❌'} ${td ? '<b>TOUCHDOWN!</b> ' : ''}${yds < 0 ? `Loss of ${-yds} yard${yds === -1 ? '' : 's'}` : `${yds}-yard run`} · <b>${pts < 0 ? '−' : '+'}${mgPts(Math.abs(pts))} pts</b>${td ? ' (6 for the touchdown)' : ''}${why ? `<span class="mg-tip">${why}</span>` : ''}`, yds >= 4 || td ? 'good' : 'bad');
       if (yds >= 12 && !td) ctx.perfects++; if (td) ctx.perfects++;
       Snd.stopPlayers(800);
       res(yds >= 4 || td);
@@ -188,7 +190,6 @@ function mgRBLive(ctx, i, st) {
         if (inp.k.g) { const sp = 84 * (stun > 0 ? 0.4 : 1) * (vx < 0 ? 0.7 : 1); mpx = clamp(mpx + vx * sp * dt, lvX(-8), lvX(108)); mpy = clamp(mpy + vy * sp * dt, yMin, yMax); }
       }
       mgLiveMe(L, me, mpx, mpy); mgLiveFace(me, rad, 0.5); mgLiveCam(ctx, L, mpx + L.lead, mpy, dt);
-      best = Math.max(best, (mpx - losX) / 10);
       if (handed) { ball.el.setAttribute('transform', `translate(${(mpx + 7 * Math.cos(rad) + 5).toFixed(1)} ${(mpy + 7 * Math.sin(rad) + 4).toFixed(1)}) scale(.85)`); }
       // ---- the defense: scripted until blocked / reaction time is over, then pursuit with lead ----
       let hitBy = null, nearest = 999;
@@ -208,7 +209,7 @@ function mgRBLive(ctx, i, st) {
       // ---- tackles: a first hit slows you down, a second one (or two defenders at once) ends the run ----
       if (hitBy === 'multi' || (hitBy && stun > 0 && tau - hitT > 0.12)) return finish(false, hitBy === 'multi' ? 'Two defenders got to you.' : 'You got hit twice — dodge them!');
       if (hitBy && stun <= 0) { stun = 0.6; hitT = tau; hits++; mgLivePop(ctx, L, mpx + 34, mpy, 'HIT!', 'bad'); Snd.play('mgHit', 0); const bx = mpx - hitBy.x, by = mpy - hitBy.y, bl = Math.hypot(bx, by) || 1; hitBy.x -= bx / bl * 12; hitBy.y -= by / bl * 12; }
-      const yd = Math.max(0, Math.round(best)); ydN.textContent = yd; ptN.textContent = mgPts(ctx.rbPts + yd * 0.1);
+      const yd = Math.round((mpx - losX) / 10); ydN.textContent = yd < 0 ? '−' + (-yd) : yd; ptN.textContent = mgPts(Math.round((ctx.rbPts + yd * 0.1) * 10) / 10);
       if (holeG) holeG.setAttribute('opacity', clamp(1 - Math.max(0, tau - 1.3) / 0.8, 0, 1).toFixed(2));
       if (mpx >= tdX) return finish(true);
       if (tau > 22) return finish(false, 'Time ran out.');

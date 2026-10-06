@@ -1314,3 +1314,14 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 .mg-stage.mg-live-stage { background: #0b1220; background-image: none; padding: 0; }
 @media (min-width: 721px) { .mg-stage.mg-live-stage { flex: 1 1 0; min-height: 0; } }
 @media (max-width: 720px) { .mg-stage.mg-live-stage { height: calc(100dvh - 372px); min-height: 260px; } .mg-stage.mg-live-stage.mg-ls-tall { height: calc(100dvh - 450px); min-height: 220px; } }
+
+/* RB results: stat line */
+.mg-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; max-width: 460px; margin: 6px 0 2px; }
+.mg-stats > div { background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12); border-radius: 12px; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.mg-stats b { font-family: var(--head); font-size: 28px; line-height: 1; } .mg-stats small { font-family: var(--head); font-size: 10px; letter-spacing: .16em; color: var(--mut); }
+.mg-runs { display: grid; gap: 4px; width: 100%; max-width: 460px; }
+.mg-runs span { display: flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, .05); border-radius: 8px; padding: 6px 12px; font-family: var(--head); font-size: 15px; letter-spacing: .06em; }
+.mg-runs i { font-style: normal; font-size: 11px; letter-spacing: .16em; color: var(--mut); min-width: 52px; text-align: left; } .mg-runs em { margin-left: auto; font-style: normal; color: #6dffbb; } .mg-runs .neg em { color: #ff8b8b; } .mg-runs .td { background: rgba(255, 210, 61, .14); } .mg-runs .td em { color: #ffd23d; }
+@media (max-width: 720px) { .mg-stats b { font-size: 22px; } .mg-runs span { font-size: 13px; padding: 5px 10px; } }
+.mg-res.rb { padding: 8px 12px; gap: 4px; } .mg-res.rb .mg-intro-logo { width: 54px; height: 54px; animation: none; } .mg-res.rb .mg-grade { font-size: 32px; } .mg-res.rb .mg-big { font-size: 46px; } .mg-res.rb .mg-bonus { margin-top: 2px; }
+.mg-stage:has(.mg-res.rb) { overflow-y: auto; }

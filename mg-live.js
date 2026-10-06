@@ -10,7 +10,12 @@ const MGL_W = 590, MGL_H = 690;         // the camera window (screen units): the
 // The field is turned 90°: your team attacks from the bottom of the screen to the top. Everything (formations, routes, speeds) is computed in the live field's own coordinates
 // (x towards the end zone, y across); the whole field group is rotated -90° (screen = (y, -x)) and the camera follows the play.
 
-const mgLiveCol = ctx => lvColors(ctx.t.id, ctx.o.id);
+// team colors on the field: never two dark teams — if both are dark, the rival (the visitor) wears its secondary / light color (or white)
+const mgLiveCol = ctx => {
+  const col = lvColors(ctx.t.id, ctx.o.id), a = col[ctx.t.id], b = col[ctx.o.id];
+  if (lum(a) < 0.3 && lum(b) < 0.3) { const sec = TEAM[ctx.o.id].c2; col[ctx.o.id] = lum(sec) >= 0.3 && lvDelta(sec, a) >= 22 ? sec : '#FFFFFF'; }
+  return col;
+};
 // builds the stage: the live field, the line of scrimmage and the actors of the formation. `hud` is the SVG of the score bug (or '').
 function mgLiveInit(ctx, play, hud, extra = '', win = null) {
   const col = mgLiveCol(ctx), WW = win ? win.w : MGL_W, WH = win ? win.h : MGL_H;
@@ -24,7 +29,7 @@ function mgLiveInit(ctx, play, hud, extra = '', win = null) {
   ctx.stage.innerHTML = svg;
   const los = ctx.stage.querySelector('#lvLos'); if (los) { los.setAttribute('x', lvX(sc.los) - 2); los.setAttribute('opacity', 0.9); }
   const F = lvPlan(play), actors = lvMakeActors(sc, play), T = lvTimeline(actors);
-  Object.values(actors).forEach(a => { if (a.el && a.el.querySelectorAll) a.el.querySelectorAll('text').forEach(tx => tx.setAttribute('transform', 'rotate(90)')); });      // the labels stay upright
+  Object.values(actors).forEach(a => { if (a.el && a.el.querySelectorAll) { a.el.querySelectorAll('.lv-pr').forEach(tx => tx.remove()); a.el.querySelectorAll('text').forEach(tx => tx.setAttribute('transform', 'rotate(90)')); } });      // no position letters; your number stays upright
   const L = { col, sc, F, actors, T, svg: ctx.stage.querySelector('svg.mg-live'), hud: ctx.stage.querySelector('#mgHud'), press: ctx.stage.querySelector('#mgPress'), cx: lvX(sc.los) + 150, cy: lvY(0), W: WW, H: WH };
   L.hudW = L.hud ? L.hud.getBBox().width : 0;
   mgLiveCam(ctx, L, L.cx, L.cy, 1);

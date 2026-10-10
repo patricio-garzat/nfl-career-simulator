@@ -128,3 +128,22 @@ html { scrollbar-color: var(--w250) transparent; }
 :root[data-theme="light"] .dashx .tile.hl { background: linear-gradient(160deg, color-mix(in srgb, var(--tb) 22%, #fff), color-mix(in srgb, var(--tb) 6%, #fff)); }
 :root[data-theme="light"] .dashx .tile.hl .tile-v { text-shadow: none; }
 :root[data-theme="light"] .ovr-ring::after { background: conic-gradient(from 0deg, transparent 0 86%, rgba(255, 255, 255, .95) 98%, transparent 100%); }
+
+/* ---------- 3D jersey viewer ---------- */
+.j3d { position: fixed; inset: 0; z-index: 400; display: flex; flex-direction: column; color: var(--text); background: radial-gradient(900px 600px at 50% 38%, color-mix(in srgb, var(--t1) 55%, #0a101c), #05080f 78%); animation: j3dIn .35s var(--ease) both; touch-action: none; user-select: none; -webkit-user-select: none; }
+.j3d.out { animation: fadeOut .25s both; pointer-events: none; }
+@keyframes j3dIn { from { opacity: 0; transform: scale(1.03); } }
+.j3d::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .035) 0 2px, transparent 2px 120px); -webkit-mask: radial-gradient(70% 70% at 50% 50%, #000, transparent); mask: radial-gradient(70% 70% at 50% 50%, #000, transparent); }
+.j3d-top { position: relative; display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; z-index: 2; }
+.j3d-title { font-family: var(--head); font-size: 30px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; font-style: italic; }
+.j3d-x { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line2); background: var(--btnbg); color: var(--text); font-size: 18px; cursor: pointer; backdrop-filter: blur(8px); transition: transform .2s var(--spring), background .2s; } .j3d-x:hover { transform: rotate(90deg) scale(1.08); background: var(--btnbg-h); }
+.j3d-stage { position: relative; flex: 1; min-height: 0; }
+.j3d-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; outline: none; } .j3d-cv.grab { cursor: grabbing; }
+.j3d-load { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 14px; font-family: var(--head); letter-spacing: .16em; text-transform: uppercase; color: var(--soft2); transition: opacity .4s; }
+.j3d-load i { width: 38px; height: 38px; border-radius: 50%; border: 3px solid var(--w140); border-top-color: var(--acc); animation: spin .8s linear infinite; }
+.j3d.ready .j3d-load { opacity: 0; pointer-events: none; }
+.j3d-bar { position: relative; z-index: 2; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 6px 16px 8px; }
+.j3d-bar button { border: 1px solid var(--line2); background: var(--btnbg); color: var(--text); padding: 11px 18px; border-radius: 12px; cursor: pointer; font-family: var(--head); font-weight: 700; font-size: 15px; letter-spacing: .1em; backdrop-filter: blur(8px); transition: transform .2s var(--spring), background .2s, border-color .2s; }
+.j3d-bar button:hover { transform: translateY(-2px); background: var(--btnbg-h); border-color: var(--w300); } .j3d-bar button.on { background: linear-gradient(135deg, var(--lime), var(--lime2)); color: #0a1204; border-color: transparent; }
+.j3d-hint { position: relative; z-index: 2; text-align: center; padding: 0 16px calc(16px + env(safe-area-inset-bottom)); font-size: 12.5px; color: var(--mut); letter-spacing: .04em; }
+@media (max-width: 560px) { .j3d-title { font-size: 22px; } .j3d-bar button { padding: 10px 12px; font-size: 13px; } }

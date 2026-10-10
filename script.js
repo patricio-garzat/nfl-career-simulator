@@ -2685,6 +2685,7 @@ function renderLocker(keepScroll) {
         <div class="jc-actions">
           <button class="btn btn-primary btn-sm" data-act="jcRandom">🎲 RANDOMIZE</button>
           <button class="btn btn-ghost btn-sm" data-act="jcReset">↺ RESET DESIGN</button>
+          <button class="btn btn-live btn-sm" data-act="jc3d">🧊 VIEW IN 3D</button>
           <button class="btn btn-secondary btn-sm" data-act="jcExport">⬇ DOWNLOAD PNG</button>
         </div>
         <nav class="jc-tabs" role="tablist">${JC_TABS.map(([k, ic, l]) => `<button class="jc-tab ${jcTab === k ? 'on' : ''}" data-act="jcTab" data-k="${k}" role="tab"><span>${ic}</span>${l}</button>`).join('')}</nav>
@@ -3195,6 +3196,7 @@ const actions = {
   jcRandom: () => editJersey(c => Object.assign(c, randomJersey(jcKey(), c))),
   jcTarget: (d) => { jcTarget = d.k; jcView = 'front'; renderLocker(true); },
   jcReset: () => { if (S.jerseys) delete S.jerseys[jcKey()]; saveGame(); renderLocker(true); toast('Design reset'); },
+  jc3d: () => { if (typeof openJersey3D === 'function') openJersey3D(); },
   jcExport: () => { (jcAlt() ? exportJerseyPNG() : exportVitrinaPNG()).then(() => toast(jcAlt() ? '⬇ Jersey saved as PNG' : '⬇ Display case saved as PNG')).catch(e => { console.error(e); toast('Could not export the image'); }); },
   jerseyBg: (d) => { S.jerseyBg = d.k; saveGame(); renderLocker(true); },
   jerseyExpand: () => {

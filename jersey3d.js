@@ -87,19 +87,22 @@ function j3dEnv(THREE, renderer) {
 // jersey-shaped, slightly inflated body: a front panel and a back panel that meet along the silhouette
 function j3dBuild(THREE, cvs, maxAniso, bodyColor) {
   const fc = cvs.front, bc = cvs.back;
-  const W = UNI.meta.w, H = UNI.meta.h, ST = 2, nx = Math.floor(W / ST) + 1, ny = Math.floor(H / ST) + 2, U = 0.01;
-  const grab = (cv, flip) => { const c = document.createElement('canvas'); c.width = nx; c.height = ny; const x = c.getContext('2d'); if (flip) { x.translate(nx, 0); x.scale(-1, 1); } x.drawImage(cv, 0, 0, cv.width, cv.height, 0, 0, nx, H / ST); return x.getImageData(0, 0, nx, ny).data; };
-  // mask = where either side of the jersey has fabric (the back is mirrored into front coordinates)
-  const fa = grab(fc, false), ba = grab(bc, true), M = new Uint8Array(nx * ny);
-  for (let k = 0; k < nx * ny; k++) M[k] = (fa[k * 4 + 3] > 24 || ba[k * 4 + 3] > 24) ? 1 : 0;
+  const W = UNI.meta.w, H = UNI.meta.h, ST = 1.5, nx = Math.floor(W / ST) + 1, ny = Math.floor(H / ST) + 2, U = 0.01;
+  // fabric coverage on the grid (area average of the drawing's alpha; the back is mirrored into front coordinates)
+  const cover = (cv, flip) => {
+    const w = cv.width, h = cv.height, d = cv.getContext('2d').getImageData(0, 0, w, h).data, sum = new Float32Array(nx * ny), cnt = new Float32Array(nx * ny), sx = w / W, sy = h / H;
+    for (let y = 0; y < h; y++) { const gj = Math.round((y + 0.5) / sy / ST); if (gj >= ny) continue; for (let x = 0; x < w; x++) { let u = (x + 0.5) / sx; if (flip) u = W - u; const gi = Math.round(u / ST); if (gi < 0 || gi >= nx) continue; const k = gj * nx + gi; sum[k] += d[(y * w + x) * 4 + 3]; cnt[k]++; } }
+    for (let k = 0; k < sum.length; k++) sum[k] = cnt[k] ? sum[k] / cnt[k] / 255 : 0; return sum;
+  };
+  const Af = cover(fc, false), Ab = cover(bc, true), A = new Float32Array(nx * ny), M = new Uint8Array(nx * ny);
+  for (let k = 0; k < A.length; k++) { A[k] = Math.max(Af[k], Ab[k]); M[k] = A[k] >= 0.5 ? 1 : 0; }
   // the hem and the sleeve openings are not seams: extend the mask past them so the panels stay apart there
-  let jmax = 0; for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) if (M[j * nx + i]) jmax = j;
-  const PAD = 16, ph = ny + PAD, P = new Uint8Array(nx * ph); P.set(M);
-  for (let i = 0; i < nx; i++) {                       // hem: push the inside 16 rows past the bottom edge of every column (the hem is curved, not a straight row)
+  const PAD = Math.ceil(32 / ST), ph = ny + PAD, P = new Uint8Array(nx * ph); P.set(M);
+  for (let i = 0; i < nx; i++) {                       // hem: push the inside past the bottom edge of every column (the hem is curved, not a straight row)
     let jl = -1; for (let j = Math.floor(200 / ST); j < ny; j++) if (M[j * nx + i]) jl = j;
     if (jl >= 0) for (let j = jl + 1; j <= Math.min(ph - 1, jl + PAD); j++) P[j * nx + i] = 1;
   }
-  // the sleeve ends are openings too: push the "inside" 16 units past each cuff (the cuff edge from the drawing, slanted down and out) so the two panels stay apart there
+  // the sleeve ends are openings too: push the "inside" 16 units past each cuff (the cuff edge from the drawing, slanted down and out)
   const CUFF = [[71.76, 153.48], [59.01, 152.52], [43.41, 148.38], [20.79, 141.36], [14.5, 138.5]];
   for (const sgn of [1, -1]) for (let q = 0; q < CUFF.length - 1; q++) {
     const [x0, y0] = CUFF[q], [x1, y1] = CUFF[q + 1], cn = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 0.5);
@@ -111,24 +114,32 @@ function j3dBuild(THREE, cvs, maxAniso, bodyColor) {
   for (let k = 0; k < D.length; k++) D[k] = P[k] ? BIG : 0;
   for (let j = 0; j < ph; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; if (!D[k]) continue; let v = D[k]; if (i > 0) v = Math.min(v, D[k - 1] + 1); if (j > 0) { v = Math.min(v, D[k - nx] + 1); if (i > 0) v = Math.min(v, D[k - nx - 1] + R2); if (i < nx - 1) v = Math.min(v, D[k - nx + 1] + R2); } D[k] = v; }
   for (let j = ph - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) { const k = j * nx + i; if (!D[k]) continue; let v = D[k]; if (i < nx - 1) v = Math.min(v, D[k + 1] + 1); if (j < ph - 1) { v = Math.min(v, D[k + nx] + 1); if (i < nx - 1) v = Math.min(v, D[k + nx + 1] + R2); if (i > 0) v = Math.min(v, D[k + nx - 1] + R2); } D[k] = v; }
-  const blur = (A, rad, passes) => { const T = new Float32Array(A.length); for (let q = 0; q < passes; q++) { for (let j = 0; j < ph; j++) for (let i = 0; i < nx; i++) { let a = 0, n = 0; for (let di = -rad; di <= rad; di++) { const ii = i + di; if (ii >= 0 && ii < nx) { a += A[j * nx + ii]; n++; } } T[j * nx + i] = a / n; } for (let j = 0; j < ph; j++) for (let i = 0; i < nx; i++) { let a = 0, n = 0; for (let dj = -rad; dj <= rad; dj++) { const jj = j + dj; if (jj >= 0 && jj < ph) { a += T[jj * nx + i]; n++; } } A[j * nx + i] = a / n; } } };
+  const blur = (B, rad, passes) => { const T = new Float32Array(B.length); for (let q = 0; q < passes; q++) { for (let j = 0; j < ph; j++) for (let i = 0; i < nx; i++) { let a = 0, n = 0; for (let di = -rad; di <= rad; di++) { const ii = i + di; if (ii >= 0 && ii < nx) { a += B[j * nx + ii]; n++; } } T[j * nx + i] = a / n; } for (let j = 0; j < ph; j++) for (let i = 0; i < nx; i++) { let a = 0, n = 0; for (let dj = -rad; dj <= rad; dj++) { const jj = j + dj; if (jj >= 0 && jj < ph) { a += T[jj * nx + i]; n++; } } B[j * nx + i] = a / n; } } };
   // local half-width of the garment (ridge of the distance field): torso ~70, sleeves ~27
-  const Wd = new Float32Array(D.length), Tm = new Float32Array(D.length), RW = 18;
-  for (let j = 0; j < ph; j++) for (let i = 0; i < nx; i++) { let m = 0; for (let di = -RW; di <= RW; di++) { const ii = i + di; if (ii >= 0 && ii < nx) m = Math.max(m, D[j * nx + ii]); } Tm[j * nx + i] = Math.min(m, 60); }
+  const Wd = new Float32Array(D.length), Tm = new Float32Array(D.length), RW = Math.round(36 / ST), CAP = Math.round(60 / ST);
+  for (let j = 0; j < ph; j++) for (let i = 0; i < nx; i++) { let m = 0; for (let di = -RW; di <= RW; di++) { const ii = i + di; if (ii >= 0 && ii < nx) m = Math.max(m, D[j * nx + ii]); } Tm[j * nx + i] = Math.min(m, CAP); }
   for (let j = 0; j < ph; j++) for (let i = 0; i < nx; i++) { let m = 0; for (let dj = -RW; dj <= RW; dj++) { const jj = j + dj; if (jj >= 0 && jj < ph) m = Math.max(m, Tm[jj * nx + i]); } Wd[j * nx + i] = m; }
-  blur(Wd, 7, 3);
+  blur(Wd, Math.round(14 / ST), 3);
+  blur(D, 2, 2); for (let k = 0; k < D.length; k++) if (!P[k]) D[k] = 0;   // smooth distance field (no ridges / saw-teeth along the seams)
   const hgt = (i, j) => {
-    const k = j * nx + i, d = Math.min(D[k], 60) * ST, w = Math.max(d, Wd[k] * ST);
+    const k = j * nx + i, d = Math.min(D[k], CAP) * ST, w = Math.max(d, Wd[k] * ST);
     const body = 0.68 * Math.sqrt(Math.max(0, d * (2 * w - d)));          // elliptical cross-section: front and back wrap around into the side seams
     const pinch = Math.min(1, d / 11); const seam = pinch * pinch;           // flat, sewn seam: both panels close exactly on the outline
     const x = i * ST - W / 2, y = j * ST;
     const wrinkle = Math.sin(y * 0.11 + x * 0.045) * 0.9 + Math.sin(y * 0.05 - x * 0.12 + 1.7) * 0.8 + Math.sin(x * 0.2 + y * 0.03) * 0.35;   // soft folds
     return body * seam + wrinkle * Math.min(1, d / 16) * seam;
   };
-  // vertices: front grid then back grid
-  const N = nx * ny, pos = new Float32Array(N * 6), uv = new Float32Array(N * 4);
+  // vertices: front grid then back grid. Vertices just outside the garment are pulled onto the exact outline so the seam is a clean, smooth curve (no grid stair-steps)
+  const N = nx * ny, pos = new Float32Array(N * 6), uv = new Float32Array(N * 4), hv = new Float32Array(N), at = (i, j) => A[Math.min(ny - 1, Math.max(0, j)) * nx + Math.min(nx - 1, Math.max(0, i))];
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-    const k = j * nx + i, x = i * ST, y = j * ST, h = M[k] || D[k] > 0 ? hgt(i, j) : 0, px = (x - W / 2) * U, py = (H / 2 - y) * U;
+    const k = j * nx + i; let x = i * ST, y = j * ST, h = 0;
+    if (M[k] || D[k] > 0) h = hgt(i, j);          // (D > 0 outside the garment = the open hem / cuffs: keep the panels apart there)
+    else if (A[k] > 0.001) {
+      const gx = (at(i + 1, j) - at(i - 1, j)) / (2 * ST), gy = (at(i, j + 1) - at(i, j - 1)) / (2 * ST), g2 = gx * gx + gy * gy;
+      if (g2 > 1e-7) { const t = (A[k] - 0.5) / g2; let dx = -t * gx, dy = -t * gy; const L = Math.hypot(dx, dy); if (L > ST * 1.3) { dx *= ST * 1.3 / L; dy *= ST * 1.3 / L; } x += dx; y += dy; }
+    }
+    hv[k] = h;
+    const px = (x - W / 2) * U, py = (H / 2 - y) * U;
     pos[k * 3] = px; pos[k * 3 + 1] = py; pos[k * 3 + 2] = h * U;
     pos[(N + k) * 3] = px; pos[(N + k) * 3 + 1] = py; pos[(N + k) * 3 + 2] = -h * U;
     uv[k * 2] = x / W; uv[k * 2 + 1] = 1 - y / H;
@@ -140,7 +151,15 @@ function j3dBuild(THREE, cvs, maxAniso, bodyColor) {
     if (!(M[a] || M[b] || M[c] || M[d])) continue;
     fi.push(a, c, b, b, c, d); bi.push(N + a, N + b, N + c, N + b, N + d, N + c);
   }
-  const mk = (idx, map) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); return g; };
+  const mk = idx => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); return g; };
+  const gF = mk(fi), gB = mk(bi), nF = gF.attributes.normal.array, nB = gB.attributes.normal.array;
+  // where the two panels meet they share one outward normal, so light rolls smoothly over the seam instead of snapping from one panel to the other
+  for (let k = 0; k < N; k++) {
+    if (!(hv[k] < 4) || !(M[k] || A[k] > 0.001) || (!M[k] && D[k] > 0)) continue;
+    const kb = N + k, w = 1 - Math.min(1, hv[k] / 4); let ax = nF[k * 3] + nB[kb * 3], ay = nF[k * 3 + 1] + nB[kb * 3 + 1], az = nF[k * 3 + 2] + nB[kb * 3 + 2]; const L = Math.hypot(ax, ay, az) || 1; ax /= L; ay /= L; az /= L;
+    for (const [arr, o] of [[nF, k * 3], [nB, kb * 3]]) { let x = arr[o] + (ax - arr[o]) * w, y = arr[o + 1] + (ay - arr[o + 1]) * w, z = arr[o + 2] + (az - arr[o + 2]) * w; const l = Math.hypot(x, y, z) || 1; arr[o] = x / l; arr[o + 1] = y / l; arr[o + 2] = z / l; }
+  }
+  gF.attributes.normal.needsUpdate = true; gB.attributes.normal.needsUpdate = true;
   // fabric + stitched print (see j3dPrint / j3dFabric); the shader mixes mesh-knit body fabric and twill lettering
   const fabTex = new THREE.CanvasTexture(j3dFabric()); fabTex.wrapS = fabTex.wrapT = THREE.RepeatWrapping; fabTex.anisotropy = maxAniso;
   const tex = cv => { const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = maxAniso; t.minFilter = THREE.LinearMipmapLinearFilter; return t; };
@@ -164,7 +183,7 @@ function j3dBuild(THREE, cvs, maxAniso, bodyColor) {
   const lin = new THREE.Color(/^#|^rgb/i.test(bodyColor || '') ? bodyColor : '#444a58').multiplyScalar(0.5);
   const alphaOf = cv => { const c = document.createElement('canvas'); c.width = 600; c.height = Math.round(600 * cv.height / cv.width); const x = c.getContext('2d'); x.drawImage(cv, 0, 0, c.width, c.height); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); return new THREE.CanvasTexture(c); };
   const inner = cv => new THREE.MeshStandardMaterial({ color: lin, alphaMap: alphaOf(cv), roughness: 0.9, metalness: 0, side: THREE.BackSide, alphaTest: 0.5, alphaToCoverage: true });
-  const group = new THREE.Group(), gf = mk(fi), gb = mk(bi), mF = mat(fc, cvs.frontBase), mB = mat(bc, cvs.backBase), iF = inner(fc), iB = inner(bc);
+  const group = new THREE.Group(), gf = gF, gb = gB, mF = mat(fc, cvs.frontBase), mB = mat(bc, cvs.backBase), iF = inner(fc), iB = inner(bc);
   group.add(new THREE.Mesh(gf, mF), new THREE.Mesh(gb, mB), new THREE.Mesh(gf, iF), new THREE.Mesh(gb, iB));
   return { group, mats: [mF, mB, iF, iB], geos: [gf, gb], tex: [mF.map, mB.map, mF.userData.relief, mB.userData.relief, iF.alphaMap, iB.alphaMap, fabTex] };
 }

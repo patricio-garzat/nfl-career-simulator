@@ -1,0 +1,130 @@
+/* =====================================================================
+   POLISH LAYER — loaded after style.css. Everything here is additive:
+   richer depth, an animated ambient backdrop, staggered entrances,
+   hover spotlights and idle motion. Motion is switched off for people who
+   ask their system for reduced motion.
+   ===================================================================== */
+:root { --ease: cubic-bezier(.2, .8, .2, 1); --spring: cubic-bezier(.2, 1.3, .4, 1); --hi: rgba(255, 255, 255, .06); }
+:root[data-theme="light"] { --hi: rgba(255, 255, 255, .9); }
+::selection { background: color-mix(in srgb, var(--acc) 38%, transparent); color: inherit; }
+:focus-visible { outline: 2px solid var(--acc2); outline-offset: 2px; }
+.input:focus-visible { outline: none; }
+html { scrollbar-color: var(--w250) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; } ::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--w160); border-radius: 99px; border: 2px solid transparent; background-clip: padding-box; } ::-webkit-scrollbar-thumb:hover { background: var(--w250); background-clip: padding-box; border: 2px solid transparent; }
+
+/* ---------- Depth & finish (static) ---------- */
+.card { position: relative; box-shadow: var(--shadow), inset 0 1px 0 var(--hi); }
+.modal-card { box-shadow: 0 30px 80px rgba(0, 0, 0, .6), inset 0 1px 0 var(--hi); }
+.btn { position: relative; }
+.btn-ghost { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.btn-primary { box-shadow: 0 8px 28px rgba(197, 255, 58, .22), inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -2px 0 rgba(0, 0, 0, .12); }
+.sec-h { position: relative; padding-left: 14px; } .sec-h::before { content: ''; position: absolute; left: 0; top: 18%; bottom: 18%; width: 4px; border-radius: 4px; background: linear-gradient(var(--acc), var(--acc2)); }
+.chip { transition: transform .2s var(--ease), border-color .2s, background .2s; } .chip:hover { transform: translateY(-1px); border-color: var(--w250); }
+.pos-badge { box-shadow: 0 6px 18px -6px var(--acc), inset 0 1px 0 rgba(255, 255, 255, .5); }
+.tile { transition: transform .25s var(--ease), border-color .2s, background .2s, box-shadow .25s; } .tile:hover { box-shadow: 0 14px 30px -16px rgba(0, 0, 0, .7); }
+
+/* ---------- Ambient backdrop (inserted by polish.js) ---------- */
+#ambient { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+#ambient i { position: absolute; border-radius: 50%; will-change: transform; }
+#ambient .am1 { width: 66vmax; height: 66vmax; left: -24vmax; top: -30vmax; background: radial-gradient(circle, color-mix(in srgb, var(--glow) 28%, transparent), transparent 66%); }
+#ambient .am2 { width: 56vmax; height: 56vmax; right: -22vmax; top: 6vh; background: radial-gradient(circle, color-mix(in srgb, var(--acc2) 17%, transparent), transparent 66%); }
+#ambient .am3 { width: 62vmax; height: 62vmax; left: 18vw; bottom: -36vmax; background: radial-gradient(circle, color-mix(in srgb, var(--acc) 11%, transparent), transparent 66%); }
+#ambient s { position: absolute; bottom: -20px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 10px 1px var(--acc); opacity: 0; text-decoration: none; }
+#ambient::after { content: ''; position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(0, 0, 0, .35)), url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .55 0'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='.5'/></svg>"); background-size: auto, 160px; opacity: .55; mix-blend-mode: soft-light; }
+:root[data-theme="light"] #ambient { opacity: .55; } :root[data-theme="light"] #ambient::after { background: none; } :root[data-theme="light"] #ambient s { display: none; }
+
+/* ---------- Count-up / ring fill support ---------- */
+.rp .ovr-ring { background: conic-gradient(var(--acc) calc(var(--rp) * 1%), var(--w80) 0); }
+.rp .dashx .ovr-ring { background: conic-gradient(var(--tb) calc(var(--rp) * 1%), var(--w80) 0); }
+.ovr-ring::after { content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none; background: conic-gradient(from 0deg, transparent 0 86%, rgba(255, 255, 255, .6) 98%, transparent 100%); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 9px), #000 calc(100% - 8px)); mask: radial-gradient(farthest-side, transparent calc(100% - 9px), #000 calc(100% - 8px)); }
+.btn-primary::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(110deg, transparent 32%, rgba(255, 255, 255, .5) 50%, transparent 68%); background-size: 260% 100%; background-position: 160% 0; }
+.bar i { position: relative; overflow: hidden; } .bar i::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .38) 50%, transparent 70%); transform: translateX(-110%); }
+
+/* ---------- Title screen ---------- */
+.title-screen::before { content: ''; position: absolute; left: -40%; right: -40%; bottom: -6%; height: 52%; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .16) 0 2px, transparent 2px 64px), repeating-linear-gradient(90deg, rgba(255, 255, 255, .1) 0 2px, transparent 2px 110px); transform: perspective(520px) rotateX(64deg); transform-origin: 50% 100%; -webkit-mask: linear-gradient(transparent, #000 70%); mask: linear-gradient(transparent, #000 70%); }
+.title-bg::before, .title-bg::after { content: ''; position: absolute; top: -12vmax; width: 70vmax; height: 130vmax; pointer-events: none; background: linear-gradient(180deg, rgba(255, 255, 255, .13), transparent 72%); clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%); transform-origin: 50% 0; mix-blend-mode: screen; opacity: .5; }
+.title-bg::before { left: -22vmax; transform: rotate(-24deg); } .title-bg::after { right: -22vmax; transform: rotate(24deg); }
+.logo b { font-weight: inherit; background: linear-gradient(105deg, #fff 38%, #e9ffb0 47%, #c5ff3a 50%, #e9ffb0 53%, #fff 62%); background-size: 280% 100%; background-position: 100% 0; -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 6px 34px rgba(197, 255, 58, .3)); }
+.title-inner .nfl-logo { filter: drop-shadow(0 10px 30px rgba(0, 0, 0, .55)) drop-shadow(0 0 22px rgba(53, 224, 255, .22)); }
+.menu .btn { backdrop-filter: blur(8px); }
+
+/* ---------- Dashboard ---------- */
+.dashx .hero { box-shadow: 0 22px 54px -24px color-mix(in srgb, var(--t1) 80%, transparent), inset 0 1px 0 var(--hi); }
+.hero-num { will-change: transform; }
+.egg-hit { display: inline-flex; }
+
+.hero > .hero-sheen { position: absolute !important; top: 0; bottom: 0; left: 0; width: 34%; pointer-events: none; z-index: 1 !important; background: linear-gradient(105deg, transparent, rgba(255, 255, 255, .11) 50%, transparent); transform: translateX(-140%) skewX(-18deg); }
+.tile { position: relative; } .tile::before { content: ''; position: absolute; top: -1px; left: 22%; right: 22%; height: 2px; border-radius: 0 0 3px 3px; pointer-events: none; background: linear-gradient(90deg, transparent, var(--tb, var(--acc2)), transparent); opacity: .5; transition: opacity .25s, left .25s, right .25s; } .tile:hover::before { opacity: 1; left: 8%; right: 8%; }
+
+/* ---------- Spotlight that follows the cursor ---------- */
+.card::after, .next-card::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .35s; z-index: 0; background: radial-gradient(380px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--tb, var(--acc2)) 11%, transparent), transparent 62%); }
+@media (hover: hover) { .card:hover::after, .next-card:hover::after { opacity: 1; } .card:hover { border-color: color-mix(in srgb, var(--tb, var(--acc2)) 34%, var(--line)); } }
+.card { transition: border-color .3s, box-shadow .3s; }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* entrances: every screen's blocks rise in one after another (polish.js adds .no-anim for quick in-place redraws) */
+  @keyframes riseIn { from { opacity: 0; transform: translateY(20px) scale(.985); } to { opacity: 1; transform: none; } }
+  @keyframes popIn { from { opacity: 0; transform: scale(.88) translateY(8px); } to { opacity: 1; transform: none; } }
+  #app:not(.no-anim) .wrap > *:not(.dash-grid), #app:not(.no-anim) .title-inner > *, #app:not(.no-anim) .dash-grid .col > * { animation: riseIn .7s var(--ease) both; animation-delay: calc(var(--d, 0) * 75ms); }
+  #app:not(.no-anim) .wrap > :nth-child(1) { --d: 0; } #app:not(.no-anim) .wrap > :nth-child(2) { --d: 1; } #app:not(.no-anim) .wrap > :nth-child(3) { --d: 2; } #app:not(.no-anim) .wrap > :nth-child(4) { --d: 3; } #app:not(.no-anim) .wrap > :nth-child(5) { --d: 4; } #app:not(.no-anim) .wrap > :nth-child(6) { --d: 5; } #app:not(.no-anim) .wrap > :nth-child(n+7) { --d: 6; }
+  #app:not(.no-anim) .title-inner > :nth-child(1) { --d: 0; } #app:not(.no-anim) .title-inner > :nth-child(2) { --d: 2; } #app:not(.no-anim) .title-inner > :nth-child(3) { --d: 3; } #app:not(.no-anim) .title-inner > :nth-child(4) { --d: 5; } #app:not(.no-anim) .title-inner > :nth-child(5) { --d: 7; } #app:not(.no-anim) .title-inner > :nth-child(n+6) { --d: 9; }
+  #app:not(.no-anim) .dash-grid .col:nth-child(1) > * { --d: 3; } #app:not(.no-anim) .dash-grid .col:nth-child(1) > :nth-child(2) { --d: 4; } #app:not(.no-anim) .dash-grid .col:nth-child(1) > :nth-child(3) { --d: 5; } #app:not(.no-anim) .dash-grid .col:nth-child(1) > :nth-child(n+4) { --d: 6; }
+  #app:not(.no-anim) .dash-grid .col:nth-child(2) > * { --d: 4; } #app:not(.no-anim) .dash-grid .col:nth-child(2) > :nth-child(2) { --d: 5; } #app:not(.no-anim) .dash-grid .col:nth-child(2) > :nth-child(3) { --d: 6; } #app:not(.no-anim) .dash-grid .col:nth-child(2) > :nth-child(n+4) { --d: 7; }
+  #app:not(.no-anim) .menu .btn { animation: popIn .6s var(--spring) both; animation-delay: calc(.45s + var(--b, 0) * 90ms); }
+  .menu .btn:nth-child(1) { --b: 0; } .menu .btn:nth-child(2) { --b: 1; } .menu .btn:nth-child(3) { --b: 2; } .menu .btn:nth-child(4) { --b: 3; }
+  #app:not(.no-anim) .tiles > .tile, #app:not(.no-anim) .pos-grid > *, #app:not(.no-anim) .actions > .btn { animation: popIn .55s var(--spring) both; animation-delay: calc(.35s + var(--t, 0) * 55ms); }
+  .tiles > :nth-child(1), .pos-grid > :nth-child(1), .actions > :nth-child(1) { --t: 0; } .tiles > :nth-child(2), .pos-grid > :nth-child(2), .actions > :nth-child(2) { --t: 1; } .tiles > :nth-child(3), .pos-grid > :nth-child(3), .actions > :nth-child(3) { --t: 2; } .tiles > :nth-child(4), .pos-grid > :nth-child(4), .actions > :nth-child(4) { --t: 3; } .tiles > :nth-child(5), .pos-grid > :nth-child(5), .actions > :nth-child(5) { --t: 4; } .tiles > :nth-child(n+6), .pos-grid > :nth-child(n+6), .actions > :nth-child(n+6) { --t: 5; }
+
+  /* ambient backdrop */
+  @keyframes amA { to { transform: translate(14vmax, 10vmax) scale(1.12); } } @keyframes amB { to { transform: translate(-12vmax, 14vmax) scale(.92); } } @keyframes amC { to { transform: translate(10vmax, -12vmax) scale(1.1); } }
+  #ambient .am1 { animation: amA 28s ease-in-out infinite alternate; } #ambient .am2 { animation: amB 34s ease-in-out infinite alternate; } #ambient .am3 { animation: amC 40s ease-in-out infinite alternate; }
+  @keyframes amUp { 0% { transform: translate3d(0, 0, 0) scale(.5); opacity: 0; } 12% { opacity: .7; } 85% { opacity: .35; } 100% { transform: translate3d(var(--dx, 30px), -112vh, 0) scale(1); opacity: 0; } }
+  #ambient s { animation: amUp var(--dur, 22s) linear var(--dl, 0s) infinite; }
+  body:has(.mg-overlay, .lv-intro) #ambient i, body:has(.mg-overlay, .lv-intro) #ambient s { animation-play-state: paused; }
+
+  /* ring, bars, buttons */
+  @keyframes ringFill { from { --rp: 0; } to { --rp: var(--p); } }
+  .rp .ovr-ring { animation: ringFill 1.5s var(--ease) both, ringGlow 3.8s ease-in-out 1.6s infinite; }
+  @keyframes ringGlow { 50% { box-shadow: 0 0 58px rgba(197, 255, 58, .34); } } .dashx .ovr-ring { --gl: var(--tb); } .rp .dashx .ovr-ring { animation: ringFill 1.5s var(--ease) both, ringGlowT 3.8s ease-in-out 1.6s infinite; }
+  @keyframes ringGlowT { 50% { box-shadow: 0 0 62px color-mix(in srgb, var(--tb) 62%, transparent); } }
+  .ovr-ring::after { animation: spin 6s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+  .bar i::after { animation: barShine 4.2s ease-in-out infinite; } .attr-list > :nth-child(2n) .bar i::after, .attr:nth-child(2n) .bar i::after { animation-delay: .6s; } .attr:nth-child(3n) .bar i::after { animation-delay: 1.3s; }
+  @keyframes barShine { 0%, 55% { transform: translateX(-110%); } 90%, 100% { transform: translateX(110%); } }
+  .btn-primary::after { animation: btnSheen 5.5s ease-in-out infinite; } @keyframes btnSheen { 0%, 60% { background-position: 160% 0; } 100% { background-position: -60% 0; } }
+  .btn-xl.btn-primary:not(:disabled) { animation: ctaPulse 3.4s ease-in-out infinite; } @keyframes ctaPulse { 50% { box-shadow: 0 14px 46px -4px color-mix(in srgb, var(--tb, var(--lime)) 62%, transparent), inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -2px 0 rgba(0, 0, 0, .12); } }
+  #app:not(.no-anim) .menu .btn-primary { animation: popIn .6s var(--spring) both, ctaPulse 3.4s ease-in-out 1.4s infinite; }
+  #app:not(.no-anim) .actions > .btn-xl.btn-primary { animation: popIn .55s var(--spring) both, ctaPulse 3.4s ease-in-out 1.6s infinite; animation-delay: calc(.35s + var(--t, 0) * 55ms), 1.6s; }
+  #app:not(.no-anim) .actions > .btn-live { animation: popIn .55s var(--spring) both, livePulse 2.2s ease-in-out 1.6s infinite; animation-delay: calc(.35s + var(--t, 0) * 55ms), 1.6s; }
+  .btn:active:not(:disabled) { transform: translateY(1px) scale(.985); transition-duration: .06s; }
+  .btn-live { animation: livePulse 2.2s ease-in-out infinite; } @keyframes livePulse { 50% { box-shadow: 0 10px 34px rgba(255, 90, 60, .6); } }
+
+  /* idle life */
+  @keyframes floatY { 50% { transform: translateY(-7px); } }
+  .title-inner .nfl-logo { animation: floatY 5.5s ease-in-out infinite; }
+  .egg-hit { animation: floatY 6s ease-in-out infinite; }
+  @keyframes shineX { 0%, 50% { background-position: 100% 0; } 85%, 100% { background-position: 0 0; } } .logo b { animation: shineX 6s ease-in-out 1.2s infinite; }
+  @keyframes tagIn { from { opacity: 0; letter-spacing: .6em; } to { opacity: 1; letter-spacing: .3em; } } .tagline { animation: tagIn 1.4s var(--ease) .5s both; }
+  .title-bg::before { animation: beamL 11s ease-in-out infinite alternate; } .title-bg::after { animation: beamR 13s ease-in-out infinite alternate; }
+  @keyframes beamL { from { transform: rotate(-30deg); } to { transform: rotate(-17deg); } } @keyframes beamR { from { transform: rotate(30deg); } to { transform: rotate(16deg); } }
+  .title-screen::before { animation: floorRun 3.2s linear infinite; } @keyframes floorRun { to { background-position: 0 64px, 0 0; } }
+  .hero::after { animation: orbFloat 9s ease-in-out infinite alternate; } @keyframes orbFloat { to { transform: translate(-60px, 38px) scale(1.25); } }
+  .hero-sheen { animation: heroSheen 8s ease-in-out 1.4s infinite; } @keyframes heroSheen { 0% { transform: translateX(-140%) skewX(-18deg); } 38%, 100% { transform: translateX(420%) skewX(-18deg); } }
+  .hero-num { animation: numDrift 14s ease-in-out infinite alternate; } @keyframes numDrift { to { transform: translateX(-14px) scale(1.03); } }
+  .dashx .nc-ghost { animation: ghostDrift 10s ease-in-out infinite alternate; } @keyframes ghostDrift { from { transform: translateY(-50%) rotate(-3deg) scale(1); } to { transform: translateY(-54%) rotate(4deg) scale(1.07); } }
+  .chip.gold { background-image: linear-gradient(100deg, transparent 35%, rgba(255, 224, 138, .28) 50%, transparent 65%); background-size: 260% 100%; background-repeat: no-repeat; animation: chipShine 5s ease-in-out infinite; } @keyframes chipShine { 0%, 50% { background-position: 150% 0; } 100% { background-position: -50% 0; } }
+  .rec { animation: recPulse 3s ease-in-out infinite; } @keyframes recPulse { 50% { text-shadow: 0 0 16px currentColor; } }
+  .pos-btn.sel { animation: selGlow 2.8s ease-in-out infinite; } @keyframes selGlow { 50% { box-shadow: 0 0 34px rgba(197, 255, 58, .38); } }
+  .sound-btn { transition: transform .25s var(--spring), background .2s, box-shadow .2s; } .sound-btn:hover { transform: scale(1.1) rotate(-8deg); } .sound-btn:active { transform: scale(.94); }
+
+  /* overlays & toasts */
+  .overlay { animation: fadeIn .25s both; } .modal-card { animation: modalIn .45s var(--spring) both; } @keyframes modalIn { from { opacity: 0; transform: translateY(24px) scale(.94); } to { opacity: 1; transform: none; } }
+  .toast { animation: toastIn .45s var(--spring) both; } @keyframes toastIn { from { opacity: 0; transform: translateY(18px) scale(.92); } to { opacity: 1; transform: none; } }
+}
+
+/* ---------- Light theme touch-ups for the team dashboard ---------- */
+:root[data-theme="light"] .dashx .ovr-ring::before { background: color-mix(in srgb, var(--t1) 5%, #fff); }
+:root[data-theme="light"] .dashx .tile { background: color-mix(in srgb, var(--t1) 6%, #fff); border-color: color-mix(in srgb, var(--t1) 18%, var(--line)); }
+:root[data-theme="light"] .dashx .tile.hl { background: linear-gradient(160deg, color-mix(in srgb, var(--tb) 22%, #fff), color-mix(in srgb, var(--tb) 6%, #fff)); }
+:root[data-theme="light"] .dashx .tile.hl .tile-v { text-shadow: none; }
+:root[data-theme="light"] .ovr-ring::after { background: conic-gradient(from 0deg, transparent 0 86%, rgba(255, 255, 255, .95) 98%, transparent 100%); }

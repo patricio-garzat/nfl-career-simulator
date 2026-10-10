@@ -2134,7 +2134,7 @@ function renderTitle() {
     <div class="title-inner">
       ${nflLogo('title')}
       <div class="eyebrow">THE CAREER MODE</div>
-      <h1 class="logo">NFL<span>CAREER</span></h1>
+      <h1 class="logo"><b>NFL</b><span>CAREER</span></h1>
       <p class="tagline">Build Your Legacy</p>
       <div class="menu">
         <button class="btn btn-primary btn-xl" data-act="startCareer">START CAREER</button>

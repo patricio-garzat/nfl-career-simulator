@@ -38,6 +38,13 @@ function j3dBuild(THREE, fc, bc, maxAniso, bodyColor) {
   let jmax = 0; for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) if (M[j * nx + i]) jmax = j;
   const PAD = 16, ph = ny + PAD, P = new Uint8Array(nx * ph); P.set(M);
   for (let j = jmax + 1; j < ph; j++) for (let i = 0; i < nx; i++) P[j * nx + i] = M[jmax * nx + i];
+  // the sleeve ends are openings too: push the "inside" 16 units past each cuff (the cuff edge from the drawing, slanted down and out) so the two panels stay apart there
+  const CUFF = [[71.76, 153.48], [59.01, 152.52], [43.41, 148.38], [20.79, 141.36], [14.5, 138.5]];
+  for (const sgn of [1, -1]) for (let q = 0; q < CUFF.length - 1; q++) {
+    const [x0, y0] = CUFF[q], [x1, y1] = CUFF[q + 1], cn = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 0.5);
+    for (let a = 0; a <= cn; a++) { const x = x0 + (x1 - x0) * a / cn, y = y0 + (y1 - y0) * a / cn;
+      for (let t = 0; t <= 16; t += 0.5) { const px = sgn > 0 ? x - 0.334 * t : W - x + 0.334 * t, py = y + 0.94 * t, ci = Math.round(px / ST), cj = Math.round(py / ST); if (ci >= 0 && ci < nx && cj >= 0 && cj < ph) P[cj * nx + ci] = 1; } }
+  }
   // distance from the nearest edge (chamfer transform)
   const D = new Float32Array(nx * ph), BIG = 1e5, R2 = Math.SQRT2;
   for (let k = 0; k < D.length; k++) D[k] = P[k] ? BIG : 0;
@@ -79,7 +86,7 @@ function j3dBuild(THREE, fc, bc, maxAniso, bodyColor) {
   const tex = cv => { const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = maxAniso; t.minFilter = THREE.LinearMipmapLinearFilter; return t; };
   const mat = cv => new THREE.MeshStandardMaterial({ map: tex(cv), bumpMap: weave, bumpScale: 0.35, roughness: 0.78, metalness: 0, side: THREE.FrontSide, alphaTest: 0.5, alphaToCoverage: true });
   // the inside of the jersey (seen through the neck, the hem and the sleeve ends) is a plain, darker lining
-  const lin = new THREE.Color(/^#|^rgb/i.test(bodyColor || '') ? bodyColor : '#444a58').multiplyScalar(0.62);
+  const lin = new THREE.Color(/^#|^rgb/i.test(bodyColor || '') ? bodyColor : '#444a58').multiplyScalar(0.5);
   const alphaOf = cv => { const c = document.createElement('canvas'); c.width = 600; c.height = Math.round(600 * cv.height / cv.width); const x = c.getContext('2d'); x.drawImage(cv, 0, 0, c.width, c.height); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); return new THREE.CanvasTexture(c); };
   const inner = cv => new THREE.MeshStandardMaterial({ color: lin, alphaMap: alphaOf(cv), roughness: 0.9, metalness: 0, side: THREE.BackSide, alphaTest: 0.5, alphaToCoverage: true });
   const group = new THREE.Group(), gf = mk(fi), gb = mk(bi), mF = mat(fc), mB = mat(bc), iF = inner(fc), iB = inner(bc);

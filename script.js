@@ -1859,6 +1859,7 @@ async function jcDrawJersey(ctx, cfg, view, name, num, word, id, logoData, ox, o
     if (shadow) { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 14 * sc; ctx.shadowOffsetY = 14 * sc; }
     ctx.drawImage(img, ox, oy, W * sc, H * sc);
     if (shadow) ctx.restore();
+    if (extra && extra.noOverlay) return;   // (3D viewer: the bare garment, to tell the printed names/numbers apart)
     if (view === 'front') await drawCollarLogo(ctx, ox, oy, sc);
     jcTexts(cfg, view, name, num, word).concat(jcShoulderTexts(cfg, view, num)).forEach(s => {
       ctx.save();

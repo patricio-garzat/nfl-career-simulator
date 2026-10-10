@@ -22,13 +22,61 @@ async function j3dCanvases(sc) {
     const cv = document.createElement('canvas'); cv.width = Math.round(W * sc); cv.height = Math.round(H * sc);
     await jcDrawJersey(cv.getContext('2d'), cfgs[v], v, name, num, word, id, logoData, 0, 0, sc, undefined, extra);
     out[v] = cv;
+    const bv = document.createElement('canvas'); bv.width = cv.width; bv.height = cv.height;
+    await jcDrawJersey(bv.getContext('2d'), cfgs[v], v, name, num, word, id, logoData, 0, 0, sc, undefined, { ...(extra || {}), noOverlay: true });
+    out[v + 'Base'] = bv;
   }
   out.body = jcColors(normJersey(cfg)).body;
   return out;
 }
 
+
+// where the names / numbers / plates are (full drawing minus the bare garment): raised, stitched "tackle twill" lettering
+function j3dPrint(full, base) {
+  const w = full.width, h = full.height, N = w * h, fx = full.getContext('2d'), F = fx.getImageData(0, 0, w, h), fd = F.data, bd = base.getContext('2d').getImageData(0, 0, w, h).data;
+  const m = new Uint8Array(N);
+  for (let k = 0; k < N; k++) { const o = k * 4, da = Math.abs(fd[o + 3] - bd[o + 3]), dc = Math.abs(fd[o] - bd[o]) + Math.abs(fd[o + 1] - bd[o + 1]) + Math.abs(fd[o + 2] - bd[o + 2]); m[k] = (fd[o + 3] > 40 && (da > 60 || dc > 90)) ? 255 : 0; }
+  const minf = (src, r) => { const t = new Uint8Array(N), o = new Uint8Array(N); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let v = 255; for (let d = -r; d <= r; d++) { const xx = x + d; if (xx < 0 || xx >= w) { v = 0; break; } if (src[y * w + xx] < v) v = src[y * w + xx]; } t[y * w + x] = v; } for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let v = 255; for (let d = -r; d <= r; d++) { const yy = y + d; if (yy < 0 || yy >= h) { v = 0; break; } if (t[yy * w + x] < v) v = t[yy * w + x]; } o[y * w + x] = v; } return o; };
+  const E = minf(m, 5);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {                        // stitching just inside the edge of every letter
+    const k = y * w + x; if (!m[k] || E[k]) continue; if (((x + y) >> 3) & 1) continue;
+    const o = k * 4, lum = (fd[o] * 0.3 + fd[o + 1] * 0.59 + fd[o + 2] * 0.11) / 255, f = lum > 0.28 ? 0.6 : 1.7;
+    fd[o] = Math.min(255, fd[o] * f + (lum > 0.28 ? 0 : 20)); fd[o + 1] = Math.min(255, fd[o + 1] * f + (lum > 0.28 ? 0 : 20)); fd[o + 2] = Math.min(255, fd[o + 2] * f + (lum > 0.28 ? 0 : 20));
+  }
+  fx.putImageData(F, 0, 0);
+  // soft raised relief (blurred mask)
+  let a = Float32Array.from(m), b = new Float32Array(N); const R = 4;
+  for (let pass = 0; pass < 2; pass++) {
+    for (let y = 0; y < h; y++) { let s = 0; for (let x = -R; x <= R; x++) s += a[y * w + Math.min(w - 1, Math.max(0, x))]; for (let x = 0; x < w; x++) { b[y * w + x] = s / (2 * R + 1); s += a[y * w + Math.min(w - 1, x + R + 1)] - a[y * w + Math.max(0, x - R)]; } }
+    for (let x = 0; x < w; x++) { let s = 0; for (let y = -R; y <= R; y++) s += b[Math.min(h - 1, Math.max(0, y)) * w + x]; for (let y = 0; y < h; y++) { a[y * w + x] = s / (2 * R + 1); s += b[Math.min(h - 1, y + R + 1) * w + x] - b[Math.max(0, y - R) * w + x]; } }
+  }
+  const hc = document.createElement('canvas'); hc.width = w; hc.height = h; const hx = hc.getContext('2d'), H = hx.createImageData(w, h);
+  for (let k = 0; k < N; k++) { const v = Math.max(0, Math.min(255, a[k])); H.data[k * 4] = H.data[k * 4 + 1] = H.data[k * 4 + 2] = v; H.data[k * 4 + 3] = 255; }
+  hx.putImageData(H, 0, 0);
+  return hc;
+}
+// tileable fabric: R = knit/mesh height, G = albedo (mesh holes), B = twill height (for the lettering)
+function j3dFabric() {
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d'), im = x.createImageData(S, S), TAU = Math.PI * 2, ss = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+  for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+    const u = i / S * 4, v = j / S * 4, fu = u - Math.floor(u), fv = v - Math.floor(v), d = Math.hypot(fu - 0.5, fv - 0.5), hole = 1 - ss(0.1, 0.24, d);
+    const rib = 0.5 + 0.5 * Math.sin(TAU * (u * 2 + 0.35 * Math.sin(TAU * v * 2))), cross = 0.5 + 0.5 * Math.sin(TAU * v * 2);
+    const knit = 0.42 + 0.22 * rib + 0.12 * cross - 0.55 * hole, twill = 0.5 + 0.5 * Math.sin(TAU * 6 * ((i + j) / S)), o = (j * S + i) * 4;
+    im.data[o] = Math.max(0, Math.min(1, knit)) * 255; im.data[o + 1] = (1 - 0.5 * hole - 0.08 * (1 - rib)) * 255; im.data[o + 2] = twill * 255; im.data[o + 3] = 255;
+  }
+  x.putImageData(im, 0, 0); return c;
+}
+// a soft studio environment (light boxes) so cloth and print pick up believable highlights
+function j3dEnv(THREE, renderer) {
+  const sc = new THREE.Scene(), add = (g, col, k, p) => { const mt = new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(k), side: THREE.DoubleSide }), m = new THREE.Mesh(g, mt); m.position.set(...p); m.lookAt(0, 0, 0); sc.add(m); return m; };
+  add(new THREE.BoxGeometry(24, 24, 24).scale(-1, 1, 1), 0x2b303c, 1, [0, 0, 0]).lookAt(0, 0, -1);
+  add(new THREE.PlaneGeometry(9, 7), 0xffffff, 7, [-6, 6, 8]); add(new THREE.PlaneGeometry(7, 9), 0xdce8ff, 4, [9, 3, -4]); add(new THREE.PlaneGeometry(10, 4), 0xfff0dc, 3, [4, -4, 9]); add(new THREE.PlaneGeometry(14, 5), 0xffffff, 2.2, [0, 11, 0]);
+  const pm = new THREE.PMREMGenerator(renderer), rt = pm.fromScene(sc, 0.04); pm.dispose(); return rt;
+}
+
 // jersey-shaped, slightly inflated body: a front panel and a back panel that meet along the silhouette
-function j3dBuild(THREE, fc, bc, maxAniso, bodyColor) {
+function j3dBuild(THREE, cvs, maxAniso, bodyColor) {
+  const fc = cvs.front, bc = cvs.back;
   const W = UNI.meta.w, H = UNI.meta.h, ST = 2, nx = Math.floor(W / ST) + 1, ny = Math.floor(H / ST) + 2, U = 0.01;
   const grab = (cv, flip) => { const c = document.createElement('canvas'); c.width = nx; c.height = ny; const x = c.getContext('2d'); if (flip) { x.translate(nx, 0); x.scale(-1, 1); } x.drawImage(cv, 0, 0, cv.width, cv.height, 0, 0, nx, H / ST); return x.getImageData(0, 0, nx, ny).data; };
   // mask = where either side of the jersey has fabric (the back is mirrored into front coordinates)
@@ -80,18 +128,32 @@ function j3dBuild(THREE, fc, bc, maxAniso, bodyColor) {
     fi.push(a, c, b, b, c, d); bi.push(N + a, N + b, N + c, N + b, N + d, N + c);
   }
   const mk = (idx, map) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); return g; };
-  // fine fabric weave as a bump map
-  const wv = document.createElement('canvas'); wv.width = wv.height = 16; { const x = wv.getContext('2d'); x.fillStyle = '#808080'; x.fillRect(0, 0, 16, 16); x.fillStyle = '#c8c8c8'; for (let a = 0; a < 16; a += 4) for (let b = 0; b < 16; b += 4) x.fillRect(a, b, 2, 2); x.fillStyle = '#505050'; for (let a = 2; a < 16; a += 4) for (let b = 2; b < 16; b += 4) x.fillRect(a, b, 2, 2); }
-  const weave = new THREE.CanvasTexture(wv); weave.wrapS = weave.wrapT = THREE.RepeatWrapping; weave.repeat.set(90, 104);
+  // fabric + stitched print (see j3dPrint / j3dFabric); the shader mixes mesh-knit body fabric and twill lettering
+  const fabTex = new THREE.CanvasTexture(j3dFabric()); fabTex.wrapS = fabTex.wrapT = THREE.RepeatWrapping; fabTex.anisotropy = maxAniso;
   const tex = cv => { const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = maxAniso; t.minFilter = THREE.LinearMipmapLinearFilter; return t; };
-  const mat = cv => new THREE.MeshStandardMaterial({ map: tex(cv), bumpMap: weave, bumpScale: 0.35, roughness: 0.78, metalness: 0, side: THREE.FrontSide, alphaTest: 0.5, alphaToCoverage: true });
+  const mat = (cv, base) => {
+    const relief = new THREE.CanvasTexture(j3dPrint(cv, base)); relief.anisotropy = maxAniso;
+    const m = new THREE.MeshPhysicalMaterial({ map: tex(cv), bumpMap: relief, bumpScale: 2.4, roughness: 0.86, metalness: 0, sheen: 1, sheenRoughness: 0.5, sheenColor: new THREE.Color(0x9aa4b8), envMapIntensity: 0.55, side: THREE.FrontSide, alphaTest: 0.5, alphaToCoverage: true });
+    m.userData.relief = relief;
+    m.onBeforeCompile = sh => {
+      sh.uniforms.fabTex = { value: fabTex }; sh.uniforms.fabRep = { value: new THREE.Vector2(24, 28) }; sh.uniforms.fabBump = { value: 0.55 };
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D fabTex; uniform vec2 fabRep; uniform float fabBump;')
+        .replace('#include <map_fragment>', `#include <map_fragment>
+          vec2 fUv = vMapUv * fabRep; vec3 fb = texture2D(fabTex, fUv).rgb; float pm = texture2D(bumpMap, vBumpMapUv).x;
+          diffuseColor.rgb *= mix(0.80 + 0.26 * fb.g, 0.9 + 0.22 * fb.b, pm);`)
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n          roughnessFactor = mix(roughnessFactor, 0.52, pm);')
+        .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+          float Hf = mix(fb.r, fb.b, pm) * fabBump; normal = perturbNormalArb(- vViewPosition, normal, vec2(dFdx(Hf), dFdy(Hf)), faceDirection);`);
+    };
+    return m;
+  };
   // the inside of the jersey (seen through the neck, the hem and the sleeve ends) is a plain, darker lining
   const lin = new THREE.Color(/^#|^rgb/i.test(bodyColor || '') ? bodyColor : '#444a58').multiplyScalar(0.5);
   const alphaOf = cv => { const c = document.createElement('canvas'); c.width = 600; c.height = Math.round(600 * cv.height / cv.width); const x = c.getContext('2d'); x.drawImage(cv, 0, 0, c.width, c.height); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); return new THREE.CanvasTexture(c); };
   const inner = cv => new THREE.MeshStandardMaterial({ color: lin, alphaMap: alphaOf(cv), roughness: 0.9, metalness: 0, side: THREE.BackSide, alphaTest: 0.5, alphaToCoverage: true });
-  const group = new THREE.Group(), gf = mk(fi), gb = mk(bi), mF = mat(fc), mB = mat(bc), iF = inner(fc), iB = inner(bc);
+  const group = new THREE.Group(), gf = mk(fi), gb = mk(bi), mF = mat(fc, cvs.frontBase), mB = mat(bc, cvs.backBase), iF = inner(fc), iB = inner(bc);
   group.add(new THREE.Mesh(gf, mF), new THREE.Mesh(gb, mB), new THREE.Mesh(gf, iF), new THREE.Mesh(gb, iB));
-  return { group, mats: [mF, mB, iF, iB], geos: [gf, gb], tex: [mF.map, mB.map, iF.alphaMap, iB.alphaMap, weave] };
+  return { group, mats: [mF, mB, iF, iB], geos: [gf, gb], tex: [mF.map, mB.map, mF.userData.relief, mB.userData.relief, iF.alphaMap, iB.alphaMap, fabTex] };
 }
 
 async function openJersey3D() {
@@ -112,12 +174,13 @@ async function openJersey3D() {
     const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true, preserveDrawingBuffer: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.outputColorSpace = THREE.SRGBColorSpace;
     const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x9aa3b8, 1.7));
+    const envRT = j3dEnv(THREE, renderer); scene.environment = envRT.texture;
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x9aa3b8, 0.9));
     const key = new THREE.DirectionalLight(0xffffff, 2.1); key.position.set(-2.5, 3.5, 4); scene.add(key);
     const rim = new THREE.DirectionalLight(0xbfd8ff, 1.5); rim.position.set(3.5, 2, -4); scene.add(rim);
     const fill = new THREE.DirectionalLight(0xffe9d0, 1.0); fill.position.set(3, -1.5, 3.5); scene.add(fill);
     const side = new THREE.DirectionalLight(0xffffff, 0.9); side.position.set(-5, 0.5, -1); scene.add(side);
-    const built = j3dBuild(THREE, cvs.front, cvs.back, renderer.capabilities.getMaxAnisotropy(), cvs.body);
+    const built = j3dBuild(THREE, cvs, renderer.capabilities.getMaxAnisotropy(), cvs.body);
     const jersey = new THREE.Group(); jersey.add(built.group); scene.add(jersey);
     // soft contact shadow under the jersey
     const sh = document.createElement('canvas'); sh.width = sh.height = 128; { const x = sh.getContext('2d'), g = x.createRadialGradient(64, 64, 4, 64, 64, 62); g.addColorStop(0, 'rgba(0,0,0,.55)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); }
@@ -152,7 +215,7 @@ async function openJersey3D() {
       else if (k === 'auto') { v.auto = !v.auto; setBtn(); } else if (k === 'reset') home();
       else if (k === 'save') { renderer.render(scene, cam); cv.toBlob(bl => { const a = document.createElement('a'); a.href = URL.createObjectURL(bl); a.download = `${jName(S.player).replace(/[^A-Z0-9]+/g, '-')}-${playerNumber()}-3d.png`; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); toast('📷 3D view saved'); }, 'image/png'); }
     });
-    st.dispose = () => { renderer.dispose(); built.geos.forEach(g => g.dispose()); built.mats.forEach(m => m.dispose()); built.tex.forEach(t => t.dispose()); shadow.geometry.dispose(); shadow.material.map.dispose(); shadow.material.dispose(); };
+    st.dispose = () => { envRT.dispose(); renderer.dispose(); built.geos.forEach(g => g.dispose()); built.mats.forEach(m => m.dispose()); built.tex.forEach(t => t.dispose()); shadow.geometry.dispose(); shadow.material.map.dispose(); shadow.material.dispose(); };
     ov.classList.add('ready');
 
     let last = performance.now(); const t0 = last;

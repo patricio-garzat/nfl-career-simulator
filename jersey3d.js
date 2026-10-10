@@ -27,10 +27,20 @@ async function j3dCanvases(sc) {
     out[v + 'Base'] = bv;
   }
   out.body = jcColors(normJersey(cfg)).body;
+  ['front', 'back'].forEach(v => { j3dHem(out[v], sc, out.body); j3dHem(out[v + 'Base'], sc, out.body); });
   return out;
 }
 
 
+// double-needle hem stitching along the bottom edge and the sleeve cuffs (drawn on the texture, only over fabric)
+function j3dHem(cv, sc, body) {
+  const x = cv.getContext('2d'), c = (body || '').replace('#', ''), r = parseInt(c.slice(0, 2), 16), g = parseInt(c.slice(2, 4), 16), b = parseInt(c.slice(4, 6), 16), dark = c.length >= 6 ? (r * 0.3 + g * 0.59 + b * 0.11) / 255 < 0.35 : false;
+  x.save(); x.globalCompositeOperation = 'source-atop'; x.strokeStyle = dark ? 'rgba(255,255,255,.2)' : 'rgba(0,0,0,.3)'; x.lineWidth = 0.5 * sc; x.setLineDash([1.7 * sc, 0.9 * sc]); x.lineCap = 'round';
+  [338.6, 335.8].forEach(y => { x.beginPath(); x.moveTo(60 * sc, y * sc); x.lineTo(240 * sc, y * sc); x.stroke(); });
+  const CUFF = [[71.76, 153.48], [59.01, 152.52], [43.41, 148.38], [20.79, 141.36], [14.5, 138.5]];
+  [1, -1].forEach(sg => [2.6, 5].forEach(o => { x.beginPath(); CUFF.forEach(([px, py], i) => { const X = (sg > 0 ? px + 0.334 * o : 300 - px - 0.334 * o) * sc, Y = (py - 0.94 * o) * sc; i ? x.lineTo(X, Y) : x.moveTo(X, Y); }); x.stroke(); }));
+  x.restore();
+}
 // where the names / numbers / plates are (full drawing minus the bare garment): raised, stitched "tackle twill" lettering
 function j3dPrint(full, base) {
   const w = full.width, h = full.height, N = w * h, fx = full.getContext('2d'), F = fx.getImageData(0, 0, w, h), fd = F.data, bd = base.getContext('2d').getImageData(0, 0, w, h).data;
@@ -85,7 +95,10 @@ function j3dBuild(THREE, cvs, maxAniso, bodyColor) {
   // the hem and the sleeve openings are not seams: extend the mask past them so the panels stay apart there
   let jmax = 0; for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) if (M[j * nx + i]) jmax = j;
   const PAD = 16, ph = ny + PAD, P = new Uint8Array(nx * ph); P.set(M);
-  for (let j = jmax + 1; j < ph; j++) for (let i = 0; i < nx; i++) P[j * nx + i] = M[jmax * nx + i];
+  for (let i = 0; i < nx; i++) {                       // hem: push the inside 16 rows past the bottom edge of every column (the hem is curved, not a straight row)
+    let jl = -1; for (let j = Math.floor(200 / ST); j < ny; j++) if (M[j * nx + i]) jl = j;
+    if (jl >= 0) for (let j = jl + 1; j <= Math.min(ph - 1, jl + PAD); j++) P[j * nx + i] = 1;
+  }
   // the sleeve ends are openings too: push the "inside" 16 units past each cuff (the cuff edge from the drawing, slanted down and out) so the two panels stay apart there
   const CUFF = [[71.76, 153.48], [59.01, 152.52], [43.41, 148.38], [20.79, 141.36], [14.5, 138.5]];
   for (const sgn of [1, -1]) for (let q = 0; q < CUFF.length - 1; q++) {
@@ -106,7 +119,7 @@ function j3dBuild(THREE, cvs, maxAniso, bodyColor) {
   blur(Wd, 7, 3);
   const hgt = (i, j) => {
     const k = j * nx + i, d = Math.min(D[k], 60) * ST, w = Math.max(d, Wd[k] * ST);
-    const body = 0.56 * Math.sqrt(Math.max(0, d * (2 * w - d)));          // elliptical cross-section: front and back wrap around into the side seams
+    const body = 0.68 * Math.sqrt(Math.max(0, d * (2 * w - d)));          // elliptical cross-section: front and back wrap around into the side seams
     const pinch = Math.min(1, d / 11); const seam = pinch * pinch;           // flat, sewn seam: both panels close exactly on the outline
     const x = i * ST - W / 2, y = j * ST;
     const wrinkle = Math.sin(y * 0.11 + x * 0.045) * 0.9 + Math.sin(y * 0.05 - x * 0.12 + 1.7) * 0.8 + Math.sin(x * 0.2 + y * 0.03) * 0.35;   // soft folds

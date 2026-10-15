@@ -1094,9 +1094,9 @@ async function openLiveGame(game, notes, season) {
   }
   const musicVol = () => { let v = 65; try { const x = parseInt(localStorage.getItem('nfl_music_vol2'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
   const vol = v => 0.6 * Math.pow(v / 100, 1.6);                            // wide range: whisper-quiet at the left, full volume at the right, fine control in between
-  const crowdVol = () => { let v = 20; try { const x = parseInt(localStorage.getItem('nfl_crowd_vol2'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
+  const crowdVol = () => { let v = 10; try { const x = parseInt(localStorage.getItem('nfl_crowd_vol3'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
   L.startAmbience = () => { if (L.skipped || L.ambience) return; L.ambience = true; Snd.crowd('assets/sounds/crowd-stadium.m4a', vol(crowdVol())); };   // the crowd comes in as the opening ends
-  const cv = ov.querySelector('#lvCrowd'); if (cv) { cv.value = crowdVol(); cv.addEventListener('input', () => { Snd.setCrowdVol(vol(cv.value)); try { localStorage.setItem('nfl_crowd_vol2', cv.value); } catch (e) { /* ignore */ } }); }
+  const cv = ov.querySelector('#lvCrowd'); if (cv) { cv.value = crowdVol(); cv.addEventListener('input', () => { Snd.setCrowdVol(vol(cv.value)); try { localStorage.setItem('nfl_crowd_vol3', cv.value); } catch (e) { /* ignore */ } }); }
   const playersVol = () => { let v = 45; try { const x = parseInt(localStorage.getItem('nfl_players_vol4'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
   const pv = ov.querySelector('#lvPlayers'); if (pv) { pv.value = playersVol(); pv.addEventListener('input', () => { Snd.setPlayersVol(vol(pv.value)); try { localStorage.setItem('nfl_players_vol4', pv.value); } catch (e) { /* ignore */ } }); }
   const $ = id => document.getElementById(id), setScore = () => { $('lvScore_away').textContent = L.score.away; $('lvScore_home').textContent = L.score.home; };

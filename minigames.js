@@ -232,7 +232,7 @@ function mgOpen(env) {
 }
 // stadium crowd noise under every mini game (volume = the CROWD slider of the live game), and the players' noise of each play: second 4 of the clip is the snap
 const mgSndVol = (key, def) => { let v = def; try { const x = parseInt(localStorage.getItem(key), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return 0.6 * Math.pow(v / 100, 1.6); };
-function mgAmbience() { Snd.crowd('assets/sounds/crowd-stadium.m4a', mgSndVol('nfl_crowd_vol2', 20)); }
+function mgAmbience() { Snd.crowd('assets/sounds/crowd-stadium.m4a', mgSndVol('nfl_crowd_vol3', 10)); }
 // waits `ms` before the snap while the players' noise plays, so that second 4 of the clip lands on the snap
 async function mgPre(ctx, ms) { Snd.players('assets/sounds/players-huddle.mp3', mgSndVol('nfl_players_vol4', 45), 1, Math.max(0, 4 - ms / 1000)); await sleep(ms); }
 async function mgRun(ctx) {

@@ -311,7 +311,7 @@ function lvEndZone(x, team, rot, endIdx) {
 }
 
 /* ---------- the field ---------- */
-function lvFieldSVG(away, home, sb) {
+function lvFieldSVG(away, home, sb, vert) {
   const A = TEAM[away], H = TEAM[home], top = LV_PAD, bot = LV_PAD + LV_FH, cy = lvY(0);
   // grass: a tile of tiny blades (fixed seed, so it never shimmers) drawn over the turf, the aprons and the end zones at low opacity
   const grassTile = (() => { let sd = 7; const R = () => (sd = (sd * 16807) % 2147483647) / 2147483647; let b = '';
@@ -363,7 +363,7 @@ function lvFieldSVG(away, home, sb) {
     <defs>${grassTile}</defs><rect x="${VX}" y="${VY}" width="${VW}" height="${VH}" rx="16" fill="#2b7d47"/><rect x="${VX}" y="${VY}" width="${VW}" height="${VH}" rx="16" fill="url(#lvGrass)"/>
     ${dashes}${bench(A, true)}${bench(H, false)}
     <rect x="${bandX}" y="${bandY}" width="${bandW}" height="${bandH}" fill="#f6f7f4"/>${bandTxt('IT TAKES ALL OF US', -10, -90, 135)}${bandTxt('CHOOSE LOVE', 1210, 90, -135)}
-    ${stripes}${ezOf(0, A, -90, 0)}${ezOf(1100, H, 90, 0)}<rect x="0" y="${top}" width="1200" height="${LV_FH}" fill="url(#lvGrass)" pointer-events="none"/>
+    ${stripes}${ezOf(0, A, vert ? 90 : -90, 0)}${ezOf(1100, H, 90, 0)}<rect x="0" y="${top}" width="1200" height="${LV_FH}" fill="url(#lvGrass)" pointer-events="none"/>
     <g class="lv-lines">${lines}${hashes}</g>
     <g class="lv-nums" fill="#fff" fill-opacity=".92">${nums}</g>
     <image href="${NFL_LOGO}" x="${lvX(15) - 19}" y="${bot - 64 - 19}" width="38" height="38" opacity=".9" preserveAspectRatio="xMidYMid meet"/>
@@ -995,7 +995,7 @@ function lvIntroTitle(game) {
   return { top: [wk, hol].filter(Boolean).join(' · '), big, em: 'FOOTBALL', logo };
 }
 // the level of each window's song in the opening (0-1)
-const LV_SONG_VOL = { 'assets/sounds/live-thursday-night.m4a': 0.60, 'assets/sounds/live-sunday-gameday.m4a': 0.34, 'assets/sounds/live-sunday-night.mp3': 0.34, 'assets/sounds/live-monday-night.m4a': 0.34 };
+const LV_SONG_VOL = { 'assets/sounds/live-thursday-night.m4a': 0.30, 'assets/sounds/live-sunday-gameday.m4a': 0.17, 'assets/sounds/live-sunday-night.mp3': 0.17, 'assets/sounds/live-monday-night.m4a': 0.17 };
 function lvIntro(ov, L, game, musicVol) {
   return new Promise(async resolve => {
     const away = TEAM[L.away], home = TEAM[L.home], ca = L.col[L.away] || away.c1, ch = L.col[L.home] || home.c1, T = lvIntroTitle(game);
@@ -1020,10 +1020,10 @@ function lvIntro(ov, L, game, musicVol) {
       <div class="li-flash"></div><div class="li-vignette"></div><button class="li-skip" type="button">SKIP ▸</button>`;
     ov.appendChild(el);
     const timers = []; let done = false; const at = (ms, f) => timers.push(setTimeout(f, ms));
-    if (au) Snd.musicEl(au, LV_SONG_VOL[song] || 0.34);                               // fixed level (the old music slider's saved value no longer applies)
+    if (au) Snd.musicEl(au, LV_SONG_VOL[song] || 0.17);                               // fixed level (the old music slider's saved value no longer applies)
     if (au && (blocked || au.paused) && !Snd.isMuted()) {       // Safari may refuse to start sound without a tap: offer one
       const b = document.createElement('button'); b.type = 'button'; b.className = 'li-sound'; b.textContent = 'TAP FOR SOUND'; el.appendChild(b);
-      b.addEventListener('click', e => { e.stopPropagation(); try { au.currentTime = 0; const q = au.play(); if (q && q.catch) q.catch(() => {}); } catch (x) { /* ignore */ } Snd.musicEl(au, LV_SONG_VOL[song] || 0.34); b.remove(); });
+      b.addEventListener('click', e => { e.stopPropagation(); try { au.currentTime = 0; const q = au.play(); if (q && q.catch) q.catch(() => {}); } catch (x) { /* ignore */ } Snd.musicEl(au, LV_SONG_VOL[song] || 0.17); b.remove(); });
     }
     at(250, () => Snd.play('introSwoosh')); at(1000, () => Snd.play('introImpact')); at(1550, () => Snd.play('whoosh')); at(2050, () => Snd.play('introSwoosh')); at(2500, () => Snd.play('introImpact')); at(3500, () => Snd.play('whoosh'));
     at(5900, () => Snd.stopMusic(2000));                         // the song fades out as the broadcast cuts to the field
@@ -1038,11 +1038,19 @@ function lvIntro(ov, L, game, musicVol) {
     (L.waits = L.waits || []).push(() => { if (!done) { done = true; timers.forEach(clearTimeout); el.remove(); resolve(); } });
   });
 }
+// camera of the upright field: shows the full width of the field and a stretch of it around the ball (the field is rotated -90deg: field x -> up the screen)
+function lvVertCam(L, fx, dt) {
+  const v = L.vert; if (!v || !v.svg.isConnected) return;
+  v.fx += (fx - v.fx) * Math.min(1, dt * 3.4);
+  const r = v.stage.getBoundingClientRect(), vw = 575, vh = vw * Math.max(60, r.height) / Math.max(60, r.width), hl = vh / 2;
+  const c = hl * 2 >= 1300 ? 600 : Math.min(1200 - hl + 60, Math.max(hl - 60, v.fx));
+  v.svg.setAttribute('viewBox', `${(276 - vw / 2).toFixed(1)} ${(-c - hl).toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}`);
+}
 // a play call on the field (SACK, +12 YDS, TOUCHDOWN!...): a small broadcast plate with an accent bar (green = good, red = bad, gold = touchdown)
 function lvPop(layer, f) {
   const NS = 'http://www.w3.org/2000/svg', mk = (n, a) => { const e = document.createElementNS(NS, n); Object.keys(a).forEach(k => e.setAttribute(k, a[k])); return e; };
   const x = Math.min(1090, Math.max(150, f.p.x)), y = Math.max(70, f.p.y - 30), cls = f.cls || '';
-  const outer = mk('g', { transform: `translate(${x} ${y})` }), inner = mk('g', { class: `lv-pop ${cls}${f.sticky ? ' sticky' : ''}` });
+  const outer = mk('g', { transform: `translate(${x} ${y})${LV.vert ? ' rotate(90)' : ''}` }), inner = mk('g', { class: `lv-pop ${cls}${f.sticky ? ' sticky' : ''}` });
   const tx = mk('text', { class: 'lv-pop-t', 'text-anchor': 'middle', y: 0 }); tx.textContent = f.text; inner.appendChild(tx); outer.appendChild(inner); layer.appendChild(outer);
   let bb; try { bb = tx.getBBox(); } catch (e) { bb = { x: -60, y: -24, width: 120, height: 30 }; }
   const px = cls === 'td' ? 34 : 24, py = cls === 'td' ? 11 : 8, w = bb.width + px * 2, h = bb.height + py * 2, sk = h * 0.2, cy = bb.y + bb.height / 2, a = 12;
@@ -1067,20 +1075,30 @@ async function openLiveGame(game, notes, season) {
   ov.innerHTML = `<div class="lv-wrap">
     <div class="lv-top"><span class="lv-live"><i></i>LIVE</span><b>${label}</b><span class="muted">${TEAM[away].name} @ ${TEAM[home].name}${whenTxt}</span><div class="lv-ctrl"><label class="lv-vol" title="Crowd noise volume"><span>CROWD</span><input type="range" id="lvCrowd" min="0" max="100" step="1" value="35" aria-label="Crowd volume"></label><label class="lv-vol" title="Players on the field volume"><span>PLAYERS</span><input type="range" id="lvPlayers" min="0" max="100" step="1" value="75" aria-label="Players volume"></label><button class="mini on" data-lv-speed="1">1×</button><button class="mini" data-lv-speed="2">2×</button><button class="mini" data-lv-speed="4">4×</button><button class="btn btn-ghost btn-sm" id="lvSkip">SKIP ▸</button></div></div>
     ${lvScoreboardHTML(L)}
-    <div class="lv-stage">${lvFieldSVG(away, home, /super bowl|^SB$/i.test(String(game.round || '')))}<div class="lv-banner" id="lvBanner"></div></div>
+    <div class="lv-stage">${lvFieldSVG(away, home, /super bowl|^SB$/i.test(String(game.round || '')), !!(window.matchMedia && matchMedia('(max-width: 720px)').matches))}<div class="lv-banner" id="lvBanner"></div></div>
     <div class="lv-bottom">
       <div class="lv-info card"><div class="lv-dd" id="lvDD">Kickoff</div><div class="lv-text" id="lvText">${game.st === 'OUT' ? (game.dnp ? "You are not active today — you'll follow the game from the sideline." : 'You are out with an injury — you follow the game from the sideline.') : 'Watching every snap you are part of…'}</div></div>
       <div class="lv-me card"><div class="lv-me-h">${esc(P.name)} · ${P.pos} · #${playerNumber()}</div><div class="lv-tiles" id="lvTiles"></div></div>
       <div class="lv-log card" id="lvLog"></div>
     </div></div>`;
   document.body.appendChild(ov);
+  // phones: the field stands upright (offense drives up the screen) and a camera follows the ball, so the play is big and nothing is cut off
+  LV.vert = false;
+  if (window.matchMedia && matchMedia('(max-width: 720px)').matches) {
+    const st = ov.querySelector('.lv-stage'), svg = st && st.querySelector('svg.lv-field');
+    if (svg) {
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.id = 'lvRot'; g.setAttribute('transform', 'rotate(-90)');
+      while (svg.firstChild) g.appendChild(svg.firstChild); svg.appendChild(g); svg.setAttribute('preserveAspectRatio', 'xMidYMid slice'); svg.removeAttribute('width'); svg.removeAttribute('height');
+      st.classList.add('lv-vert'); L.vert = { svg, stage: st, fx: 600 }; LV.vert = true; lvVertCam(L, 600, 1);
+    }
+  }
   const musicVol = () => { let v = 65; try { const x = parseInt(localStorage.getItem('nfl_music_vol2'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
   const vol = v => 0.6 * Math.pow(v / 100, 1.6);                            // wide range: whisper-quiet at the left, full volume at the right, fine control in between
-  const crowdVol = () => { let v = 35; try { const x = parseInt(localStorage.getItem('nfl_crowd_vol'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
+  const crowdVol = () => { let v = 20; try { const x = parseInt(localStorage.getItem('nfl_crowd_vol2'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
   L.startAmbience = () => { if (L.skipped || L.ambience) return; L.ambience = true; Snd.crowd('assets/sounds/crowd-stadium.m4a', vol(crowdVol())); };   // the crowd comes in as the opening ends
-  const cv = ov.querySelector('#lvCrowd'); if (cv) { cv.value = crowdVol(); cv.addEventListener('input', () => { Snd.setCrowdVol(vol(cv.value)); try { localStorage.setItem('nfl_crowd_vol', cv.value); } catch (e) { /* ignore */ } }); }
-  const playersVol = () => { let v = 75.16; try { const x = parseInt(localStorage.getItem('nfl_players_vol3'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
-  const pv = ov.querySelector('#lvPlayers'); if (pv) { pv.value = playersVol(); pv.addEventListener('input', () => { Snd.setPlayersVol(vol(pv.value)); try { localStorage.setItem('nfl_players_vol3', pv.value); } catch (e) { /* ignore */ } }); }
+  const cv = ov.querySelector('#lvCrowd'); if (cv) { cv.value = crowdVol(); cv.addEventListener('input', () => { Snd.setCrowdVol(vol(cv.value)); try { localStorage.setItem('nfl_crowd_vol2', cv.value); } catch (e) { /* ignore */ } }); }
+  const playersVol = () => { let v = 45; try { const x = parseInt(localStorage.getItem('nfl_players_vol4'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
+  const pv = ov.querySelector('#lvPlayers'); if (pv) { pv.value = playersVol(); pv.addEventListener('input', () => { Snd.setPlayersVol(vol(pv.value)); try { localStorage.setItem('nfl_players_vol4', pv.value); } catch (e) { /* ignore */ } }); }
   const $ = id => document.getElementById(id), setScore = () => { $('lvScore_away').textContent = L.score.away; $('lvScore_home').textContent = L.score.home; };
   const setClock = (q, clock) => { $('lvQ').innerHTML = `${q}<small>${['ST', 'ND', 'RD', 'TH'][q - 1]}</small>`; $('lvClock').textContent = clock; };
   const setBugDD = txt => { const el = $('lvBugDD'); if (el) el.innerHTML = esc(String(txt).toUpperCase()).replace(/(\d)(ST|ND|RD|TH)\b/g, '$1<small>$2</small>'); };
@@ -1096,7 +1114,7 @@ async function openLiveGame(game, notes, season) {
   const finish = () => {
     Snd.stopMusic(900);
     if (L.finished) return; L.finished = true; L.skipped = true;  (L.waits || []).splice(0).forEach(f => f()); if (L.cancelAnim) L.cancelAnim();
-    const el = document.getElementById('lvOverlay'); if (el) el.remove();
+    const el = document.getElementById('lvOverlay'); if (el) el.remove(); LV.vert = false;
     if (game.st !== 'OUT') { /* the box score is the truth */ }
     LV.done && LV.done();
   };
@@ -1138,6 +1156,7 @@ async function openLiveGame(game, notes, season) {
     const spot = p.los < 50 ? `${TEAM[p.off === 'me' ? myId : oppId].id} ${p.los}` : (p.los === 50 ? 'Midfield' : `${TEAM[p.off === 'me' ? oppId : myId].id} ${100 - p.los}`);
     $('lvDD').textContent = `${dd} · ball on ${spot}`; setBugDD(p.kind === 'xp' ? 'Extra Point' : p.kind === 'fg' ? `FG ${p.yards} yds` : `${['', '1st', '2nd', '3rd', '4th'][p.down]} & ${dTxt}`); $('lvText').textContent = '…';
     const A = lvMakeActors(sc, p), T = lvTimeline(A), res = lvPlayScript(p, sc, A, T); LV.last = { A, T, res, sc, p }; if (res.call) $('lvText').textContent = res.call;
+    if (L.vert) { L.vert.fx = lvX(sc.los) + 60; lvVertCam(L, L.vert.fx, 1); }
     const los = $('lvLos'), fd = $('lvFd'), losX = lvX(sc.los) - 2;
     if (los) { los.setAttribute('x', lvX(sc.los) - 2); los.setAttribute('opacity', .9); }
     if (fd && p.kind !== 'fg' && p.kind !== 'xp') { fd.setAttribute('x', lvX(sc.dir === 1 ? sc.los + p.dist : sc.los) - 2 + (sc.dir === 1 ? 0 : 0)); const fdAbs = sc.dir === 1 ? Math.min(100, sc.los + p.dist) : Math.max(0, sc.los - p.dist); fd.setAttribute('x', lvX(fdAbs) - 2); fd.setAttribute('opacity', .85); } else if (fd) fd.setAttribute('opacity', 0);
@@ -1152,7 +1171,7 @@ async function openLiveGame(game, notes, season) {
         if (!alive()) return resolve();
         if (start === null) { start = ts; last = ts; }
         if (L.speed !== plSp) { plSp = L.speed; Snd.setPlayersRate(plRate()); }
-        const real = ((ts - start) / 1000) * L.speed, t = real * LV_PACE; T.render(t); { const nx = script[si + 1], live = Math.max(0, Math.min(real, res.dur / LV_PACE) - res.snap / LV_PACE), [cq, cc] = clockOf(Math.min(e.t + live, nx ? nx.t - 0.5 : e.q * 900)); if (!L.frozen) setClock(cq, cc); }
+        const real = ((ts - start) / 1000) * L.speed, t = real * LV_PACE; T.render(t); if (L.vert) { const bp = T.posAt && T.posAt('ball', t); lvVertCam(L, bp && isFinite(bp.x) ? bp.x : lvX(sc.los), Math.min(0.05, (ts - (L._vt || ts)) / 1000)); L._vt = ts; } { const nx = script[si + 1], live = Math.max(0, Math.min(real, res.dur / LV_PACE) - res.snap / LV_PACE), [cq, cc] = clockOf(Math.min(e.t + live, nx ? nx.t - 0.5 : e.q * 900)); if (!L.frozen) setClock(cq, cc); }
         while (pending.length && pending[0].t <= t) { const f = pending.shift(); lvPop(fxLayer, f); Snd.play(f.cls === 'td' ? 'roar' : (f.cls === 'good' ? 'pick' : 'click')); }
         if (t >= res.dur) return resolve();
         raf = requestAnimationFrame(frame);

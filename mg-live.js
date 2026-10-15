@@ -71,7 +71,7 @@ function mgLivePre(L, defShadow) {
 function mgLiveFace(a, ang, k = 0.35) { let d = ang - a.face; d = Math.atan2(Math.sin(d), Math.cos(d)); a.face += d * k; a.fc.setAttribute('transform', `rotate(${(a.face * 180 / Math.PI).toFixed(0)})${a.isMe ? ' scale(1.25)' : ''}`); }
 // the huddle breaks and lines up while the players' noise plays (second 4 of the clip is the snap); resolves with the script time reached
 async function mgLivePreSnap(ctx, L, ref) {
-  Snd.players('assets/sounds/players-huddle.mp3', mgSndVol('nfl_players_vol3', 75.16), 1, Math.max(0, 4 - LV_SN));
+  Snd.players('assets/sounds/players-huddle.mp3', mgSndVol('nfl_players_vol4', 45), 1, Math.max(0, 4 - LV_SN));
   const f0 = performance.now(); let t = 0;
   await new Promise(r => { const step = () => { if (!ctx.alive()) return r(); t = (performance.now() - f0) / 1000; mgLiveRender(L, t); mgLiveCam(ctx, L, ref.x, ref.y, 0.016); if (t >= LV_SN) return r(); requestAnimationFrame(step); }; step(); });
   return t;

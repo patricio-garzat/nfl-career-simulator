@@ -226,15 +226,15 @@ function mgOpen(env) {
   stage.innerHTML = `<div class="mg-intro" style="background-image:radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, ${t.c1} 40%, transparent), transparent)">
     <img class="mg-intro-logo" src="${t.logo}" alt=""><h2>${esc(meta.title)}</h2><p>${esc(mgTx(meta.how))}</p>
     <div class="mg-legend">${meta.legend.map(([i, a, b]) => `<span>${i === '🔴' ? '<i class="mg-dot r"></i>' : i === '🟢' ? '<i class="mg-dot g"></i>' : ''}${mgTxLegend(a, kind)}${b ? ` <b>→ ${b}</b>` : ''}</span>`).join('')}</div><p class="mg-sub">3 levels · your grade sets ${MGX && MGX.env.se.mg && MGX.env.se.mg.weekly ? 'your next game' : 'the whole season'}</p></div>`;
-  ctrl.innerHTML = `<button class="btn btn-primary btn-xl" data-mg="start">START</button>`;
+  ctrl.innerHTML = `<button class="btn btn-primary btn-xl" data-mg="start">START</button><button class="btn btn-ghost btn-xl mg-skip-big" data-mg="skip">SKIP</button>`;
   Snd.play('mgCrowd', 0.05);
   mgAmbience();
 }
 // stadium crowd noise under every mini game (volume = the CROWD slider of the live game), and the players' noise of each play: second 4 of the clip is the snap
 const mgSndVol = (key, def) => { let v = def; try { const x = parseInt(localStorage.getItem(key), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return 0.6 * Math.pow(v / 100, 1.6); };
-function mgAmbience() { Snd.crowd('assets/sounds/crowd-stadium.m4a', mgSndVol('nfl_crowd_vol', 35)); }
+function mgAmbience() { Snd.crowd('assets/sounds/crowd-stadium.m4a', mgSndVol('nfl_crowd_vol2', 20)); }
 // waits `ms` before the snap while the players' noise plays, so that second 4 of the clip lands on the snap
-async function mgPre(ctx, ms) { Snd.players('assets/sounds/players-huddle.mp3', mgSndVol('nfl_players_vol3', 75.16), 1, Math.max(0, 4 - ms / 1000)); await sleep(ms); }
+async function mgPre(ctx, ms) { Snd.players('assets/sounds/players-huddle.mp3', mgSndVol('nfl_players_vol4', 45), 1, Math.max(0, 4 - ms / 1000)); await sleep(ms); }
 async function mgRun(ctx) {
   const live = typeof lvFieldSVG === 'function' && typeof TEAM !== 'undefined' && TEAM[ctx.t.id] && TEAM[ctx.o.id] && typeof mgRBLive === 'function';
   ctx.k = 1; ctx.rot = 0; ctx.stage.classList.remove('mg-live-stage', 'mg-ls-tall');

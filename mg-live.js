@@ -327,29 +327,31 @@ function mgCatchLive(ctx, i, st) {
   const adj = lv >= 1 ? { ta: 0.42, dx: rr(-28, 28), dy: td ? rr(-8, 8) : rr(-45, 45) } : null;     // the wind nudges the ball in the air
   const L2 = adj ? { x: Lx + adj.dx, y: clamp(Ly + adj.dy, yMin, yMax) } : { x: Lx, y: Ly };
   const route = te ? ['SEAM', 'DRAG', 'CORNER', 'OVER', 'POST'][i] : ['GO', 'POST', 'FADE', 'OUT', 'DEEP'][i];
-  ctx.say(note ? `🚩 ${note}` : td ? 'Last play — <b>catch it in the end zone</b>' : 'Get to the <b>ring</b> before the ball does');
+  ctx.say(note ? `🚩 ${note}` : MG_TOUCH ? (td ? 'Last play — <b>touchdown pass</b> · tap CATCH as the ring closes' : 'Your receiver runs the route · tap <b>CATCH</b> as the ring closes') : td ? 'Last play — <b>catch it in the end zone</b>' : 'Get to the <b>ring</b> before the ball does');
   ctx.dbg = { me: meRole };
   return new Promise(async res => {
     const ring = ctx.stage.querySelector('#mgRing');
     let t = await mgLivePreSnap(ctx, L, { x: losX + L.lead * 0.5, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null;
-    ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div>` + (MG_TOUCH ? '<div class="mg-touchhint">👆 Tap the field where you want to run</div>' : `<div class="mg-btns three" style="grid-template-columns:1fr 1.7fr 1fr">${mgHoldBtn('l', '◀')}<button class="mg-b mg-hold mg-go" data-hold="g" style="--c:#c5ff3a">RUN<small>SPACE</small></button>${mgHoldBtn('r', '▶')}</div>`);
-    ctx.ov.classList.toggle('mg-free', MG_TOUCH);
+    ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div>` + (MG_TOUCH ? '<div class="mg-btns one"><button class="mg-b big mg-throw" id="mgCatchBtn" style="--c:#c5ff3a">🙌 CATCH</button></div>' : `<div class="mg-btns three" style="grid-template-columns:1fr 1.7fr 1fr">${mgHoldBtn('l', '◀')}<button class="mg-b mg-hold mg-go" data-hold="g" style="--c:#c5ff3a">RUN<small>SPACE</small></button>${mgHoldBtn('r', '▶')}</div>`);
+    ctx.ov.classList.remove('mg-free');
     if (!ctx.alive()) return res(false);
     inp = mgInput(ctx);
-    ctx.say(`<b>HIKE!</b> <b>${route}</b> · run to the ring`, 'go'); Snd.play('mgSnap', 0.02);
+    ctx.say(MG_TOUCH ? `<b>HIKE!</b> <b>${route}</b> · tap <b>CATCH</b> when the ring closes` : `<b>HIKE!</b> <b>${route}</b> · run to the ring`, 'go'); Snd.play('mgSnap', 0.02);
     const me = actors[meRole], ball = actors.ball, p0 = T.posAt(meRole, SN);
-    let mpx = p0.x, mpy = p0.y, hd = 0, goal = null, released = false, Q0 = null, P1 = null, cur = { x: Lx, y: Ly }, adjusted = false;
+    let mpx = p0.x, mpy = p0.y, hd = 0, goal = null, curTau = 0, tg = null, released = false, Q0 = null, P1 = null, cur = { x: Lx, y: Ly }, adjusted = false;
     const defA = actors[dd(prim)], D1 = { x: 0, y: 0, on: false };
     const bar = ctx.ctrl.querySelector('.mg-timer i');
-    const cleanup = () => { ended = true; cancelAnimationFrame(raf); inp.dispose(); };
+    let cleanup = () => { ended = true; cancelAnimationFrame(raf); inp.dispose(); };
+    const WIN = [[0.14, 0.12, 0.10][lv], [0.34, 0.30, 0.26][lv]];
     const drawRing = () => {
       ring.innerHTML = `<path d="M${Q0.x.toFixed(1)} ${Q0.y.toFixed(1)} L${(adjusted ? P1 : cur).x.toFixed(1)} ${(adjusted ? P1 : cur).y.toFixed(1)}" stroke="#fff" stroke-opacity=".7" stroke-width="3" stroke-dasharray="6 8" stroke-linecap="round" fill="none"/><path d="M${P1 ? P1.x.toFixed(1) : Q0.x.toFixed(1)} ${P1 ? P1.y.toFixed(1) : Q0.y.toFixed(1)} L${cur.x.toFixed(1)} ${cur.y.toFixed(1)}" stroke="#fff" stroke-opacity=".7" stroke-width="3" stroke-dasharray="6 8" stroke-linecap="round" fill="none"/>
         <g transform="translate(${cur.x.toFixed(1)} ${cur.y.toFixed(1)})"><circle r="${R_CATCH}" fill="${td ? '#ffd23d' : '#c5ff3a'}" fill-opacity=".2" stroke="${td ? '#ffd23d' : '#c5ff3a'}" stroke-width="3" class="mg-landring"/><circle r="8" fill="none" stroke="#fff" stroke-opacity=".8" stroke-dasharray="2 3"/>${td ? mgTag(0, -R_CATCH - 16, 'TD', '#ffd23d', 10, ctx.k, 90) : ''}</g>`;
     };
-    const finish = async () => {
-      ended = true; cancelAnimationFrame(raf); inp.dispose(); ctx.ctrl.innerHTML = '';
+    const finish = async (tm) => {                                  // tm (touch only): 'perfect' | 'ok' | 'early' | 'late' | 'none' — the timing of your CATCH tap
+      cleanup(); ctx.ctrl.innerHTML = ''; { const tgm = ctx.stage.querySelector('#mgTimeG'); if (tgm) tgm.remove(); }
+      if (tm) { mpx = cur.x; mpy = cur.y; }
       const dR = Math.hypot(mpx - cur.x, mpy - cur.y), dD = D1.on ? Math.hypot(D1.x - cur.x, D1.y - cur.y) : 999, hasD = D1.on;
-      const ok = dR <= R_CATCH && (!hasD || dR <= dD + 8 || dD > 28), perfect = ok && dR <= 9;
+      const ok = tm ? (tm === 'perfect' || tm === 'ok') : dR <= R_CATCH && (!hasD || dR <= dD + 8 || dD > 28), perfect = tm ? tm === 'perfect' : ok && dR <= 9;
       ball.el.setAttribute('transform', `translate(${(ok ? mpx : cur.x).toFixed(1)} ${(ok ? mpy : cur.y).toFixed(1)}) scale(1)`);
       Snd.stopPlayers(800);
       if (ok) {
@@ -361,8 +363,8 @@ function mgCatchLive(ctx, i, st) {
         ctx.say(scored ? `🏈 <b>TOUCHDOWN!</b> ${mgYardsStr(gain)} in the end zone` : `✅ ${perfect ? '✨ Dead center! ' : 'Caught it! '}${mgYardsStr(gain)}${first ? ' · <b>1ST DOWN</b>' : ''} · ball on the ${spotNow(na)}`, 'good'); res(true);
       } else {
         st.down = down + 1;
-        const broke = hasD && dD < dR && dD <= 28; mgLivePop(ctx, L, cur.x + 34, cur.y, broke ? 'BROKEN UP' : 'TOO FAR', 'bad'); Snd.play(broke ? 'mgHit' : 'mgPat', 0); if (broke) mgShake(ctx);
-        ctx.say(`❌ ${broke ? 'The defender got there first' : `Missed it by ${Math.round(dR / 10)} yds`}<span class="mg-tip">Watch the ring — it can move in the air.</span>`, 'bad'); res(false);
+        const broke = tm ? tm === 'late' || tm === 'none' : hasD && dD < dR && dD <= 28; mgLivePop(ctx, L, cur.x + 34, cur.y, tm === 'early' ? 'TOO EARLY' : tm === 'none' ? 'NO CATCH' : broke ? 'BROKEN UP' : 'TOO FAR', 'bad'); Snd.play(broke ? 'mgHit' : 'mgPat', 0); if (broke) mgShake(ctx);
+        ctx.say(tm ? `❌ ${tm === 'early' ? 'You went for it too early' : tm === 'late' ? 'Too late — the defender got there first' : 'You never tapped CATCH'}<span class="mg-tip">Tap CATCH just as the ring closes on the ball.</span>` : `❌ ${broke ? 'The defender got there first' : `Missed it by ${Math.round(dR / 10)} yds`}<span class="mg-tip">Watch the ring — it can move in the air.</span>`, 'bad'); res(false);
       }
     };
     const frame = now => {
@@ -370,20 +372,23 @@ function mgCatchLive(ctx, i, st) {
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt; const tau = t - SN;
       mgLiveRender(L, t);
       // ---- you: arrows turn, SPACE runs ----
-      let run = !!inp.k.g;
-      if (MG_TOUCH) {                                                // touch: tap / drag where you want to go — he runs there by himself and stops on the spot
-        const fp = inp.world(); if (fp) goal = { x: fp.x, y: fp.y };
-        if (goal && released && Math.hypot(goal.x - cur.x, goal.y - cur.y) < R_CATCH * 1.7) goal = { x: cur.x, y: cur.y };      // aim assist: a tap near the ring snaps onto its centre
-        inp.mark(goal); run = false;
-        if (goal && Math.hypot(goal.x - mpx, goal.y - mpy) > 5) { const want = Math.atan2(goal.y - mpy, goal.x - mpx) * 180 / Math.PI, dl = ((want - hd + 540) % 360) - 180; hd += clamp(dl, -900 * dt, 900 * dt); run = true; }
+      let run = !!inp.k.g, hdT = null; curTau = tau;
+      if (MG_TOUCH) {                                                // phone: he runs to the ring by himself and gets there as the ball does — your job is the timing of the catch
+        const dg = Math.hypot(cur.x - mpx, cur.y - mpy), left = Math.max(0.2, tRel + Tf - 0.1 - tau), spd = Math.min(VR * 1.15, dg / left);
+        if (dg > 1.5) { hdT = Math.atan2(cur.y - mpy, cur.x - mpx); mpx += Math.cos(hdT) * spd * dt; mpy += Math.sin(hdT) * spd * dt; hd = hdT * 180 / Math.PI; }
+        run = false;
       } else { const turn = inp.k.r - inp.k.l; if (turn) hd += turn * 280 * dt; else if (inp.k.u) hd -= Math.sign(hd) * Math.min(Math.abs(hd), 420 * dt); }
       hd = ((hd + 540) % 360) - 180;
-      const rad = hd * Math.PI / 180, vrT = VR * (MG_TOUCH ? 1.08 : 1);
+      const rad = hd * Math.PI / 180, vrT = VR;
       if (run) { mpx = clamp(mpx + Math.cos(rad) * vrT * dt, lvX(-8), lvX(108)); mpy = clamp(mpy + Math.sin(rad) * vrT * dt, yMin, yMax); }
+      if (MG_TOUCH && tg) {                                          // the closing ring: it shrinks onto the landing spot exactly when the ball arrives
+        const u2 = clamp((tau - tRel) / Tf, 0, 1), rr2 = R_CATCH + (1 - u2) * 64, hot = Math.abs(tau - (tRel + Tf)) <= WIN[0];
+        tg.setAttribute('transform', `translate(${cur.x.toFixed(1)} ${cur.y.toFixed(1)})`); const c = tg.firstElementChild; c.setAttribute('r', rr2.toFixed(1)); c.setAttribute('stroke', hot ? '#c5ff3a' : '#ffffff'); c.setAttribute('stroke-width', hot ? '6' : '3.5');
+      }
       mgLiveMe(L, me, mpx, mpy); mgLiveFace(me, rad, 0.5); mgLiveCam(ctx, L, mpx + L.lead, mpy, dt);
       // ---- the throw: the ball leaves the quarterback and the ring shows where it will land ----
       if (!released && tau >= tRel) {
-        released = true; const q = T.posAt('QB', SN + tRel); Q0 = { x: q.x, y: q.y }; Snd.play('mgThrow', 0); ctx.say('<b>BALL IS UP!</b> Run to the ring', 'go');
+        released = true; const q = T.posAt('QB', SN + tRel); Q0 = { x: q.x, y: q.y }; Snd.play('mgThrow', 0); ctx.say(MG_TOUCH ? '<b>BALL IS UP!</b> Tap <b>CATCH</b> as the ring closes' : '<b>BALL IS UP!</b> Run to the ring', 'go');
         if (bar) { bar.style.transition = 'none'; bar.style.width = '100%'; void bar.offsetWidth; bar.style.transition = `width ${Tf}s linear`; bar.style.width = '0%'; }
         if (VD) { const p = T.posAt(dd(prim), SN + tRel); D1.x = p.x; D1.y = p.y; D1.on = true; }
         drawRing();
@@ -395,10 +400,18 @@ function mgCatchLive(ctx, i, st) {
         const h = Math.sin(Math.PI * u) * 34; ball.el.setAttribute('transform', `translate(${(bp.x + h).toFixed(1)} ${bp.y.toFixed(1)}) scale(${(1 + h / 60).toFixed(2)}) rotate(${(u * 720).toFixed(0)})`);
         // the defender races to the same spot
         if (D1.on) { const dx = cur.x - D1.x, dy = cur.y - D1.y, dm = Math.hypot(dx, dy); if (dm > 14) { D1.x += dx / dm * VD * dt; D1.y += dy / dm * VD * dt; } mgLiveSet(defA, D1.x, D1.y); mgLiveFace(defA, Math.atan2(dy, dx), 0.3); }
-        if (u >= 1) return finish();
+        if (!MG_TOUCH && u >= 1) return finish();
       }
+      if (MG_TOUCH && tau > tRel + Tf + WIN[1] + 0.05) return finish('none');
       raf = requestAnimationFrame(frame);
     };
+    if (MG_TOUCH) {
+      { const q = T.posAt('QB', SN + tRel); Q0 = { x: q.x, y: q.y }; drawRing(); }          // the landing ring is visible from the snap, with the path of the ball
+      const rot = ctx.stage.querySelector('#mgRot'); if (rot) { tg = document.createElementNS('http://www.w3.org/2000/svg', 'g'); tg.id = 'mgTimeG'; tg.setAttribute('pointer-events', 'none'); tg.innerHTML = '<circle r="90" fill="none" stroke="#fff" stroke-width="3.5" opacity=".9"/>'; rot.appendChild(tg); }
+      const verdict = () => { const d0 = curTau - (tRel + Tf); return Math.abs(d0) <= WIN[0] ? 'perfect' : Math.abs(d0) <= WIN[1] ? 'ok' : d0 < 0 ? 'early' : 'late'; };
+      const cb = ctx.ov.querySelector('#mgCatchBtn'); if (cb) cb.addEventListener('pointerdown', ev => { ev.preventDefault(); if (!ended) finish(verdict()); });
+      const onKeyC = e => { if (e.code === 'Space' && !e.repeat) { e.preventDefault(); if (!ended) finish(verdict()); } }; document.addEventListener('keydown', onKeyC); const oc = cleanup; cleanup = () => { document.removeEventListener('keydown', onKeyC); oc(); };
+    }
     last = performance.now();
     raf = requestAnimationFrame(frame);
   });

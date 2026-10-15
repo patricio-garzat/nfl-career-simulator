@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14224a"/><stop offset="1" stop-color="#05080f"/></linearGradient>
+    <radialGradient id="halo" cx=".5" cy=".5" r=".5"><stop offset=".55" stop-color="#c5ff3a" stop-opacity=".0"/><stop offset=".8" stop-color="#c5ff3a" stop-opacity=".16"/><stop offset="1" stop-color="#c5ff3a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0a8"/><stop offset=".45" stop-color="#ffc93a"/><stop offset="1" stop-color="#c77f00"/></linearGradient>
+    <linearGradient id="goldRing" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe98f"/><stop offset=".5" stop-color="#e9a61a"/><stop offset="1" stop-color="#ffd86b"/></linearGradient>
+    <radialGradient id="field" cx=".5" cy=".28" r=".85"><stop offset="0" stop-color="#1d4b6e"/><stop offset=".55" stop-color="#0d2140"/><stop offset="1" stop-color="#060c1a"/></radialGradient>
+    <linearGradient id="ball" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e4ff6a"/><stop offset=".5" stop-color="#b6f52f"/><stop offset="1" stop-color="#6cc226"/></linearGradient>
+    <clipPath id="disc"><circle cx="512" cy="512" r="360"/></clipPath>
+    <clipPath id="clipBall"><path id="bp" d="M208 512C330 266 694 266 816 512C694 758 330 758 208 512Z"/></clipPath>
+    <filter id="drop" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="22" stdDeviation="18" flood-color="#000" flood-opacity=".6"/></filter>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="10"/></filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="512" cy="512" r="470" fill="url(#halo)"/>
+  <!-- badge -->
+  <circle cx="512" cy="512" r="404" fill="#05080f" stroke="url(#goldRing)" stroke-width="30"/>
+  <path d="M232 330A310 310 0 0 1 560 118" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="10" stroke-linecap="round" transform="translate(0 0)" opacity="0"/>
+  <circle cx="512" cy="512" r="418" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="3"/>
+  <circle cx="512" cy="512" r="382" fill="none" stroke="#c5ff3a" stroke-opacity=".55" stroke-width="4"/>
+  <circle cx="512" cy="512" r="360" fill="url(#field)"/>
+  <g clip-path="url(#disc)">
+    <!-- turf: yard lines + hash marks -->
+    <g stroke="#fff" stroke-opacity=".10" stroke-width="7"><path d="M120 640H904M120 730H904M120 820H904"/></g>
+    <g stroke="#fff" stroke-opacity=".08" stroke-width="5"><path d="M512 560V900M392 560L290 900M632 560L734 900"/></g>
+    <ellipse cx="512" cy="300" rx="320" ry="150" fill="#35e0ff" opacity=".12" filter="url(#soft)"/>
+  </g>
+  <!-- stars on the crown of the badge -->
+  <g fill="url(#gold)" stroke="#fff3b8" stroke-opacity=".6" stroke-width="3" stroke-linejoin="round">
+    <path transform="translate(512 218) scale(1.05)" d="M0 -46L13 -15L46 -13L21 8L29 40L0 22L-29 40L-21 8L-46 -13L-13 -15Z"/>
+    <path transform="translate(412 248) scale(.7) rotate(-12)" d="M0 -46L13 -15L46 -13L21 8L29 40L0 22L-29 40L-21 8L-46 -13L-13 -15Z"/>
+    <path transform="translate(612 248) scale(.7) rotate(12)" d="M0 -46L13 -15L46 -13L21 8L29 40L0 22L-29 40L-21 8L-46 -13L-13 -15Z"/>
+  </g>
+  <!-- the ball -->
+  <g transform="rotate(-32 512 540) translate(0 30)" filter="url(#drop)">
+    <use href="#bp" fill="url(#ball)"/>
+    <g clip-path="url(#clipBall)">
+      <path d="M208 600C340 520 690 520 816 600V780H208Z" fill="#0c3b10" opacity=".30"/>
+      <ellipse cx="480" cy="372" rx="230" ry="40" fill="#fff" opacity=".45" filter="url(#soft)"/>
+      <g fill="none" stroke-linecap="round">
+        <path d="M296 392C268 466 268 558 296 632" stroke="#07101f" stroke-width="46"/><path d="M296 392C268 466 268 558 296 632" stroke="#fff" stroke-width="30"/>
+        <path d="M728 392C756 466 756 558 728 632" stroke="#07101f" stroke-width="46"/><path d="M728 392C756 466 756 558 728 632" stroke="#fff" stroke-width="30"/>
+      </g>
+    </g>
+    <use href="#bp" fill="none" stroke="#07101f" stroke-width="16" stroke-linejoin="round"/>
+    <g fill="none" stroke-linecap="round">
+      <g stroke="#07101f"><path d="M392 512H632" stroke-width="30"/><path d="M426 454V570M476 446V578M526 444V580M576 446V578M626 454V570" stroke-width="28"/></g>
+      <g stroke="#fff"><path d="M392 512H632" stroke-width="15"/><path d="M426 454V570M476 446V578M526 444V580M576 446V578M626 454V570" stroke-width="14"/></g>
+    </g>
+  </g>
+</svg>

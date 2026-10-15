@@ -469,7 +469,19 @@ function mgQBLive(ctx, i, st) {
       const inGreen = perr <= zone / 2, inYellow = perr <= 0.2, perfect = inGreen && perr <= zone * 0.2 && close > 55;
       const tw = T.posAt('WR1', t + 0.55), wx = tw.x, wy = tw.y; Snd.play('mgThrow', 0);
       mgLiveFace(qbA, Math.atan2(wy - Q.y, wx - Q.x), 1);
-      await fly(Q.x, Q.y, wx, wy, 560, 40); if (!ctx.alive()) return res(false);
+      // the ball travels while the play keeps running: the receiver keeps running his route and the pass arrives in his hands
+      await new Promise(r => {
+        const f0 = performance.now(), FLY = 560, step = () => {
+          if (!ctx.alive()) return r();
+          const k = Math.min(1, (performance.now() - f0) / FLY), tt = t + 0.55 * k;
+          mgLiveRender(L, tt); mgLiveMe(L, qbA, Q.x, Q.y); rush.forEach(rr2 => { if (rr2.free) mgLiveSet(rr2.a, rr2.x, rr2.y); });
+          const w = T.posAt('WR1', tt); tgt.setAttribute('transform', `translate(${w.x.toFixed(1)} ${w.y.toFixed(1)})`); const x = Q.x + (w.x + 5 - Q.x) * k, y = Q.y + (w.y + 3 - Q.y) * k, hh = Math.sin(Math.PI * k) * 40;
+          ball.el.setAttribute('transform', `translate(${(x + hh * (1 - k)).toFixed(1)} ${y.toFixed(1)}) scale(${(0.85 + Math.sin(Math.PI * k) * 0.5).toFixed(2)}) rotate(${(k * 540).toFixed(0)})`);
+          if (k < 1) requestAnimationFrame(step); else r();
+        }; step();
+      });
+      if (!ctx.alive()) return res(false);
+      if (inGreen) ball.el.setAttribute('transform', `translate(${(wx + 5).toFixed(1)} ${(wy + 3).toFixed(1)}) scale(.85)`);
       if (inGreen) {
         const yds = Math.max(2, Math.round((wx - losX) / 10 + rr(0, 3)));
         mgLivePop(ctx, L, wx + 34, wy, perfect ? 'PERFECT!' : mgYardsStr(yds), 'good'); Snd.play('mgPat', 0); if (yds >= 12) Snd.play('td', 0.12);

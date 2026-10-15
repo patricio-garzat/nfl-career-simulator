@@ -26,9 +26,9 @@
 
   /* ---- phones held sideways: ask for portrait (the whole app is laid out for it) ---- */
   if (!document.getElementById('rotate-hint')) {
-    const h = document.createElement('div'); h.id = 'rotate-hint'; h.innerHTML = '<div class="rh-phone"></div><b>Rotate your phone</b><span>NFL Career is made for portrait mode. Turn your phone upright for the best view.</span><button type="button">CONTINUE ANYWAY</button>';
-    h.querySelector('button').addEventListener('click', () => { root.classList.add('no-rot'); try { sessionStorage.setItem('nfl_no_rot', '1'); } catch (e) {} });
-    document.body.appendChild(h); try { if (sessionStorage.getItem('nfl_no_rot')) root.classList.add('no-rot'); } catch (e) {}
+    const h = document.createElement('div'); h.id = 'rotate-hint'; h.innerHTML = '<div class="rh-phone"></div><b>Rotate your phone</b><span>NFL Career only works in portrait mode. Turn your phone upright to keep playing.</span>';
+    document.body.appendChild(h);
+    try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(() => {}); } catch (e) { /* only works installed / fullscreen */ }
   }
 
   /* ---- Enter closes the phone keyboard ---- */

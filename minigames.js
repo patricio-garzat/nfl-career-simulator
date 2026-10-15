@@ -34,9 +34,9 @@ const mgTx = h => !MG_TOUCH ? h : String(h)
   .replace(/arrow keys \/ WASD/g, 'drag your finger').replace(/SPACE/g, 'the big button');
 const mgTxLegend = (a, kind) => !MG_TOUCH ? a : ({ 'SPACE': kind === 'qb' ? 'THROW' : 'RUN', '← →': '◀ ▶', '← → ↑ ↓ move': 'Drag to move' })[a] || a;
 const MG_META = {
-  qb: P => ({ icon: '🏈', title: 'POCKET PRESENCE', how: 'Dodge the pass rush inside the pocket and press SPACE when the bar is in the green to throw to your WR. Wait too long and you get sacked.', legend: [['', '← → ↑ ↓ move', 'dodge the rush'], ['', 'SPACE', 'throw in the green'], ['', 'Too slow', 'SACK']] }),
-  rb: P => ({ icon: '🏃', title: 'RUSH FOR YARDS', how: 'Read the defense before the snap: the line has three lanes (left, middle, right) and at least two of them are open. Guess the open one, take the handoff, run through it and keep dodging tacklers. Hold SPACE to run and use the arrows to turn. Every yard is 0.1 points and a touchdown is worth 6 — your points raise your performance.', legend: [['', 'SPACE', 'run forward'], ['', '← →', 'turn'], ['', 'Every yard', '0.1 points'], ['', 'Touchdown', '6 points']] }),
-  catch: P => ({ icon: '🙌', title: P.pos === 'TE' ? 'CATCH IT · SEAM' : 'CATCH IT · GO ROUTE', how: 'A three-play drive: catch to move the chains, and the last pass is for the touchdown. Hold SPACE to run and use the arrows to turn: get to where the ball will land.', legend: [['⌨️', 'SPACE', 'run forward'], ['⌨️', '← →', 'turn'], ['⭕', 'Ring', 'be there first']] }),
+  qb: P => ({ icon: '🏈', title: 'POCKET PRESENCE', how: MG_TOUCH ? 'Dodge the pass rush: DRAG YOUR FINGER on the field and your quarterback moves toward it. Tap THROW when the marker is inside the green to hit your receiver. Wait too long and you get sacked.' : 'Dodge the pass rush inside the pocket and press SPACE when the bar is in the green to throw to your WR. Wait too long and you get sacked.', legend: MG_TOUCH ? [['', 'Drag the field', 'move the QB'], ['', 'THROW', 'tap in the green'], ['', 'Too slow', 'SACK']] : [['', '← → ↑ ↓ move', 'dodge the rush'], ['', 'SPACE', 'throw in the green'], ['', 'Too slow', 'SACK']] }),
+  rb: P => ({ icon: '🏃', title: 'RUSH FOR YARDS', how: MG_TOUCH ? 'Read the defense before the snap: at least two of the three lanes are open. Take the handoff, then DRAG YOUR FINGER on the field: your runner keeps running and follows your finger — let go and he runs straight upfield. Dodge the tacklers. Every yard is 0.1 points and a touchdown is worth 6.' :  'Read the defense before the snap: the line has three lanes (left, middle, right) and at least two of them are open. Guess the open one, take the handoff, run through it and keep dodging tacklers. Hold SPACE to run and use the arrows to turn. Every yard is 0.1 points and a touchdown is worth 6 — your points raise your performance.', legend: MG_TOUCH ? [['', 'Drag the field', 'steer & run'], ['', 'Let go', 'run straight'], ['', 'Every yard', '0.1 points'], ['', 'Touchdown', '6 points']] : [['', 'SPACE', 'run forward'], ['', '← →', 'turn'], ['', 'Every yard', '0.1 points'], ['', 'Touchdown', '6 points']] }),
+  catch: P => ({ icon: '🙌', title: P.pos === 'TE' ? 'CATCH IT · SEAM' : 'CATCH IT · GO ROUTE', how: MG_TOUCH ? 'A three-play drive: catch to move the chains, and the last pass is for the touchdown. When the ball is thrown, TAP THE FIELD where you want to go: your receiver runs there on his own. Get inside the ring before the ball does.' :  'A three-play drive: catch to move the chains, and the last pass is for the touchdown. Hold SPACE to run and use the arrows to turn: get to where the ball will land.', legend: MG_TOUCH ? [['👆', 'Tap the field', 'go there'], ['⭕', 'Ring', 'be there first']] : [['⌨️', 'SPACE', 'run forward'], ['⌨️', '← →', 'turn'], ['⭕', 'Ring', 'be there first']] }),
   kick: P => ({ icon: '🥅', title: 'KICK IT', how: 'Aim into the wind, stop the bar in the green.', legend: [['💨', 'Wind pushes', 'AIM AGAINST'], ['⏹', 'Power', 'GREEN']] }),
 };
 /* weekly training: the camp mini game opens the season; after that, every week you can play it again from a button. Playing lifts your next game
@@ -475,9 +475,17 @@ function mgInput(ctx) {
   const kd = e => { const m = map[e.key]; if (m) { k[m] = 1; e.preventDefault(); } }, ku = e => { const m = map[e.key]; if (m) k[m] = 0; };
   document.addEventListener('keydown', kd); document.addEventListener('keyup', ku);
   const toXY = ev => { const s = ctx.stage.querySelector('svg'); if (!s || !s.createSVGPoint) return null; const pt = s.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY; const m = s.getScreenCTM(); return m ? pt.matrixTransform(m.inverse()) : null; };
-  const pd = ev => { if (ev.target.closest && ev.target.closest('.mg-hold')) return; const p = toXY(ev); if (p) { o.tx = p.x; o.ty = p.y; } };
-  const pm = ev => { if (o.tx === null) return; const p = toXY(ev); if (p) { o.tx = p.x; o.ty = p.y; } };
-  const pu = () => { o.tx = null; o.ty = null; };
+  // the finger on the field: client position -> field (world) coordinates of the live mini games, recomputed every frame because the camera moves
+  o.cx = null; o.cy = null;
+  o.world = () => { if (o.cx === null) return null; const g = ctx.stage.querySelector('#mgRot'), sv = ctx.stage.querySelector('svg'); if (!g || !sv || !sv.createSVGPoint || !g.getScreenCTM) return null; const m = g.getScreenCTM(); if (!m) return null; const pt = sv.createSVGPoint(); pt.x = o.cx; pt.y = o.cy; return pt.matrixTransform(m.inverse()); };
+  o.mark = p => {                                                           // a small ring on the field where you are touching / heading
+    let g = ctx.stage.querySelector('#mgTouchG');
+    if (!g) { const rot = ctx.stage.querySelector('#mgRot'); if (!rot) return; g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.id = 'mgTouchG'; g.setAttribute('pointer-events', 'none'); g.innerHTML = '<circle r="13" fill="rgba(255,255,255,.14)" stroke="#fff" stroke-width="2.5" stroke-dasharray="5 5"/><circle r="3.5" fill="#fff"/>'; rot.appendChild(g); }
+    if (p) { g.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`); g.setAttribute('opacity', '1'); } else g.setAttribute('opacity', '0');
+  };
+  const pd = ev => { if (ev.target.closest && ev.target.closest('.mg-hold')) return; const p = toXY(ev); if (p) { o.tx = p.x; o.ty = p.y; } o.cx = ev.clientX; o.cy = ev.clientY; try { ctx.stage.setPointerCapture(ev.pointerId); } catch (e) { /* ok */ } };
+  const pm = ev => { if (o.tx === null && o.cx === null) return; const p = toXY(ev); if (p) { o.tx = p.x; o.ty = p.y; } if (o.cx !== null) { o.cx = ev.clientX; o.cy = ev.clientY; } };
+  const pu = () => { o.tx = null; o.ty = null; o.cx = null; o.cy = null; };
   ctx.stage.addEventListener('pointerdown', pd); ctx.stage.addEventListener('pointermove', pm); window.addEventListener('pointerup', pu); window.addEventListener('pointercancel', pu);
   ctx.stage.classList.add('live');
   ctx.ov.querySelectorAll('.mg-hold').forEach(b => { const key = b.dataset.hold, on = e => { e.preventDefault(); k[key] = 1; b.classList.add('down'); }, off = () => { k[key] = 0; b.classList.remove('down'); }; b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off); });
@@ -780,7 +788,7 @@ function mgKick(ctx, i, st) {
   return new Promise(res => {
     ctx.ov.querySelector('#mgKickGo').addEventListener('click', async () => {
       if (!ctx.alive()) return; ctx.ov.querySelector('#mgKickGo').disabled = true; inp.disabled = true; phase = 'power';
-      const z = sc.zone;
+      const z = sc.zone * (MG_TOUCH ? 1.3 : 1);
       ctx.ctrl.innerHTML = `<div class="mg-power"><div class="mg-py" style="left:${(pT - 0.2) * 100}%;width:40%"></div><div class="mg-pz" style="left:${(pT - z / 2) * 100}%;width:${z * 100}%"></div><i id="mgPI"></i></div><div class="mg-btns one"><button class="mg-b big" id="mgStop" style="--c:#c5ff3a">⏹ STOP <small>SPACE</small></button></div>`;
       ctx.say('<b>Stop the bar in the green!</b> · SPACE', 'go');
       const pi = ctx.ov.querySelector('#mgPI'), t0 = performance.now(), sp = (0.95 + i * 0.12) * (sc.shaky ? 1.18 : 1); let raf = 0;

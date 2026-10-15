@@ -159,7 +159,8 @@ function mgRBLive(ctx, i, st) {
   return new Promise(async res => {
     const ydN = ctx.stage.querySelector('#mgYdN'), ptN = ctx.stage.querySelector('#mgPtN'), holeG = ctx.stage.querySelector('#mgHole');
     let t = await mgLivePreSnap(ctx, L, { x: losX + L.lead * 0.5, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null;
-    ctx.ctrl.innerHTML = `<div class="mg-btns three" style="grid-template-columns:1fr 1.7fr 1fr">${mgHoldBtn('l', '◀')}<button class="mg-b mg-hold mg-go" data-hold="g" style="--c:#c5ff3a">RUN<small>SPACE</small></button>${mgHoldBtn('r', '▶')}</div>`;
+    ctx.ctrl.innerHTML = MG_TOUCH ? '<div class="mg-touchhint">👆 Drag on the field to steer · let go to run straight</div>' : `<div class="mg-btns three" style="grid-template-columns:1fr 1.7fr 1fr">${mgHoldBtn('l', '◀')}<button class="mg-b mg-hold mg-go" data-hold="g" style="--c:#c5ff3a">RUN<small>SPACE</small></button>${mgHoldBtn('r', '▶')}</div>`;
+    ctx.ov.classList.toggle('mg-free', MG_TOUCH);
     if (!ctx.alive()) return res(false);
     inp = mgInput(ctx);
     ctx.say('<b>HIKE!</b> Pick your lane!', 'go'); Snd.play('mgSnap', 0.02);
@@ -184,12 +185,18 @@ function mgRBLive(ctx, i, st) {
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt; const tau = t - SN; stun = Math.max(0, stun - dt);
       mgLiveRender(L, t);                                                                         // everything scripted: the line, the blockers, the quarterback, the ball
       // ---- you: the handoff, then free running (arrows turn, SPACE runs) ----
-      const turn = inp.k.r - inp.k.l; if (turn) hd += turn * 230 * dt; else if (inp.k.u) hd -= Math.sign(hd) * Math.min(Math.abs(hd), 400 * dt); hd = ((hd + 540) % 360) - 180;
+      const fp = MG_TOUCH ? inp.world() : null, fpNear = !!fp && Math.hypot(fp.x - mpx, fp.y - mpy) < 9; if (MG_TOUCH) inp.mark(fp);
+      const turn = inp.k.r - inp.k.l;
+      if (MG_TOUCH) {                                                // touch: he always runs; he follows the finger, and with no finger he straightens out upfield
+        if (fp && !fpNear) { const want = Math.atan2(fp.y - mpy, fp.x - mpx) * 180 / Math.PI, dl = ((want - hd + 540) % 360) - 180; hd += clamp(dl, -620 * dt, 620 * dt); }
+        else if (!fp) hd -= Math.sign(hd) * Math.min(Math.abs(hd), 320 * dt);
+      } else if (turn) hd += turn * 230 * dt; else if (inp.k.u) hd -= Math.sign(hd) * Math.min(Math.abs(hd), 400 * dt);
+      hd = ((hd + 540) % 360) - 180;
       const rad = hd * Math.PI / 180, vx = Math.cos(rad), vy = Math.sin(rad);
       if (tau < 0.45) { const p = T.posAt('RB', t); mpx = p.x; mpy = p.y; }
       else {
         handed = true;
-        if (inp.k.g) { const sp = 84 * (stun > 0 ? 0.4 : 1) * (vx < 0 ? 0.7 : 1); mpx = clamp(mpx + vx * sp * dt, lvX(-8), lvX(108)); mpy = clamp(mpy + vy * sp * dt, yMin, yMax); }
+        if (MG_TOUCH ? !fpNear : inp.k.g) { const sp = 84 * (stun > 0 ? 0.4 : 1) * (vx < 0 ? 0.7 : 1); mpx = clamp(mpx + vx * sp * dt, lvX(-8), lvX(108)); mpy = clamp(mpy + vy * sp * dt, yMin, yMax); }
       }
       mgLiveMe(L, me, mpx, mpy); mgLiveFace(me, rad, 0.5); mgLiveCam(ctx, L, mpx + L.lead, mpy, dt);
       if (handed) { ball.el.setAttribute('transform', `translate(${(mpx + 7 * Math.cos(rad) + 5).toFixed(1)} ${(mpy + 7 * Math.sin(rad) + 4).toFixed(1)}) scale(.85)`); }
@@ -199,11 +206,11 @@ function mgRBLive(ctx, i, st) {
       chasers.forEach(c => {
         if (!c.dyn && tau >= c.rel) { const p = T.posAt(c.id, t); c.x = p.x; c.y = p.y; c.dyn = true; c.t0 = tau; }
         if (!c.dyn) return;
-        const ramp = c.kind === 'DL' ? 1 : 0.45 + 0.55 * Math.min(1, (tau - c.rel) / 1.8), sp2 = c.spd * ramp * (stun > 0 ? 1.05 : 1);
+        const ramp = c.kind === 'DL' ? 1 : 0.45 + 0.55 * Math.min(1, (tau - c.rel) / 1.8), sp2 = c.spd * ramp * (stun > 0 ? 1.05 : 1) * (MG_TOUCH ? 0.9 : 1);
         const aimX = mpx + (mpx - mpx_prev) * lead, aimY = mpy + (mpy - mpy_prev) * lead;
         const dx = aimX - c.x, dy = aimY - c.y, d = Math.hypot(dx, dy) || 1, st2 = Math.min(d, sp2 * dt); c.x += dx / d * st2; c.y += dy / d * st2;
         const dist = Math.hypot(c.x - mpx, c.y - mpy); nearest = Math.min(nearest, dist);
-        if (dist < 15 && tau >= 0.45) hitBy = hitBy && hitBy !== c ? 'multi' : c;
+        if (dist < (MG_TOUCH ? 13 : 15) && tau >= 0.45) hitBy = hitBy && hitBy !== c ? 'multi' : c;
       });
       chasers.forEach((a, k) => { if (!a.dyn) return; for (let j = k + 1; j < chasers.length; j++) { const b = chasers[j]; if (!b.dyn) continue; const dx = b.x - a.x, dy = b.y - a.y, dd2 = Math.hypot(dx, dy); if (dd2 > 0 && dd2 < 16) { const pu = (16 - dd2) * 0.35; a.x -= dx / dd2 * pu; a.y -= dy / dd2 * pu; b.x += dx / dd2 * pu; b.y += dy / dd2 * pu; } } });
       chasers.forEach(c => { if (!c.dyn) return; mgLiveSet(c.a, c.x, c.y); mgLiveFace(c.a, Math.atan2(mpy - c.y, mpx - c.x), 0.3); });
@@ -325,12 +332,13 @@ function mgCatchLive(ctx, i, st) {
   return new Promise(async res => {
     const ring = ctx.stage.querySelector('#mgRing');
     let t = await mgLivePreSnap(ctx, L, { x: losX + L.lead * 0.5, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null;
-    ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-btns three" style="grid-template-columns:1fr 1.7fr 1fr">${mgHoldBtn('l', '◀')}<button class="mg-b mg-hold mg-go" data-hold="g" style="--c:#c5ff3a">RUN<small>SPACE</small></button>${mgHoldBtn('r', '▶')}</div>`;
+    ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div>` + (MG_TOUCH ? '<div class="mg-touchhint">👆 Tap the field where you want to run</div>' : `<div class="mg-btns three" style="grid-template-columns:1fr 1.7fr 1fr">${mgHoldBtn('l', '◀')}<button class="mg-b mg-hold mg-go" data-hold="g" style="--c:#c5ff3a">RUN<small>SPACE</small></button>${mgHoldBtn('r', '▶')}</div>`);
+    ctx.ov.classList.toggle('mg-free', MG_TOUCH);
     if (!ctx.alive()) return res(false);
     inp = mgInput(ctx);
     ctx.say(`<b>HIKE!</b> <b>${route}</b> · run to the ring`, 'go'); Snd.play('mgSnap', 0.02);
     const me = actors[meRole], ball = actors.ball, p0 = T.posAt(meRole, SN);
-    let mpx = p0.x, mpy = p0.y, hd = 0, released = false, Q0 = null, P1 = null, cur = { x: Lx, y: Ly }, adjusted = false;
+    let mpx = p0.x, mpy = p0.y, hd = 0, goal = null, released = false, Q0 = null, P1 = null, cur = { x: Lx, y: Ly }, adjusted = false;
     const defA = actors[dd(prim)], D1 = { x: 0, y: 0, on: false };
     const bar = ctx.ctrl.querySelector('.mg-timer i');
     const cleanup = () => { ended = true; cancelAnimationFrame(raf); inp.dispose(); };
@@ -362,9 +370,16 @@ function mgCatchLive(ctx, i, st) {
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt; const tau = t - SN;
       mgLiveRender(L, t);
       // ---- you: arrows turn, SPACE runs ----
-      const turn = inp.k.r - inp.k.l; if (turn) hd += turn * 280 * dt; else if (inp.k.u) hd -= Math.sign(hd) * Math.min(Math.abs(hd), 420 * dt); hd = ((hd + 540) % 360) - 180;
-      const rad = hd * Math.PI / 180;
-      if (inp.k.g) { mpx = clamp(mpx + Math.cos(rad) * VR * dt, lvX(-8), lvX(108)); mpy = clamp(mpy + Math.sin(rad) * VR * dt, yMin, yMax); }
+      let run = !!inp.k.g;
+      if (MG_TOUCH) {                                                // touch: tap / drag where you want to go — he runs there by himself and stops on the spot
+        const fp = inp.world(); if (fp) goal = { x: fp.x, y: fp.y };
+        if (goal && released && Math.hypot(goal.x - cur.x, goal.y - cur.y) < R_CATCH * 1.7) goal = { x: cur.x, y: cur.y };      // aim assist: a tap near the ring snaps onto its centre
+        inp.mark(goal); run = false;
+        if (goal && Math.hypot(goal.x - mpx, goal.y - mpy) > 5) { const want = Math.atan2(goal.y - mpy, goal.x - mpx) * 180 / Math.PI, dl = ((want - hd + 540) % 360) - 180; hd += clamp(dl, -900 * dt, 900 * dt); run = true; }
+      } else { const turn = inp.k.r - inp.k.l; if (turn) hd += turn * 280 * dt; else if (inp.k.u) hd -= Math.sign(hd) * Math.min(Math.abs(hd), 420 * dt); }
+      hd = ((hd + 540) % 360) - 180;
+      const rad = hd * Math.PI / 180, vrT = VR * (MG_TOUCH ? 1.08 : 1);
+      if (run) { mpx = clamp(mpx + Math.cos(rad) * vrT * dt, lvX(-8), lvX(108)); mpy = clamp(mpy + Math.sin(rad) * vrT * dt, yMin, yMax); }
       mgLiveMe(L, me, mpx, mpy); mgLiveFace(me, rad, 0.5); mgLiveCam(ctx, L, mpx + L.lead, mpy, dt);
       // ---- the throw: the ball leaves the quarterback and the ring shows where it will land ----
       if (!released && tau >= tRel) {
@@ -395,7 +410,7 @@ function mgCatchLive(ctx, i, st) {
    pocket (arrows) to stay away from the rush and press SPACE when the timing bar is inside the green to fire the pass to your receiver (the TARGET tag).
    ===================================================================== */
 function mgQBLive(ctx, i, st) {
-  const lv = MG_LV.indexOf(i), SN = LV_SN, nR = [2, 3, 4][lv], tMax = [6.4, 5.8, 5.2][lv], vq = 92, vr = [50, 58, 66][lv], zone = [0.28, 0.22, 0.17][lv], sp = [0.85, 1.0, 1.15][lv];
+  const lv = MG_LV.indexOf(i), SN = LV_SN, nR = [2, 3, 4][lv], tMax = [6.4, 5.8, 5.2][lv] + (MG_TOUCH ? 0.8 : 0), vq = 92, vr = [50, 58, 66][lv] * (MG_TOUCH ? 0.88 : 1), zone = [0.28, 0.22, 0.17][lv] * (MG_TOUCH ? 1.3 : 1), sp = [0.85, 1.0, 1.15][lv] * (MG_TOUCH ? 0.85 : 1);
   const pT = rr(0.34, 0.68), LOS_ABS = randInt(28, 44), play = { kind: 'qbPass', off: 'me', los: LOS_ABS, down: 1, dist: 10, yards: 14, hurry: false };
   const col = mgLiveCol(ctx), tc = col[ctx.t.id] || ctx.t.c1, spot = a => (a > 50 ? `${mgAbbr(ctx.o)} ${Math.round(100 - a)}` : a === 50 ? 'MIDFIELD' : `${mgAbbr(ctx.t)} ${Math.round(a)}`);
   const hud = mgBug([{ w: 66, fill: tc, on: textOn(tc), txt: [['1ST & 10', 'n']] }, { w: 62, fill: '#0b1220', txt: [[spot(LOS_ABS), 'n']] }], -58, 600, MGL_K)
@@ -419,7 +434,7 @@ function mgQBLive(ctx, i, st) {
   return new Promise(async res => {
     const press = ctx.stage.querySelector('#mgPress'), tgt = ctx.stage.querySelector('#mgTgt'), qbA = actors.QB, ball = actors.ball, wr = actors.WR1;
     let t = await mgLivePreSnap(ctx, L, { x: losX + L.lead * 0.5, y: lvY(0) }), last = performance.now(), ended = false, raf = 0, inp = null, minD = 999, Q = { x: 0, y: 0, vx: 0, vy: 0 };
-    ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-power"><div class="mg-py" style="left:${(pT - 0.2) * 100}%;width:40%"></div><div class="mg-pz" style="left:${(pT - zone / 2) * 100}%;width:${zone * 100}%"></div><i id="mgPI"></i></div><div class="mg-btns five">${mgHoldBtn('l', '◀')}${mgHoldBtn('u', '▲')}${mgHoldBtn('d', '▼')}${mgHoldBtn('r', '▶')}<button class="mg-b big" id="mgThrow" style="--c:#c5ff3a">THROW <small>SPACE</small></button></div>`;
+    ctx.ctrl.innerHTML = `<div class="mg-timer"><i></i></div><div class="mg-power"><div class="mg-py" style="left:${(pT - 0.2) * 100}%;width:40%"></div><div class="mg-pz" style="left:${(pT - zone / 2) * 100}%;width:${zone * 100}%"></div><i id="mgPI"></i></div>${MG_TOUCH ? '<div class="mg-touchhint">👆 Drag on the field to move the QB</div><div class="mg-btns one"><button class="mg-b big mg-throw" id="mgThrow" style="--c:#c5ff3a">THROW</button></div>' : `<div class="mg-btns five">${mgHoldBtn('l', '◀')}${mgHoldBtn('u', '▲')}${mgHoldBtn('d', '▼')}${mgHoldBtn('r', '▶')}<button class="mg-b big" id="mgThrow" style="--c:#c5ff3a">THROW <small>SPACE</small></button></div>`}`;
     if (!ctx.alive()) return res(false);
     inp = mgInput(ctx);
     const pi = ctx.ctrl.querySelector('#mgPI'), bar = ctx.ctrl.querySelector('.mg-timer i');
@@ -464,7 +479,9 @@ function mgQBLive(ctx, i, st) {
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt; const tau = t - SN;
       mgLiveRender(L, t);
       // ---- you: the drop-back, then steer the quarterback inside the pocket ----
-      let vx = inp.k.r - inp.k.l, vy = inp.k.d - inp.k.u; const m = Math.hypot(vx, vy), ox = Q.x, oy = Q.y;
+      let vx = inp.k.r - inp.k.l, vy = inp.k.d - inp.k.u;
+      if (MG_TOUCH) { const fp = inp.world(); inp.mark(fp); vx = vy = 0; if (fp) { const dx = fp.x - Q.x, dy = fp.y - Q.y, dm = Math.hypot(dx, dy); if (dm > 6) { vx = dx / dm; vy = dy / dm; } } }   // touch: he moves toward the finger
+      const m = Math.hypot(vx, vy), ox = Q.x, oy = Q.y;
       if (m > 0) { Q.x = clamp(Q.x + vx / m * vq * dt, qMin, qMax); Q.y = clamp(Q.y + vy / m * vq * dt, Math.max(yMin, q0y - 80), Math.min(yMax, q0y + 80)); }
       else if (tau < 1.4 && Q.x > dropX) Q.x = Math.max(dropX, Q.x - 55 * dt);
       Q.vx = (Q.x - ox) / dt; Q.vy = (Q.y - oy) / dt;

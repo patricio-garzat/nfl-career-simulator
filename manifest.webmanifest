@@ -4,6 +4,7 @@
   "description": "Build a football legend: draft, play, sim and watch a full NFL career.",
   "start_url": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#070b12",
   "theme_color": "#070b12",
   "icons": [

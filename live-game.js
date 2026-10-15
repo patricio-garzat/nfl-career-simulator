@@ -995,7 +995,7 @@ function lvIntroTitle(game) {
   return { top: [wk, hol].filter(Boolean).join(' · '), big, em: 'FOOTBALL', logo };
 }
 // the level of each window's song in the opening (0-1)
-const LV_SONG_VOL = { 'assets/sounds/live-thursday-night.m4a': 0.30, 'assets/sounds/live-sunday-gameday.m4a': 0.17, 'assets/sounds/live-sunday-night.mp3': 0.17, 'assets/sounds/live-monday-night.m4a': 0.17 };
+const LV_SONG_VOL = { 'assets/sounds/live-thursday-night.m4a': 0.30, 'assets/sounds/live-sunday-gameday.m4a': 0.10, 'assets/sounds/live-sunday-night.mp3': 0.10, 'assets/sounds/live-monday-night.m4a': 0.10 };
 function lvIntro(ov, L, game, musicVol) {
   return new Promise(async resolve => {
     const away = TEAM[L.away], home = TEAM[L.home], ca = L.col[L.away] || away.c1, ch = L.col[L.home] || home.c1, T = lvIntroTitle(game);
@@ -1020,10 +1020,10 @@ function lvIntro(ov, L, game, musicVol) {
       <div class="li-flash"></div><div class="li-vignette"></div><button class="li-skip" type="button">SKIP ▸</button>`;
     ov.appendChild(el);
     const timers = []; let done = false; const at = (ms, f) => timers.push(setTimeout(f, ms));
-    if (au) Snd.musicEl(au, LV_SONG_VOL[song] || 0.17);                               // fixed level (the old music slider's saved value no longer applies)
+    if (au) Snd.musicEl(au, LV_SONG_VOL[song] || 0.10);                               // fixed level (the old music slider's saved value no longer applies)
     if (au && (blocked || au.paused) && !Snd.isMuted()) {       // Safari may refuse to start sound without a tap: offer one
       const b = document.createElement('button'); b.type = 'button'; b.className = 'li-sound'; b.textContent = 'TAP FOR SOUND'; el.appendChild(b);
-      b.addEventListener('click', e => { e.stopPropagation(); try { au.currentTime = 0; const q = au.play(); if (q && q.catch) q.catch(() => {}); } catch (x) { /* ignore */ } Snd.musicEl(au, LV_SONG_VOL[song] || 0.17); b.remove(); });
+      b.addEventListener('click', e => { e.stopPropagation(); try { au.currentTime = 0; const q = au.play(); if (q && q.catch) q.catch(() => {}); } catch (x) { /* ignore */ } Snd.musicEl(au, LV_SONG_VOL[song] || 0.10); b.remove(); });
     }
     at(250, () => Snd.play('introSwoosh')); at(1000, () => Snd.play('introImpact')); at(1550, () => Snd.play('whoosh')); at(2050, () => Snd.play('introSwoosh')); at(2500, () => Snd.play('introImpact')); at(3500, () => Snd.play('whoosh'));
     at(5900, () => Snd.stopMusic(2000));                         // the song fades out as the broadcast cuts to the field

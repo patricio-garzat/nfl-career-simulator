@@ -140,3 +140,11 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .wrap.narrow .row.between > .row .btn, .wrap.narrow .row.between > .btn { width: 100%; padding: 12px 8px; font-size: 15px; }
   .wrap.narrow .row.between > .btn { order: 2; }
 }
+
+@media (max-width: 720px), (max-height: 760px) {
+  /* Super Bowl celebration: the trophy shrinks to what fits and CONTINUE is pinned to the bottom of the screen, always reachable */
+  .sb-stage { justify-content: flex-start; padding: calc(16px + env(safe-area-inset-top)) 14px 110px; gap: 6px; }
+  .sb-trophy-wrap { height: min(26dvh, 300px); margin-top: 4px; }
+  .sb-title .l2 { font-size: clamp(40px, 13vw, 72px); } .sb-score { font-size: 30px; }
+  .sb-go { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 6; width: auto; margin: 0; }
+}

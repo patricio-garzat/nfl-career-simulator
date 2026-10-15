@@ -42,12 +42,17 @@ function showChampionCelebration(season, game) {
         <button class="btn btn-primary btn-xl sb-go" id="sbGo">CONTINUE ▸</button>
       </div>`;
     document.body.appendChild(ov);
-    // confetti in the winner's colors only (dark team colors get lighter shades so they show up on the dark background; a little white, like the jersey)
-    const shades = c => (lum(c) < 0.3 ? [mixHex(c, '#ffffff', 0.4), mixHex(c, '#ffffff', 0.22), c] : [c, c, mixHex(c, '#ffffff', 0.25)]);
-    const stop = lvConfetti(ov.querySelector('.sb-confetti'), [...shades(t.c1), ...shades(t.c2), '#ffffff']);
-    Snd.play('bigFanfare', 0.2); Snd.play('roar', 1.2); Snd.play('cheer', 2.4);
-    const t1 = setTimeout(() => Snd.play('cheer'), 5200);
-    const done = () => { clearTimeout(t1); stop(); ov.classList.add('out'); setTimeout(() => { ov.remove(); resolve(); }, 450); };
+    // the button works no matter what (confetti / sound problems must never trap the player on this screen)
+    let stop = () => {}, t1 = 0, finished = false;
+    const done = () => { if (finished) return; finished = true; clearTimeout(t1); try { stop(); } catch (e) { /* ignore */ } ov.classList.add('out'); setTimeout(() => { ov.remove(); resolve(); }, 450); };
     ov.querySelector('#sbGo').addEventListener('click', done);
+    setTimeout(() => { const g = ov.querySelector('#sbGo'); if (g) { g.style.opacity = '1'; g.style.animation = 'none'; } }, 4200);   // never leave it hidden
+    try {
+      // confetti in the winner's colors only (dark team colors get lighter shades so they show up on the dark background; a little white, like the jersey)
+      const shades = c => (lum(c) < 0.3 ? [mixHex(c, '#ffffff', 0.4), mixHex(c, '#ffffff', 0.22), c] : [c, c, mixHex(c, '#ffffff', 0.25)]);
+      stop = lvConfetti(ov.querySelector('.sb-confetti'), [...shades(t.c1), ...shades(t.c2), '#ffffff']);
+      Snd.play('bigFanfare', 0.2); Snd.play('roar', 1.2); Snd.play('cheer', 2.4);
+      t1 = setTimeout(() => Snd.play('cheer'), 5200);
+    } catch (e) { console.error(e); }
   });
 }

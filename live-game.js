@@ -1005,7 +1005,7 @@ function lvIntro(ov, L, game, musicVol) {
     // the song is started right away (inside the click) at volume 0; the opening begins the moment it is really playing (it waits up to 2 s), so the music is never late
     const song = typeof lvTrack === 'function' ? lvTrack(game) : '';
     const cover = document.createElement('div'); cover.className = 'lv-intro lv-intro-wait'; ov.appendChild(cover);
-    let au = null, blocked = false; if (song) { try { au = new Audio(song); au.preload = 'auto'; au.volume = 0.001; au.muted = Snd.isMuted(); const p0 = au.play(); if (p0 && p0.catch) p0.catch(() => { blocked = true; }); } catch (e) { au = null; } }
+    let au = null, blocked = false; if (song) { try { au = new Audio(song); Snd.route(au); au.preload = 'auto'; au.volume = 0.001; au.muted = Snd.isMuted(); const p0 = au.play(); if (p0 && p0.catch) p0.catch(() => { blocked = true; }); } catch (e) { au = null; } }
     if (au) await new Promise(r => { const t = setTimeout(r, 2000), ok = () => { clearTimeout(t); r(); }; au.addEventListener('playing', ok, { once: true }); au.addEventListener('timeupdate', ok, { once: true }); if (blocked) ok(); setTimeout(() => { if (blocked) ok(); }, 250); });
     cover.remove();
     const el = document.createElement('div'); el.className = 'lv-intro'; el.id = 'lvIntro'; el.style.cssText = `--a:${ca};--h:${ch};--ta:${textOn(ca)};--th:${textOn(ch)}`;
@@ -1095,7 +1095,7 @@ async function openLiveGame(game, notes, season) {
   const musicVol = () => { let v = 65; try { const x = parseInt(localStorage.getItem('nfl_music_vol2'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
   const vol = v => 0.6 * Math.pow(v / 100, 1.6);                            // wide range: whisper-quiet at the left, full volume at the right, fine control in between
   const crowdVol = () => { let v = 10; try { const x = parseInt(localStorage.getItem('nfl_crowd_vol3'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
-  L.startAmbience = () => { if (L.skipped || L.ambience) return; L.ambience = true; Snd.crowd('assets/sounds/crowd-stadium.m4a', vol(crowdVol())); };   // the crowd comes in as the opening ends
+  L.startAmbience = () => { if (L.skipped || L.ambience) return; L.ambience = true; Snd.crowd('assets/sounds/crowd-loop.m4a', vol(crowdVol())); };   // the crowd comes in as the opening ends
   const cv = ov.querySelector('#lvCrowd'); if (cv) { cv.value = crowdVol(); cv.addEventListener('input', () => { Snd.setCrowdVol(vol(cv.value)); try { localStorage.setItem('nfl_crowd_vol3', cv.value); } catch (e) { /* ignore */ } }); }
   const playersVol = () => { let v = 45; try { const x = parseInt(localStorage.getItem('nfl_players_vol4'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };
   const pv = ov.querySelector('#lvPlayers'); if (pv) { pv.value = playersVol(); pv.addEventListener('input', () => { Snd.setPlayersVol(vol(pv.value)); try { localStorage.setItem('nfl_players_vol4', pv.value); } catch (e) { /* ignore */ } }); }

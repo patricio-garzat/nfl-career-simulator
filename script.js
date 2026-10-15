@@ -1282,11 +1282,20 @@ const Snd = (() => {
   }
   // plays an audio file from the project (e.g. assets/sounds/draft-pick.mp3); if the file is missing or the browser refuses it, `fallback` (a synth sound name) plays instead
   // every audio file starts with a short fade-in (never a hard cut)
+  // iPhones ignore HTMLMediaElement.volume (it is always 1): so every audio file goes through a gain node, and `au.volume` is redirected to it (all the fades keep working)
+  function route(au) {
+    if (!au || au._g || !ctx || !master) return au;
+    try {
+      const src = ctx.createMediaElementSource(au), g = ctx.createGain(); g.gain.value = 0; src.connect(g); g.connect(master); au._g = g; let v = 0;
+      Object.defineProperty(au, 'volume', { configurable: true, get: () => v, set: x => { v = Math.max(0, Math.min(1, +x || 0)); g.gain.setTargetAtTime(v, ctx.currentTime, 0.05); } });
+    } catch (e) { /* no Web Audio here: the plain element volume still applies */ }
+    return au;
+  }
   function fadeIn(au, vol, ms) { let t = 0; const iv = setInterval(() => { t += 25; au.volume = clamp(vol * Math.min(1, t / ms), 0, 1); if (t >= ms || au.paused && t > 600) clearInterval(iv); }, 25); }
   function file(url, fallback, vol = 0.9) {
     if (muted) return;
     try {
-      const au = new Audio(url); au.volume = 0; au.preload = 'auto'; fadeIn(au, vol, 90);
+      const au = new Audio(url); route(au); au.volume = 0; au.preload = 'auto'; fadeIn(au, vol, 90);
       au.addEventListener('error', () => { if (fallback) play(fallback); }, { once: true });
       au.addEventListener('loadedmetadata', () => { const d = au.duration; if (d && isFinite(d) && d > 0.8) { const tail = Math.min(0.5, d * 0.3), iv = setInterval(() => { if (au.paused || au.ended) return clearInterval(iv); const left = d - au.currentTime; if (left < tail) au.volume = clamp(vol * Math.max(0, left / tail), 0, 1); }, 30); } }, { once: true });   // and a short fade-out at the end
       const p = au.play(); if (p && p.catch) p.catch(() => { if (fallback) play(fallback); });
@@ -1299,7 +1308,7 @@ const Snd = (() => {
   function musicEl(au, vol = 0.16) {
     stopMusic(0);
     try {
-      au.loop = true; au.volume = 0; au.muted = muted; bg = au; bg._vol = vol;
+      route(au); au.loop = true; au.volume = 0; au.muted = muted; bg = au; bg._vol = vol;
       const p = au.paused ? au.play() : null; if (p && p.catch) p.catch(() => {});
       clearInterval(bgFade); let t = 0; bgFade = setInterval(() => { t += 50; if (bg !== au) return clearInterval(bgFade); au.volume = Math.min(1, Math.max(0, au._vol * Math.min(1, t / 1800))); if (t >= 1800) clearInterval(bgFade); }, 50);
     } catch (e) { bg = null; }
@@ -1309,10 +1318,13 @@ const Snd = (() => {
   function crowd(url, vol = 0.12) {
     stopCrowd(0);
     try {
-      const au = new Audio(url); au.loop = true; au.volume = 0; au.muted = muted; au.preload = 'auto'; cg = au; au._vol = vol;
-      au.addEventListener('loadedmetadata', () => { try { if (au.duration > 90) au.currentTime = Math.random() * (au.duration - 60); } catch (e) { /* ignore */ } }, { once: true });
+      const au = new Audio(url); route(au); au.loop = true; au.volume = 0; au.muted = muted; au.preload = 'auto'; cg = au; au._vol = vol;
+      au.addEventListener('loadedmetadata', () => { try { if (au.duration > 20) au.currentTime = Math.random() * (au.duration - 12); } catch (e) { /* ignore */ } }, { once: true });
+      const FADE = 4200; clearInterval(cgFade); let t = 0, started = false;
+      const begin = () => { if (started) return; started = true; t = 0; };
+      au.addEventListener('playing', begin, { once: true }); setTimeout(begin, 1500);
       const p = au.play(); if (p && p.catch) p.catch(() => {});
-      clearInterval(cgFade); let t = 0; cgFade = setInterval(() => { t += 50; if (cg !== au) return clearInterval(cgFade); au.volume = Math.min(1, Math.max(0, au._vol * Math.min(1, t / 2500))); if (t >= 2500) clearInterval(cgFade); }, 50);
+      cgFade = setInterval(() => { if (cg !== au) return clearInterval(cgFade); if (!started) return; t += 50; const k = Math.min(1, t / FADE); au.volume = Math.min(1, Math.max(0, au._vol * k * k * (3 - 2 * k))); if (t >= FADE) clearInterval(cgFade); }, 50);   // starts only once the sound is really playing, and rises smoothly (never a jump)
     } catch (e) { cg = null; }
   }
   // the players on the field (huddle break -> snap): one clip per play, its speed follows the game speed so that second 4 of the clip lands on the snap
@@ -1320,7 +1332,7 @@ const Snd = (() => {
   function players(url, vol = 0.2, rate = 1, off = 0) {
     stopPlayers(0);
     try {
-      const au = new Audio(url); au.volume = 0; au.muted = muted; au.preload = 'auto'; au.playbackRate = clamp(rate, 0.25, 4); pl = au; au._vol = vol; plFade = setInterval(() => { if (pl !== au) return clearInterval(plFade); au.volume = clamp(au._vol * Math.min(1, (au._t = (au._t || 0) + 25) / 160), 0, 1); if (au._t >= 160) clearInterval(plFade); }, 25);
+      const au = new Audio(url); route(au); au.volume = 0; au.muted = muted; au.preload = 'auto'; au.playbackRate = clamp(rate, 0.25, 4); pl = au; au._vol = vol; plFade = setInterval(() => { if (pl !== au) return clearInterval(plFade); au.volume = clamp(au._vol * Math.min(1, (au._t = (au._t || 0) + 25) / 160), 0, 1); if (au._t >= 160) clearInterval(plFade); }, 25);
       const go = () => { const p = au.play(); if (p && p.catch) p.catch(() => {}); };
       if (off > 0) au.addEventListener('loadedmetadata', () => { try { au.currentTime = off; } catch (e) { /* ignore */ } go(); }, { once: true }); else go();
     } catch (e) { pl = null; }
@@ -1345,7 +1357,7 @@ const Snd = (() => {
     if (!ms) { try { au.pause(); } catch (e) { /* ignore */ } return; }
     const v0 = au.volume; let t = 0; const iv = setInterval(() => { t += 50; au.volume = Math.max(0, v0 * (1 - t / ms)); if (t >= ms) { clearInterval(iv); try { au.pause(); } catch (e) { /* ignore */ } } }, 50);
   }
-  return { play, file, music, musicEl, setMusicVol, crowd, setCrowdVol, stopCrowd, players, setPlayersVol, setPlayersRate, stopPlayers, stopMusic, unlock, setMuted, isMuted: () => muted };
+  return { route, play, file, music, musicEl, setMusicVol, crowd, setCrowdVol, stopCrowd, players, setPlayersVol, setPlayersRate, stopPlayers, stopMusic, unlock, setMuted, isMuted: () => muted };
 })();
 
 /* ---------------------------------------------------------------------

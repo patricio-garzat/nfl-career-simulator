@@ -21,6 +21,18 @@ function mgInitSeason(season, pos) { pos = pos || (S && S.player && S.player.pos
 function mgMods(se) { let perf = 1; (se.buffs || []).forEach(b => { if (b.left > 0) perf *= 1 + (b.perf || 0); }); return { perf, inj: 1, team: 0 }; }
 // after every game the bonuses age (the camp bonus lasts the whole season); there are no more mini games during the season
 function mgAfterGame(se, game, notes) { mgEnsure(se); se.buffs.forEach(b => { b.left--; }); se.buffs = se.buffs.filter(b => b.left > 0); }
+
+// phones have no keyboard: the instructions talk about the on-screen buttons instead of SPACE / the arrow keys
+const MG_TOUCH = !!(window.matchMedia && (matchMedia('(pointer: coarse)').matches || matchMedia('(hover: none)').matches || (navigator.maxTouchPoints > 0 && Math.min(innerWidth, innerHeight) <= 700)));
+const mgTx = h => !MG_TOUCH ? h : String(h)
+  .replace(/hold <b>SPACE<\/b> to run, <b>◀ ▶<\/b> to turn/gi, 'hold <b>RUN</b>, tap <b>◀ ▶</b> to turn')
+  .replace(/Hold SPACE to run and use the arrows to turn/g, 'Hold the RUN button and tap the arrows to turn')
+  .replace(/steady your aim · ← → aim · SPACE kick/g, 'steady your aim · slide to aim · tap KICK')
+  .replace(/<b>← →<\/b> aim · <b>SPACE<\/b> kick/g, '<b>slide</b> to aim · tap <b>KICK</b>')
+  .replace(/press <b>SPACE<\/b>/gi, 'tap the <b>THROW</b> button').replace(/press SPACE/gi, 'tap the THROW button').replace(/Press SPACE/g, 'Tap the THROW button')
+  .replace(/<b>SPACE<\/b> in the green/g, '<b>tap THROW</b> in the green').replace(/ · SPACE/g, ' · tap the button')
+  .replace(/arrow keys \/ WASD/g, 'drag your finger').replace(/SPACE/g, 'the big button');
+const mgTxLegend = (a, kind) => !MG_TOUCH ? a : ({ 'SPACE': kind === 'qb' ? 'THROW' : 'RUN', '← →': '◀ ▶', '← → ↑ ↓ move': 'Drag to move' })[a] || a;
 const MG_META = {
   qb: P => ({ icon: '🏈', title: 'POCKET PRESENCE', how: 'Dodge the pass rush inside the pocket and press SPACE when the bar is in the green to throw to your WR. Wait too long and you get sacked.', legend: [['', '← → ↑ ↓ move', 'dodge the rush'], ['', 'SPACE', 'throw in the green'], ['', 'Too slow', 'SACK']] }),
   rb: P => ({ icon: '🏃', title: 'RUSH FOR YARDS', how: 'Read the defense before the snap: the line has three lanes (left, middle, right) and at least two of them are open. Guess the open one, take the handoff, run through it and keep dodging tacklers. Hold SPACE to run and use the arrows to turn. Every yard is 0.1 points and a touchdown is worth 6 — your points raise your performance.', legend: [['', 'SPACE', 'run forward'], ['', '← →', 'turn'], ['', 'Every yard', '0.1 points'], ['', 'Touchdown', '6 points']] }),
@@ -209,11 +221,11 @@ function mgOpen(env) {
     <div class="mg-stage" id="mgStage"></div><div class="mg-msg" id="mgMsg"></div><div class="mg-ctrl" id="mgCtrl"></div></div>`;
   document.body.appendChild(ov);
   const stage = ov.querySelector('#mgStage'), msg = ov.querySelector('#mgMsg'), ctrl = ov.querySelector('#mgCtrl');
-  const ctx = { env, number: env.number, ov, stage, msg, ctrl, t, o: opp, P, kind, tmpTeams, shimS, alive: () => ov.isConnected, say: (h, cls = '') => { msg.className = 'mg-msg ' + cls; msg.innerHTML = h; }, results: [], perfects: 0, combo: 0 };
+  const ctx = { env, number: env.number, ov, stage, msg, ctrl, t, o: opp, P, kind, tmpTeams, shimS, alive: () => ov.isConnected, say: (h, cls = '') => { msg.className = 'mg-msg ' + cls; msg.innerHTML = mgTx(h); }, results: [], perfects: 0, combo: 0 };
   MGX = ctx;
   stage.innerHTML = `<div class="mg-intro" style="background-image:radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, ${t.c1} 40%, transparent), transparent)">
-    <img class="mg-intro-logo" src="${t.logo}" alt=""><h2>${esc(meta.title)}</h2><p>${esc(meta.how)}</p>
-    <div class="mg-legend">${meta.legend.map(([i, a, b]) => `<span>${i === '🔴' ? '<i class="mg-dot r"></i>' : i === '🟢' ? '<i class="mg-dot g"></i>' : ''}${a}${b ? ` <b>→ ${b}</b>` : ''}</span>`).join('')}</div><p class="mg-sub">3 levels · your grade sets ${MGX && MGX.env.se.mg && MGX.env.se.mg.weekly ? 'your next game' : 'the whole season'}</p></div>`;
+    <img class="mg-intro-logo" src="${t.logo}" alt=""><h2>${esc(meta.title)}</h2><p>${esc(mgTx(meta.how))}</p>
+    <div class="mg-legend">${meta.legend.map(([i, a, b]) => `<span>${i === '🔴' ? '<i class="mg-dot r"></i>' : i === '🟢' ? '<i class="mg-dot g"></i>' : ''}${mgTxLegend(a, kind)}${b ? ` <b>→ ${b}</b>` : ''}</span>`).join('')}</div><p class="mg-sub">3 levels · your grade sets ${MGX && MGX.env.se.mg && MGX.env.se.mg.weekly ? 'your next game' : 'the whole season'}</p></div>`;
   ctrl.innerHTML = `<button class="btn btn-primary btn-xl" data-mg="start">START</button>`;
   Snd.play('mgCrowd', 0.05);
   mgAmbience();

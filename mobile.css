@@ -1,0 +1,99 @@
+/* =====================================================================
+   PHONE / TOUCH HARDENING — loaded last. Real-phone fixes: no zoom when a
+   field is focused (iOS zooms below 16px), lists that scroll inside their
+   panel, nothing hiding under the floating buttons, no sticky hover.
+   ===================================================================== */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+@media (pointer: coarse) {
+  html, body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color]), select, textarea, .input,
+  .wrap.create .input, .jc2-editor select.input, .jc2-editor input.input, .cp-search { font-size: 16px !important; }
+  .mg-b small, .mg-go small { display: none; }
+  button, .btn, [data-act] { -webkit-touch-callout: none; }
+}
+@media (pointer: coarse), (hover: none), (max-width: 720px) {
+  .mg-b small, .mg-go small { display: none; }
+  input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color]), select, textarea, .input, .wrap.create .input, .jc2-editor select.input, .jc2-editor input.input, .cp-search { font-size: 16px !important; }
+}
+@media (hover: none) {
+  .btn:hover:not(:disabled), .tile:hover, .chip:hover, .cp-tile:hover, .pos-btn:hover, .j3d-bar button:hover { transform: none; }
+  .card:hover::after, .next-card:hover::after { opacity: 0; }
+}
+@media (max-width: 720px) {
+  /* create player on a phone is a normal scrolling page (the old one-screen layout left ~90px for the college list); the list itself scrolls inside its own box */
+  .wrap.create { height: auto; min-height: 100%; display: block; }
+  .wrap.create .create-grid { display: block; flex: none; }
+  .wrap.create .form-card { display: flex; flex-direction: column; flex: none; height: auto; min-height: 0; overflow: visible; padding: 12px; }
+  .wrap.create .college-pick, .wrap.create #collegeSec { flex: none; min-height: 0; }
+  .wrap.create .cp-grid, .youth-grid { flex: none; min-height: 240px; max-height: min(54dvh, 440px); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; }
+  .wrap.create .cp-leagues { flex: none; min-height: 0; grid-auto-rows: auto; } .wrap.create .cp-league { min-height: 64px; padding: 8px 10px; }
+  .wrap.create .lbl-m { display: block; } .wrap.create .cr-h { display: none; }
+  .wrap.create .cr-actions { position: sticky; bottom: 0; z-index: 6; margin: 10px -12px 0; padding: 12px 12px calc(10px + env(safe-area-inset-bottom)); background: linear-gradient(to bottom, transparent, var(--bg2) 34%); border-radius: 0 0 18px 18px; }
+
+  /* top row: BACK + title / season picker never run under the floating sound and theme buttons */
+  .sound-btn { width: 38px; height: 38px; font-size: 16px; top: calc(8px + env(safe-area-inset-top)); right: calc(8px + env(safe-area-inset-right)); } .theme-btn { right: calc(52px + env(safe-area-inset-right)); }
+  .topbar { flex-wrap: nowrap; padding-right: 100px; gap: 8px; min-width: 0; }
+  .topbar .btn { white-space: nowrap; flex: none; } .topbar .sel-season { min-width: 0; width: auto; flex: 1 1 0; }
+}
+
+@media (max-width: 720px) {
+  /* dialogs: the action buttons stay visible while the content scrolls */
+  .overlay { padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom)); align-items: center; }
+  .modal-card { padding: 20px 16px 16px; max-height: calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  .modal-card > .row.end:last-child, .modal-card > .row.between:last-child, .modal-card > .row:last-child { position: sticky; bottom: -17px; z-index: 5; margin: 12px -16px -16px; padding: 12px 16px 16px; background: linear-gradient(to bottom, transparent, var(--card) 28%); }
+  .modal-card .row.end .btn, .modal-card .row.between .btn { flex: 1 1 auto; }
+  .modal-card.youth { display: flex; flex-direction: column; overflow: hidden; }
+  .modal-card.youth .youth-grid { flex: 1 1 auto; min-height: 120px; max-height: none; }
+  .modal-card.youth > .row:last-child { position: static; margin: 10px 0 0; padding: 0; background: none; }
+}
+
+/* phones held sideways: every screen is designed for portrait, so ask for a turn (can be dismissed) */
+#rotate-hint { display: none; }
+@media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
+  html:not(.no-rot) #rotate-hint { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 20px; background: radial-gradient(600px 300px at 50% 40%, rgba(53, 224, 255, .16), transparent 70%), #05080f; color: var(--text); }
+  #rotate-hint .rh-phone { width: 46px; height: 78px; border: 3px solid var(--acc); border-radius: 10px; position: relative; animation: rhTurn 2.6s ease-in-out infinite; }
+  #rotate-hint .rh-phone::after { content: ''; position: absolute; left: 50%; bottom: 5px; width: 14px; height: 3px; margin-left: -7px; border-radius: 2px; background: var(--acc); }
+  #rotate-hint b { font-family: var(--head); font-size: 26px; letter-spacing: .06em; text-transform: uppercase; }
+  #rotate-hint span { color: var(--mut); font-size: 14px; max-width: 360px; line-height: 1.4; }
+  #rotate-hint button { margin-top: 4px; border: 1px solid var(--line2); background: var(--btnbg); color: var(--soft); padding: 9px 16px; border-radius: 10px; font-family: var(--head); letter-spacing: .1em; font-size: 14px; }
+}
+@keyframes rhTurn { 0%, 15% { transform: rotate(90deg); } 50%, 85% { transform: rotate(0); } 100% { transform: rotate(90deg); } }
+
+@media (max-width: 720px) {
+  /* full-screen games / overlays own the top-right corner (SKIP, close…): hide the floating sound + theme buttons there */
+  body:has(.mg-overlay, .lv-overlay, .ff-overlay, .sg-overlay, .sim-overlay, .j3d, .sb-overlay, .lv-intro) .sound-btn { display: none; }
+}
+
+@media (max-width: 720px) {
+  .h-xxl { font-size: clamp(28px, 9.2vw, 40px); line-height: 1; overflow-wrap: anywhere; }
+  .wrap > .h-xxl:first-child, .wrap > .eyebrow + .h-xxl, .wrap.center > .h-xxl:first-of-type { padding-right: 92px; }
+  .h-mega { font-size: clamp(44px, 16vw, 78px); overflow-wrap: anywhere; }
+  /* the "continue" button of every end-of-step screen stays reachable while the page scrolls */
+  .wrap > .row.end:last-child, .wrap > .row.between:last-child { position: sticky; bottom: 0; z-index: 8; margin: 14px -12px 0; padding: 12px 12px calc(10px + env(safe-area-inset-bottom)); background: linear-gradient(to bottom, transparent, var(--bg2) 38%); }
+}
+
+@media (max-width: 720px) {
+  /* comfortable tap targets (the old compact sizes were ~29px tall) */
+  .btn { min-height: 44px; } .btn-sm { min-height: 40px; } .actions .btn { min-height: 46px; }
+  .mini, .tog { min-height: 36px; }
+}
+
+@media (max-width: 720px) {
+  /* lighter on phones: shorter entrances, a calmer backdrop (no full-screen blend layer), no per-button blur */
+  #app:not(.no-anim) .wrap > *:not(.dash-grid), #app:not(.no-anim) .title-inner > *, #app:not(.no-anim) .dash-grid .col > * { animation-duration: .42s; animation-delay: calc(var(--d, 0) * 38ms); }
+  #app:not(.no-anim) .menu .btn { animation-duration: .4s; animation-delay: calc(.2s + var(--b, 0) * 60ms); }
+  #app:not(.no-anim) .tiles > .tile, #app:not(.no-anim) .pos-grid > *, #app:not(.no-anim) .actions > .btn { animation-duration: .4s; animation-delay: calc(.12s + var(--t, 0) * 35ms); }
+  #ambient::after { mix-blend-mode: normal; background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(0, 0, 0, .3)); opacity: 1; }
+  #ambient s { display: none; } #ambient i { animation-duration: 70s !important; }
+  .btn-ghost, .menu .btn, .j3d-bar button, .j3d-x { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .title-bg::before, .title-bg::after { display: none; }
+}
+
+@media (max-width: 720px) {
+  /* title screen: never clip the menu on short phones (Safari bars leave ~550px); the page scrolls instead */
+  .title-screen { height: auto; min-height: 100%; overflow: visible; }
+  .title-inner { height: auto; min-height: 100%; padding-top: calc(14px + env(safe-area-inset-top)); padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 720px) and (max-height: 640px) {
+  .title-inner .nfl-logo { height: 62px; } .title-inner .logo { font-size: 66px; margin: 2px 0; } .tagline { margin: 8px 0 14px; font-size: 18px; } .menu { gap: 8px; } .menu .btn { min-height: 44px; padding: 10px; font-size: 16px; } .save-info { margin-top: 10px; }
+}

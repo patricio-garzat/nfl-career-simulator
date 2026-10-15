@@ -24,6 +24,16 @@
     document.body.insertBefore(a, document.body.firstChild);
   }
 
+  /* ---- phones held sideways: ask for portrait (the whole app is laid out for it) ---- */
+  if (!document.getElementById('rotate-hint')) {
+    const h = document.createElement('div'); h.id = 'rotate-hint'; h.innerHTML = '<div class="rh-phone"></div><b>Rotate your phone</b><span>NFL Career is made for portrait mode. Turn your phone upright for the best view.</span><button type="button">CONTINUE ANYWAY</button>';
+    h.querySelector('button').addEventListener('click', () => { root.classList.add('no-rot'); try { sessionStorage.setItem('nfl_no_rot', '1'); } catch (e) {} });
+    document.body.appendChild(h); try { if (sessionStorage.getItem('nfl_no_rot')) root.classList.add('no-rot'); } catch (e) {}
+  }
+
+  /* ---- Enter closes the phone keyboard ---- */
+  document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.matches && e.target.matches('input.input:not([type=range])')) e.target.blur(); });
+
   /* ---- numbers count up when a screen opens ---- */
   const NUM = /^(-?)(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?$/;
   function countUp(el) {

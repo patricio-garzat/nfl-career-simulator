@@ -2226,7 +2226,7 @@ function renderCreate() {
     <div class="card form-card">
       <section class="cr-sec cr-ident"><div class="cr-h"><i>1</i><b>Identity</b><span>who you are and where you play</span></div>
       <label class="lbl">Player Name</label>
-      <input class="input" data-model="name" maxlength="24" placeholder="e.g. Alex Johnson" value="${esc(form.name)}" autocomplete="off">
+      <input class="input" data-model="name" maxlength="24" placeholder="e.g. Alex Johnson" value="${esc(form.name)}" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false" enterkeyhint="done">
       <label class="lbl">Position <span class="hint pos-lg"><u class="o">Offense</u> · <u class="d">Defense</u> · <u class="k">Special teams</u></span></label>
       <div class="pos-grid">${Object.keys(POS).map(p => `<button class="pos-btn ${form.pos === p ? 'sel' : ''}" data-act="pickPos" data-pos="${p}"><b>${p}</b><span>${POS[p].name}</span></button>`).join('')}</div>
       </section>
@@ -2241,12 +2241,12 @@ function renderCreate() {
       </section>
       <section class="cr-sec cr-jersey"><div class="cr-h"><i>3</i><b>Jersey</b><span>age, number and the name on your back</span></div>
       <div class="row3">
-        <div><label class="lbl">Age</label><input class="input" type="number" min="21" max="25" data-model="age" value="${form.age}"></div>
-        <div><label class="lbl">Jersey Number <span class="hint" id="numHint"></span></label><input class="input" type="number" min="0" max="99" data-model="number" value="${form.number}"></div>
+        <div><label class="lbl">Age</label><input class="input" type="number" inputmode="numeric" pattern="[0-9]*" min="21" max="25" data-model="age" value="${form.age}"></div>
+        <div><label class="lbl">Jersey Number <span class="hint" id="numHint"></span></label><input class="input" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="99" data-model="number" value="${form.number}"></div>
         <div><label class="lbl">&nbsp;</label><button class="btn btn-ghost" data-act="randNumber" style="width:100%">RANDOM #</button></div>
       </div>
       <label class="lbl">Name on the Jersey <span class="hint">what the back says — separate from your player name</span></label>
-      <input class="input" data-model="jerseyName" maxlength="12" placeholder="Defaults to your last name" value="${esc(form.jerseyName || '')}" autocomplete="off">
+      <input class="input" data-model="jerseyName" maxlength="12" placeholder="Defaults to your last name" value="${esc(form.jerseyName || '')}" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done">
       </section>
       <div class="row end cr-actions"><button class="btn btn-ghost" data-act="toTitle">BACK</button><button class="btn btn-primary" data-act="genPlayer">GENERATE PLAYER</button></div>
     </div>

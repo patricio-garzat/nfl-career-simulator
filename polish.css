@@ -28,7 +28,7 @@ html { scrollbar-color: var(--w250) transparent; }
 #ambient { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
 #ambient i { position: absolute; border-radius: 50%; will-change: transform; }
 #ambient .am1 { width: 66vmax; height: 66vmax; left: -24vmax; top: -30vmax; background: radial-gradient(circle, color-mix(in srgb, var(--glow) 28%, transparent), transparent 66%); }
-#ambient .am2 { width: 56vmax; height: 56vmax; right: -22vmax; top: 6vh; background: radial-gradient(circle, color-mix(in srgb, var(--acc2) 17%, transparent), transparent 66%); }
+#ambient .am2 { width: 56vmax; height: 56vmax; right: -22vmax; top: 6dvh; background: radial-gradient(circle, color-mix(in srgb, var(--acc2) 17%, transparent), transparent 66%); }
 #ambient .am3 { width: 62vmax; height: 62vmax; left: 18vw; bottom: -36vmax; background: radial-gradient(circle, color-mix(in srgb, var(--acc) 11%, transparent), transparent 66%); }
 #ambient s { position: absolute; bottom: -20px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 10px 1px var(--acc); opacity: 0; text-decoration: none; }
 #ambient::after { content: ''; position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(0, 0, 0, .35)), url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .55 0'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='.5'/></svg>"); background-size: auto, 160px; opacity: .55; mix-blend-mode: soft-light; }
@@ -79,7 +79,7 @@ html { scrollbar-color: var(--w250) transparent; }
   /* ambient backdrop */
   @keyframes amA { to { transform: translate(14vmax, 10vmax) scale(1.12); } } @keyframes amB { to { transform: translate(-12vmax, 14vmax) scale(.92); } } @keyframes amC { to { transform: translate(10vmax, -12vmax) scale(1.1); } }
   #ambient .am1 { animation: amA 28s ease-in-out infinite alternate; } #ambient .am2 { animation: amB 34s ease-in-out infinite alternate; } #ambient .am3 { animation: amC 40s ease-in-out infinite alternate; }
-  @keyframes amUp { 0% { transform: translate3d(0, 0, 0) scale(.5); opacity: 0; } 12% { opacity: .7; } 85% { opacity: .35; } 100% { transform: translate3d(var(--dx, 30px), -112vh, 0) scale(1); opacity: 0; } }
+  @keyframes amUp { 0% { transform: translate3d(0, 0, 0) scale(.5); opacity: 0; } 12% { opacity: .7; } 85% { opacity: .35; } 100% { transform: translate3d(var(--dx, 30px), -112dvh, 0) scale(1); opacity: 0; } }
   #ambient s { animation: amUp var(--dur, 22s) linear var(--dl, 0s) infinite; }
   body:has(.mg-overlay, .lv-intro) #ambient i, body:has(.mg-overlay, .lv-intro) #ambient s { animation-play-state: paused; }
 

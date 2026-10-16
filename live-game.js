@@ -1038,13 +1038,22 @@ function lvIntro(ov, L, game, musicVol) {
     (L.waits = L.waits || []).push(() => { if (!done) { done = true; timers.forEach(clearTimeout); el.remove(); resolve(); } });
   });
 }
+// the cached field layer follows the camera by a CSS transform (the browser does not redraw the field): (x, y, w, h) is the camera window in the rotated field's units
+function lvBgSync(bg, stageEl, x, y, w, h) {
+  const now = performance.now(); if (!bg._t || now - bg._t > 700) { bg._t = now; bg._sw = stageEl.clientWidth || 360; bg._sh = stageEl.clientHeight || 480; }      // (the size is read a few times a second, never every frame: that would force a layout each time)
+  const sw = bg._sw, sh = bg._sh, k = Math.max(sw / w, sh / h);       // preserveAspectRatio "slice" uses the larger scale
+  if (bg._k !== k) { bg._k = k; bg.setAttribute('width', (685 * k).toFixed(1)); bg.setAttribute('height', (1340 * k).toFixed(1)); bg.style.width = (685 * k).toFixed(1) + 'px'; bg.style.height = (1340 * k).toFixed(1) + 'px'; }
+  bg.style.transform = `translate3d(${((-66 - (x + w / 2)) * k + sw / 2).toFixed(1)}px, ${((-1270 - (y + h / 2)) * k + sh / 2).toFixed(1)}px, 0)`;
+}
 // camera of the upright field: shows the full width of the field and a stretch of it around the ball (the field is rotated -90deg: field x -> up the screen)
 function lvVertCam(L, fx, dt) {
   const v = L.vert; if (!v || !v.svg.isConnected) return;
   v.fx += (fx - v.fx) * Math.min(1, dt * 3.4);
-  const r = v.stage.getBoundingClientRect(), vw = 575, vh = vw * Math.max(60, r.height) / Math.max(60, r.width), hl = vh / 2;
+  const nowT = performance.now(); if (!v.r || nowT - v.rt > 700) { v.r = v.stage.getBoundingClientRect(); v.rt = nowT; }
+  const r = v.r, vw = 575, vh = vw * Math.max(60, r.height) / Math.max(60, r.width), hl = vh / 2;
   const c = hl * 2 >= 1300 ? 600 : Math.min(1200 - hl + 60, Math.max(hl - 60, v.fx));
-  v.svg.setAttribute('viewBox', `${(276 - vw / 2).toFixed(1)} ${(-c - hl).toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}`);
+  const vx0 = 276 - vw / 2, vy0 = -c - hl; v.svg.setAttribute('viewBox', `${vx0.toFixed(1)} ${vy0.toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}`);
+  if (v.bg) lvBgSync(v.bg, v.stage, vx0, vy0, vw, vh);
 }
 // a play call on the field (SACK, +12 YDS, TOUCHDOWN!...): a small broadcast plate with an accent bar (green = good, red = bad, gold = touchdown)
 function lvPop(layer, f) {
@@ -1087,9 +1096,13 @@ async function openLiveGame(game, notes, season) {
   if (window.matchMedia && matchMedia('(max-width: 720px)').matches) {
     const st = ov.querySelector('.lv-stage'), svg = st && st.querySelector('svg.lv-field');
     if (svg) {
-      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.id = 'lvRot'; g.setAttribute('transform', 'rotate(-90)');
-      while (svg.firstChild) g.appendChild(svg.firstChild); svg.appendChild(g); svg.setAttribute('preserveAspectRatio', 'xMidYMid slice'); svg.removeAttribute('width'); svg.removeAttribute('height');
-      st.classList.add('lv-vert'); L.vert = { svg, stage: st, fx: 600 }; LV.vert = true; lvVertCam(L, 600, 1);
+      const NS = 'http://www.w3.org/2000/svg', kids = [...svg.childNodes], cut = kids.findIndex(n => n.id === 'lvLos');
+      const g = document.createElementNS(NS, 'g'); g.id = 'lvRot'; g.setAttribute('transform', 'rotate(-90)');
+      const bgs = document.createElementNS(NS, 'svg'), bgg = document.createElementNS(NS, 'g'); bgg.setAttribute('transform', 'rotate(-90)');   // the field never changes: its own layer, slid around by the GPU
+      kids.slice(0, cut < 0 ? 0 : cut).forEach(n => bgg.appendChild(n)); kids.slice(cut < 0 ? 0 : cut).forEach(n => g.appendChild(n)); svg.appendChild(g);
+      bgs.setAttribute('class', 'lv-field lv-bg'); bgs.setAttribute('viewBox', '-66 -1270 685 1340'); bgs.setAttribute('aria-hidden', 'true'); bgs.style.cssText = 'position:absolute;left:0;top:0;max-width:none;will-change:transform;pointer-events:none;z-index:0'; bgs.appendChild(bgg); st.appendChild(bgs);
+      svg.style.position = 'relative'; svg.style.zIndex = '1'; svg.setAttribute('preserveAspectRatio', 'xMidYMid slice'); svg.removeAttribute('width'); svg.removeAttribute('height');
+      st.classList.add('lv-vert'); L.vert = { svg, bg: bgs, stage: st, fx: 600 }; LV.vert = true; lvVertCam(L, 600, 1);
     }
   }
   const musicVol = () => { let v = 65; try { const x = parseInt(localStorage.getItem('nfl_music_vol2'), 10); if (x >= 0 && x <= 100) v = x; } catch (e) { /* ignore */ } return v; };

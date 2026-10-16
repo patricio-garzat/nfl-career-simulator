@@ -24,6 +24,10 @@
     document.body.insertBefore(a, document.body.firstChild);
   }
 
+  /* ---- while a game overlay (mini game / watch live / 3D) is open, the page underneath is not painted at all: no animations, no gradients, no blends running behind it ---- */
+  const GAME = '.mg-overlay, .lv-overlay, .j3d', syncGame = () => root.classList.toggle('in-game', !!document.querySelector(GAME));
+  new MutationObserver(syncGame).observe(document.body, { childList: true }); syncGame();
+
   /* ---- phones held sideways: ask for portrait (the whole app is laid out for it) ---- */
   if (!document.getElementById('rotate-hint')) {
     const h = document.createElement('div'); h.id = 'rotate-hint'; h.innerHTML = '<div class="rh-phone"></div><b>Rotate your phone</b><span>NFL Career only works in portrait mode. Turn your phone upright to keep playing.</span>';

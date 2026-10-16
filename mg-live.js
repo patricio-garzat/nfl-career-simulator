@@ -25,19 +25,23 @@ function mgLiveInit(ctx, play, hud, extra = '', win = null) {
   let WH = MGL_H;
   ctx.k = MGL_K; ctx.rot = 90;
   const sc = lvScene(play, { myDir: 1, myId: ctx.t.id, oppId: ctx.o.id, col });
-  let svg = lvFieldSVG(ctx.t.id, ctx.o.id, false);
-  svg = svg.replace('class="lv-field"', `class="lv-field mg-svg mg-live" preserveAspectRatio="xMidYMid slice"`)
+  // The field itself (turf, lines, end zones, logos: ~650 vector nodes) never changes, so it lives in its own layer that the GPU just slides around; only the players live in the svg that is redrawn every frame.
+  const full = lvFieldSVG(ctx.t.id, ctx.o.id, false), open = full.indexOf('>') + 1, cut = full.indexOf('<rect id="lvLos"');
+  const stW = Math.max(260, ctx.stage.clientWidth || 360), k0 = stW / WW;
+  let svg = (full.slice(0, open) + full.slice(cut))
+    .replace('class="lv-field"', `class="lv-field mg-svg mg-live" preserveAspectRatio="xMidYMid slice"`)
     .replace(/(<svg[^>]*viewBox=")[^"]*(")/, `$1-66 -1270 ${WW} ${MGL_H}$2`)
     .replace(/(<svg[^>]*>)/, '$1<g id="mgRot" transform="rotate(-90)">')
     .replace('<g id="lvActors"></g><g id="lvFx"></g></svg>', `${extra}<g id="lvActors"></g><g id="mgFx"></g></g><g id="mgHudWrap">${hud}</g></svg>`);
-  ctx.stage.innerHTML = svg;
+  const bgSvg = `<svg class="lv-field mg-bg" viewBox="-66 -1270 685 1340" width="${(685 * k0).toFixed(1)}" height="${(1340 * k0).toFixed(1)}" aria-hidden="true" style="position:absolute;left:0;top:0;max-width:none;will-change:transform;pointer-events:none;z-index:0"><g transform="rotate(-90)">${full.slice(open, cut)}</g></svg>`;
+  ctx.stage.innerHTML = svg + bgSvg;
   { const sr = ctx.stage.getBoundingClientRect(); if (sr.width > 50 && sr.height > 50) WH = clamp(WW * sr.height / sr.width, 220, 900); }       // the camera window has the shape of the mini game window: the field fills it edge to edge
   const los = ctx.stage.querySelector('#lvLos'); if (los) { los.setAttribute('x', lvX(sc.los) - 2); los.setAttribute('opacity', 0.9); }
   const F = lvPlan(play), actors = lvMakeActors(sc, play);
   if (actors.tag) { actors.tag.el.remove(); delete actors.tag; }                       // no name tag
   const T = lvTimeline(actors);
   Object.values(actors).forEach(a => { if (a.el && a.el.querySelectorAll) { a.el.querySelectorAll('.lv-pr').forEach(tx => tx.remove()); a.el.querySelectorAll('text').forEach(tx => tx.setAttribute('transform', 'rotate(90)')); } });      // no position letters; your number stays upright
-  const L = { col, sc, F, actors, T, svg: ctx.stage.querySelector('svg.mg-live'), hud: ctx.stage.querySelector('#mgHud'), press: ctx.stage.querySelector('#mgPress'), cx: lvX(sc.los) + 150, cy: lvY(0), W: WW, H: WH, lead: WH * (ctx.kind === 'qb' ? 0.36 : 0.26) };
+  const L = { col, sc, F, actors, T, svg: ctx.stage.querySelector('svg.mg-live'), bg: ctx.stage.querySelector('svg.mg-bg'), stageEl: ctx.stage, hud: ctx.stage.querySelector('#mgHud'), press: ctx.stage.querySelector('#mgPress'), cx: lvX(sc.los) + 150, cy: lvY(0), W: WW, H: WH, lead: WH * (ctx.kind === 'qb' ? 0.36 : 0.26) };
   L.hudW = L.hud ? L.hud.getBBox().width : 0;
   mgLiveCam(ctx, L, L.cx, L.cy, 1);
   return L;
@@ -49,6 +53,7 @@ function mgLiveCam(ctx, L, fx, fy, dt) {
   const sx = L.cy, sy = -L.cx;                                                             // field -> screen
   const x = clamp(sx - W / 2, -66, 619 - W), y = clamp(sy - H / 2, -1270, 70 - H);
   L.svg.setAttribute('viewBox', `${x.toFixed(1)} ${y.toFixed(1)} ${W} ${H}`);
+  if (L.bg) lvBgSync(L.bg, L.stageEl, x, y, W, H);
   if (L.hud) { const hk = MGL_K; L.hud.setAttribute('transform', `translate(${(x + W / 2 - L.hudW * hk / 2).toFixed(1)} ${(y + 6).toFixed(1)}) scale(${hk})`); }
   if (L.press) { L.press.setAttribute('x', x); L.press.setAttribute('y', y); L.press.setAttribute('width', W); L.press.setAttribute('height', H); }
 }

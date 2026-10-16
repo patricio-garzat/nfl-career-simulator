@@ -60,7 +60,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 @media (max-width: 720px) {
   /* full-screen games / overlays own the top-right corner (SKIP, close…): hide the floating sound + theme buttons there */
-  body:has(.mg-overlay, .lv-overlay, .ff-overlay, .sg-overlay, .sim-overlay, .j3d, .sb-overlay, .lv-intro) .sound-btn { display: none; }
+  .in-game .sound-btn, body:has(.ff-overlay, .sg-overlay, .sim-overlay, .sb-overlay, .lv-intro) .sound-btn { display: none; }
 }
 
 @media (max-width: 720px) {

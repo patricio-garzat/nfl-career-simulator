@@ -81,7 +81,6 @@ html { scrollbar-color: var(--w250) transparent; }
   #ambient .am1 { animation: amA 28s ease-in-out infinite alternate; } #ambient .am2 { animation: amB 34s ease-in-out infinite alternate; } #ambient .am3 { animation: amC 40s ease-in-out infinite alternate; }
   @keyframes amUp { 0% { transform: translate3d(0, 0, 0) scale(.5); opacity: 0; } 12% { opacity: .7; } 85% { opacity: .35; } 100% { transform: translate3d(var(--dx, 30px), -112dvh, 0) scale(1); opacity: 0; } }
   #ambient s { animation: amUp var(--dur, 22s) linear var(--dl, 0s) infinite; }
-  body:has(.mg-overlay, .lv-intro) #ambient i, body:has(.mg-overlay, .lv-intro) #ambient s { animation-play-state: paused; }
 
   /* ring, bars, buttons */
   @keyframes ringFill { from { --rp: 0; } to { --rp: var(--p); } }
@@ -147,3 +146,9 @@ html { scrollbar-color: var(--w250) transparent; }
 .j3d-bar button:hover { transform: translateY(-2px); background: var(--btnbg-h); border-color: var(--w300); } .j3d-bar button.on { background: linear-gradient(135deg, var(--lime), var(--lime2)); color: #0a1204; border-color: transparent; }
 .j3d-hint { position: relative; z-index: 2; text-align: center; padding: 0 16px calc(16px + env(safe-area-inset-bottom)); font-size: 12.5px; color: var(--mut); letter-spacing: .04em; }
 @media (max-width: 560px) { .j3d-title { font-size: 22px; } .j3d-bar button { padding: 10px 12px; font-size: 13px; } }
+
+/* behind a game overlay nothing needs to be painted */
+.in-game #app, .in-game #bgmark, .in-game #ambient { visibility: hidden; }
+.in-game, .in-game body { overflow: hidden; }
+.mg-live-stage > svg.mg-live { position: relative; z-index: 1; }
+.mg-live-stage > svg.mg-bg { z-index: 0; }

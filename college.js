@@ -91,7 +91,7 @@ function renderCollege() {
   const P = CS.P, cfg = POS[P.pos], info = CS.info, T = csTotals(), rec = csRec(), last = CS.games[CS.games.length - 1];
   const sum = cfg.summary(T), done = CS.done;
   const nxt = CS.schedule[CS.idx], oi = nxt ? csInfoOf(nxt.name) : null, yth = csYouth();
-  const next = done ? `<div class="next-card done"><div class="eyebrow">SEASON COMPLETE</div><div class="nc-big">${rec.w}–${rec.l} · ${yth ? 'time to meet the recruiters' : 'time for the draft board'}</div></div>`
+  const next = done ? `<div class="next-card done"><div class="eyebrow">SEASON COMPLETE</div><div class="nc-big">${rec.w}–${rec.l} · ${yth ? 'time to meet the recruiters' : noDraftPlayer(CS.P) ? 'now wait for the phone to ring' : 'time for the draft board'}</div></div>`
     : `<div class="next-card" style="--o1:${csColors(oi).c1};--o2:${csColors(oi).c2}"><img class="nc-ghost" src="${collegeLogo(oi.id, 200)}" alt="" onerror="this.style.display='none'"><div class="eyebrow">GAME ${CS.idx + 1} OF ${CS.G}</div><div class="nc-row">${csBadge(oi, 'lg')}<div><div class="nc-big">${nxt.home ? 'vs' : '@'} ${esc(nxt.name)}</div><div class="muted">${oi.conf ? esc(oi.conf) + ' · ' : ''}Team strength ${Math.round(nxt.r)}</div></div></div></div>`;
   const lastCard = last ? `<div class="last-game"><span class="muted">Last game:</span> <b class="r${last.rate}-t">${RATING[last.rate].icon} ${RATING[last.rate].k}</b> · ${fmt1(last.fp)} FP · ${last.w ? 'W' : 'L'} ${last.my}-${last.op} vs ${esc(last.opp)}</div>` : '';
   const mgBanner = CS.mg && MG_META[CS.mg.kind] ? `<div class="banner dec-banner"><span>🎮 <b>${yth ? 'YOUTH CAMP' : 'COLLEGE CAMP'}</b> — ${MG_META[CS.mg.kind](P).title}</span><button class="btn btn-primary btn-sm" data-act="csMini">PLAY</button></div>` : '';
@@ -116,7 +116,7 @@ function renderCollege() {
         </section>
         ${next}
         <div class="actions">
-          ${done ? `<button class="btn btn-primary btn-xl" data-act="csFinish">${yth ? 'SEE MY OFFERS ▸' : 'SEE MY DRAFT STOCK ▸'}</button>` : '<button class="btn btn-primary btn-xl" data-act="csPlay">PLAY NEXT GAME</button><button class="btn btn-secondary" data-act="csSim">SIMULATE SEASON</button>'}
+          ${done ? `<button class="btn btn-primary btn-xl" data-act="csFinish">${yth ? 'SEE MY OFFERS ▸' : noDraftPlayer(CS.P) ? 'SEE MY PROJECTION ▸' : 'SEE MY DRAFT STOCK ▸'}</button>` : '<button class="btn btn-primary btn-xl" data-act="csPlay">PLAY NEXT GAME</button><button class="btn btn-secondary" data-act="csSim">SIMULATE SEASON</button>'}
           <button class="btn btn-ghost only-m" data-act="csPlayer">PLAYER</button>
         </div>
       </div>
@@ -173,9 +173,9 @@ function renderCollegeReport() {
         <div class="oc-to ${up ? 'up' : down ? 'down' : ''}"><b id="ovrNum">${R.ovrFrom}</b><span>${up ? '▲' : down ? '▼' : '●'}</span></div></div>
       <div class="dev-list">${R.changes.map((c, i) => `<div class="dev-row" style="animation-delay:${0.1 + i * 0.12}s"><span>${c.attr}</span><b class="${c.d > 0 ? 'good' : c.d < 0 ? 'bad' : 'muted'}">${c.d > 0 ? '+' : ''}${c.d}</b><div class="bar ${barClass(c.to)}"><i style="--w:${c.to}%"></i></div><em>${c.to}</em></div>`).join('')}</div>
       ${R.camp ? `<div class="banner ${R.camp.score >= 3 ? 'good' : 'warn'} cs-stock">🎮 Camp: <b>${MG_GRADES[R.camp.score].n}</b> (${R.camp.score}/5) ${R.camp.score >= 3 ? 'helped' : 'hurt'} your rating</div>` : ''}
-      ${yth ? `<div class="banner ${lvl >= 0.55 ? 'good' : ''} cs-stock">📣 <b>RECRUITING BUZZ:</b> ${rcLabel(lvl)} — 5 colleges, the LFA and the UFL are watching</div>` : `<div class="banner ${rise ? 'good' : fall ? 'warn' : ''} cs-stock">📋 <b>DRAFT STOCK:</b> ${esc(CS.proj0)} → <b>${esc(R.proj1)}</b> ${rise ? '▲ rising' : fall ? '▼ falling' : '● steady'}</div>`}
+      ${yth ? `<div class="banner ${lvl >= 0.55 ? 'good' : ''} cs-stock">📣 <b>RECRUITING BUZZ:</b> ${rcLabel(lvl)} — 5 colleges, the LFA and the UFL are watching</div>` : `<div class="banner ${rise ? 'good' : fall ? 'warn' : ''} cs-stock">📋 <b>${noDraftPlayer(P) ? 'NFL OUTLOOK' : 'DRAFT STOCK'}:</b> ${esc(CS.proj0)} → <b>${esc(R.proj1)}</b> ${rise ? '▲ rising' : fall ? '▼ falling' : '● steady'}</div>`}
     </section>
-    <div class="row end">${yth ? '<button class="btn btn-primary btn-xl" data-act="csOffers">SEE MY OFFERS ▸</button>' : '<button class="btn btn-primary btn-xl" data-act="csDraft">ENTER THE DRAFT</button>'}</div></div>`);
+    <div class="row end">${yth ? '<button class="btn btn-primary btn-xl" data-act="csOffers">SEE MY OFFERS ▸</button>' : '<button class="btn btn-primary btn-xl" data-act="csDraft">' + (noDraftPlayer(P) ? 'WAIT FOR THE CALL' : 'ENTER THE DRAFT') + '</button>'}</div></div>`);
   Snd.play(up ? 'up' : down ? 'down' : 'tick', 0.4);
   setTimeout(() => { const el = document.getElementById('ovrNum'); if (el) countUp(el, R.ovrFrom, R.ovrTo); if (up && el) burst(el.closest('.dev-card'), 26); }, 350);
 }

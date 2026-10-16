@@ -1329,3 +1329,10 @@ table.gl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 5
 /* the overall with its two small decimals */
 .ovr-ring .n sup { font-size: .3em; vertical-align: top; position: relative; top: .08em; margin-left: 2px; letter-spacing: 0; font-weight: 700; color: var(--acc); line-height: 1; }
 .dashx .ovr-ring .n sup { color: var(--tb); }
+
+/* free-agent signing: the phone call */
+.call-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; } .call-ico { font-size: 92px; line-height: 1; color: var(--acc); display: inline-block; transform-origin: 50% 70%; animation: callRing .5s ease-in-out infinite; filter: drop-shadow(0 0 22px color-mix(in srgb, var(--acc) 60%, transparent)); }
+@keyframes callRing { 0%, 100% { transform: rotate(-16deg); } 50% { transform: rotate(16deg) scale(1.06); } }
+.call-card { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 520px; animation: callPop .5s cubic-bezier(.2, 1.3, .4, 1) both; } @keyframes callPop { from { opacity: 0; transform: scale(.88) translateY(8px); } to { opacity: 1; transform: none; } }
+.call-who { text-align: center; } .call-who small { display: block; font-family: var(--head); letter-spacing: .28em; color: var(--mut); font-size: 13px; } .call-who b { display: block; font-family: var(--head); font-size: 34px; text-transform: uppercase; letter-spacing: .04em; }
+.call-line { font-size: 18px; line-height: 1.45; color: var(--soft); font-style: italic; padding: 0 12px; }

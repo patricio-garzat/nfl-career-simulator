@@ -514,7 +514,11 @@ function projectedPick(P, noise = 0) {
   const sc = P.ovr + DRAFT_POS_ADJ[P.pos] + noise;
   return Math.round(1 + 260 * Math.pow(logistic((72.5 - sc) / 3.5), 1.6));
 }
+// only NCAA programs feed the NFL draft; ONEFA, LFA and UFL players are simply signed by a team after a phone call
+const isNcaa = name => { const i = COLLEGE_INFO[name]; return !!i && leagueOfDiv(i.div) === 'NCAA'; };
+const noDraftPlayer = P => !!P.college && !isNcaa(P.college);
 function draftProjectionLabel(P) {
+  if (noDraftPlayer(P)) return 'Free-agent signing (no draft)';
   const o = projectedPick(P);
   if (o > 224) return 'Undrafted / late round';
   const rd = Math.floor((o - 1) / 32) + 1;
@@ -523,6 +527,7 @@ function draftProjectionLabel(P) {
 function runDraft(P) {
   const overall = projectedPick(P, gauss(0, 3));
   const order = shuffle(TEAM_LIST.map(t => t.id));
+  if (noDraftPlayer(P)) return { year: START_YEAR, undrafted: true, noDraft: true, teamId: pick(order), overall: null, round: null, pick: null };
   if (overall > 224) return { year: START_YEAR, undrafted: true, teamId: pick(order), overall: null, round: null, pick: null };
   return { year: START_YEAR, undrafted: false, overall, round: Math.floor((overall - 1) / 32) + 1, pick: ((overall - 1) % 32) + 1, teamId: order[(overall - 1) % 32] };
 }
@@ -2291,7 +2296,7 @@ function renderPreview() {
       <button class="btn btn-ghost" data-act="backCreate">EDIT DETAILS</button>
       <div class="row">
         <button class="btn btn-ghost" data-act="reroll" ${rerolls ? '' : 'disabled'}>REROLL (${rerolls} left)</button>
-        ${P.college ? `<button class="btn btn-ghost" data-act="enterDraft">SKIP TO DRAFT</button>
+        ${P.college ? `<button class="btn btn-ghost" data-act="enterDraft">${noDraftPlayer(P) ? 'SIGN WITH A TEAM' : 'SKIP TO DRAFT'}</button>
         <button class="btn btn-primary" data-act="startCollege">🎓 PLAY COLLEGE SEASON</button>` : `<button class="btn btn-ghost" data-act="skipOffers">SKIP TO OFFERS</button>
         <button class="btn btn-primary" data-act="startYouth">🧒 PLAY ${esc(P.youth).toUpperCase()} SEASON</button>`}
       </div>
@@ -2306,27 +2311,27 @@ function draftFinalHTML() {
   return `<div class="draft-final pop" style="${themeVars(d.teamId)}">
     <div class="draft-row">${badge(d.teamId, 'xl')}<div class="draft-jersey">${jerseySVG(jerseyFor(d.teamId), jName(P), playerNumber(), { view: 'both', team: d.teamId, word: t.nick })}<span>YOUR #${playerNumber()} JERSEY</span></div></div>
     <div class="d-name">${esc(P.name)}<span>${P.pos}</span></div>
-    <div class="d-sub">${d.undrafted ? 'Undrafted free agent' : `Round ${d.round} — Pick #${d.pick} (Overall #${d.overall})`} · ${t.name}</div>
+    <div class="d-sub">${d.noDraft ? 'Signed as a free agent' : d.undrafted ? 'Undrafted free agent' : `Round ${d.round} — Pick #${d.pick} (Overall #${d.overall})`} · ${t.name}</div>
     <div class="d-contract"><div>${c.years} YEARS</div><div>${money(c.total)}</div><div>${money(c.guaranteed)} GUARANTEED</div></div>
     <div class="welcome">Welcome to the NFL.</div>
     <button class="btn btn-primary btn-xl" data-act="beginRookie">BEGIN ROOKIE SEASON</button></div>`;
 }
 // "college -> NFL team" reveal: the school's logo, an arrow that draws itself, and the franchise popping in
-function collegeToNflHTML(P, teamId, undrafted) {
+function collegeToNflHTML(P, teamId, undrafted, call) {
   const t = TEAM[teamId], ci = COLLEGE_INFO[P.college];
   const left = ci ? `<img class="c2n-logo" src="${collegeLogo(ci.id, 240)}" alt="" onerror="this.style.visibility='hidden'">` : `<div class="c2n-ph">${esc(String(P.college || '?').slice(0, 2).toUpperCase())}</div>`;
-  return `<div class="select-line">${undrafted ? '…but the' : 'The ' + esc(t.name) + ' select'}</div>
+  return `<div class="select-line">${call ? 'The ' + esc(t.name) + ' call' : undrafted ? '…but the' : 'The ' + esc(t.name) + ' select'}</div>
     <div class="c2n">
       <div class="c2n-col c2n-from">${left}<span>${esc(P.college)}</span></div>
       <svg class="c2n-arrow" viewBox="0 0 140 40" aria-hidden="true"><path class="c2n-line" d="M4 20 H118"/><path class="c2n-head" d="M104 6 L128 20 L104 34"/></svg>
       <div class="c2n-col c2n-to"><img class="c2n-logo" src="${logoUrl(teamId)}" alt="" onerror="this.style.visibility='hidden'"><span>${esc(t.name)}</span></div>
-    </div>${undrafted ? '<div class="select-line">sign you as an undrafted free agent.</div>' : ''}`;
+    </div>${call ? '<div class="select-line">and sign you — no draft needed.</div>' : undrafted ? '<div class="select-line">sign you as an undrafted free agent.</div>' : ''}`;
 }
 async function renderDraft() {
   const d = S.draft, P = S.player, t = TEAM[d.teamId];
   setScreen(`<div class="draft-screen" style="${themeVars(d.teamId)}"><div class="draft-bg"></div>
     <div class="wrap narrow center">
-      ${nflLogo('draft')}<div class="eyebrow">${d.year} NFL DRAFT</div>
+      ${nflLogo('draft')}<div class="eyebrow">${d.year} ${d.noDraft ? 'NFL FREE-AGENT SIGNING' : 'NFL DRAFT'}</div>
       <div class="draft-stage" id="dStage"></div>
       <button class="btn btn-ghost skip" id="dSkip" data-act="draftSkip">SKIP ▸</button>
     </div></div>`);
@@ -2338,7 +2343,19 @@ async function renderDraft() {
     const sk = document.getElementById('dSkip'); if (sk) sk.remove();
     Snd.play("draftEnd"); show(draftFinalHTML()); burst(stage, 40, [t.c1, t.c2, '#ffffff', '#ffc53d']);
   };
-  if (d.undrafted) {
+  if (d.noDraft) {
+    // not an NCAA player: no draft — a team phones you and signs you
+    const ci = COLLEGE_INFO[P.college] || {}, lg = (DIV_LABEL[ci.div] || 'your league'), me = esc(String(P.name).split(' ')[0]);
+    Snd.play("down"); show(`<div class="pick-line bad">NO DRAFT</div><div class="muted">Only NCAA players are drafted. ${esc(lg)} players are signed straight by the teams.</div>`); await waitD(2300);
+    if (alive()) {
+      show(`<div class="call-wrap"><div class="call-ico">📞</div><div class="clock">INCOMING CALL…</div><div class="muted">An NFL team is on the line</div></div>`);
+      for (let i = 0; i < 4 && alive(); i++) { Snd.play('tick'); await waitD(560); }
+    }
+    if (alive()) {
+      Snd.play("pick"); show(`<div class="call-card">${badge(d.teamId, 'xl')}<div class="call-who"><small>CALLING YOU</small><b>${esc(t.name)}</b></div><div class="call-line">“${me}? This is the ${esc(t.name)} front office. We have been watching your film — we want you on our roster.”</div></div>`); await waitD(3200);
+    }
+    if (alive()) { Snd.play("pick"); show(collegeToNflHTML(P, d.teamId, true, true)); Snd.play("fanfare", 1.15); await waitD(3300); }
+  } else if (d.undrafted) {
     Snd.play("clock"); show('<div class="clock">THE DRAFT HAS ENDED…</div><div class="muted">Waiting for the phone to ring…</div>'); await waitD(2000);
     if (alive()) { Snd.play("down"); show('<div class="pick-line bad">UNDRAFTED</div><div class="muted">Your name was never called.</div>'); await waitD(1700); }
     if (alive()) { Snd.play("pick"); show(collegeToNflHTML(P, d.teamId, true)); Snd.play("fanfare", 1.15); await waitD(3300); }
@@ -2819,7 +2836,7 @@ function renderCareer() {
     <div class="card"><div class="card-h"><h3>ACHIEVEMENTS</h3></div>${ach.length ? ach.map(a => `<div class="ach">${a.icon} ${a.text}</div>`).join('') : '<div class="muted">No awards yet — keep grinding.</div>'}</div>
     <h3 class="sec-h">TIMELINE <small>(click a season to open its stats)</small></h3>
     <div class="timeline">${pre}
-      <div class="tl-draft"><span>${d.year}</span> ${d.undrafted ? 'Signed as an undrafted free agent' : `Drafted — Round ${d.round}, Pick #${d.pick} (Overall #${d.overall})`} by ${TEAM[d.teamId].name}</div>${rows}</div>
+      <div class="tl-draft"><span>${d.year}</span> ${d.noDraft ? 'Signed as a free agent (no draft)' : d.undrafted ? 'Signed as an undrafted free agent' : `Drafted — Round ${d.round}, Pick #${d.pick} (Overall #${d.overall})`} by ${TEAM[d.teamId].name}</div>${rows}</div>
     <div class="row end"><button class="btn btn-danger-ghost" data-act="retireAsk">RETIRE FROM THE NFL</button></div></div>`);
 }
 

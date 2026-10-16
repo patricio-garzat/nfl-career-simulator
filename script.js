@@ -568,7 +568,8 @@ function startSeason() {
   const season = {
     year: S.year, age: P.age, teamId: S.teamId, ovrStart: P.ovr, role: null, rookie: S.seasons.length === 0,
     schedule: buildSchedule(S.teamId), idx: 0, games: [], playoffGames: [], status: 'regular',
-    injury: null, injuries: [], missed: 0, form: Math.exp(gauss(0, 0.11)),
+    injury: null, injuries: [], missed: 0, form: Math.exp(gauss(0, 0.11)), luck: clamp(Math.exp(gauss(0, 0.5)), 0.3, 2.4),   // luck: some seasons everything clicks (breakout), others it just doesn't
+
     record: null, po: null, wins: null, seed: null, divRank: null, awards: [], dev: null, complete: false,
     rigged: !!S.egg, // easter egg: this season ends with the Super Bowl title
   };
@@ -897,7 +898,7 @@ function playGame(season) {
    --------------------------------------------------------------------- */
 const progCap = age => (age <= 24 ? 4 : age <= 27 ? 3 : age <= 30 ? 2 : 1);
 // the higher the rating, the harder every extra point is (an 80 grows easily, a 92 almost never)
-const hiF = ovr => (ovr < 80 ? 1 : ovr < 84 ? 0.9 : ovr < 88 ? 0.72 : ovr < 91 ? 0.52 : ovr < 94 ? 0.36 : ovr < 97 ? 0.2 : 0.1);
+const hiF = ovr => (ovr < 80 ? 1 : ovr < 84 ? 0.92 : ovr < 88 ? 0.78 : ovr < 91 ? 0.55 : ovr < 94 ? 0.4 : ovr < 97 ? 0.3 : 0.22);
 function growOvr(n) {                                            // +n overall by nudging attributes (technique first once you are a veteran)
   const P = S.player, cfg = POS[P.pos], from = P.ovr; let guard = 0;
   while (P.ovr < from + n && guard++ < 90) {
@@ -910,11 +911,11 @@ function growOvr(n) {                                            // +n overall b
 }
 function seasonGrow(se, pts, notes, src) {
   const P = S.player; if (!se || !(pts > 0) || P.ovr >= 99) return 0;
-  const age = se.age || P.age, cap = progCap(age), d = se.depth, bias = S.contract ? S.contract.bias : 0;
+  const lk = se.luck || 1, age = se.age || P.age, cap = progCap(age) + (lk > 1.5 ? 1 : 0), d = se.depth, bias = S.contract ? S.contract.bias : 0;
   if ((se.progGain || 0) >= cap) return 0;
   const above = d && d.slot > 1 ? d.mates[d.slot - 2] : null, gap = above ? Math.max(0, above.ovr - (P.ovr + bias)) : 0;
   const catchUp = 1 + clamp(gap / 10, 0, 0.6), g = se.games.length, early = g < 6 ? 1.3 : g < 10 ? 1.1 : 1, af = age <= 24 ? 1 : age <= 27 ? 0.6 : age <= 30 ? 0.3 : 0.1;
-  se.prog = (se.prog || 0) + pts * catchUp * early * af * hiF(P.ovr) * Math.sqrt(P.devMult || 1);
+  se.prog = (se.prog || 0) + pts * lk * catchUp * early * af * hiF(P.ovr) * Math.sqrt(P.devMult || 1);
   const from = P.ovr; let up = 0;
   while (se.prog >= 1 && (se.progGain || 0) < cap && P.ovr < 99) { const n = growOvr(1); if (!n) break; se.prog -= 1; se.progGain = (se.progGain || 0) + n; up += n; }
   if ((se.progGain || 0) >= cap) se.prog = Math.min(se.prog, 0.99);
@@ -931,7 +932,7 @@ function seasonGrow(se, pts, notes, src) {
 function seasonProgress(se, game, notes) {
   if (!game) return;
   const played = game.st !== 'OUT' && !game.dnp;
-  seasonGrow(se, played ? ((game.rate || 0) >= 4 ? 0.42 : game.rate === 3 ? 0.2 : game.rate === 2 ? 0.07 : 0) : 0.03, notes, played && game.rate >= 3 ? 'a strong game' : 'game experience and practice');
+  seasonGrow(se, played ? ((game.rate || 0) >= 4 ? 0.45 : game.rate === 3 ? 0.22 : game.rate === 2 ? 0.07 : 0) : 0.03, notes, played && game.rate >= 3 ? 'a strong game' : 'game experience and practice');
 }
 
 function seasonTotals(season) {
@@ -1036,14 +1037,14 @@ function develop(season, T) {
   if (season.injExtra) shuffle(physNames).slice(0, 2).forEach(n => { injPen[n] = (injPen[n] || 0) + Math.ceil(season.injExtra / 2); });   // rushed back and re-injured
   const tr = season.train || { phys: 0, ment: 0 };
   const camp = season.mgLog && season.mgLog.length ? (season.mgLog[0].score - 2.5) * 0.6 : 0;   // preseason camp mini game
-  const ovrFrom = P.ovr, why = { age: 0, camp: 0, season: 0, training: 0, injury: 0 };
+  const ovrFrom = P.ovr, why = { age: 0, camp: 0, season: 0, training: 0, injury: 0 }, LK = season.luck || 1;
   const rawD = {};
   cfg.attrs.forEach(([name, , phys]) => {
     let base = ageDelta(age, !!phys, P.pos);
-    if (base > 0) base *= P.devMult * Math.max(0.45, 1 - (season.progGain || 0) * 0.09) * 0.85 * hiF(ovrFrom);      // what you already grew in season counts; the offseason alone is a slow burn
-    let sp = perf * (phys ? 0.55 : 1.0) * (age <= 30 ? 1 : 0.7); if (sp > 0) sp *= 0.85 * hiF(ovrFrom);         // technique responds more to how you played
+    if (base > 0) base *= P.devMult * Math.max(0.45, 1 - (season.progGain || 0) * 0.09) * 0.9 * LK * hiF(ovrFrom);      // what you already grew in season counts; the offseason alone is a slow burn
+    let sp = perf * (phys ? 0.55 : 1.0) * (age <= 30 ? 1 : 0.7); if (sp > 0) sp *= 0.8 * LK * hiF(ovrFrom);         // technique responds more to how you played
     const trn = phys ? tr.phys : tr.ment, inj = injPen[name] || 0;
-    let cp = camp * (phys ? 0.55 : 1.0) * (age <= 30 ? 1 : 0.7); if (cp > 0) cp *= 0.85 * hiF(ovrFrom);
+    let cp = camp * (phys ? 0.55 : 1.0) * (age <= 30 ? 1 : 0.7); if (cp > 0) cp *= 0.8 * LK * hiF(ovrFrom);
     rawD[name] = stochRound(base + sp + cp + trn + gauss(0, 0.55) - inj);
     why.age += base; why.season += sp; why.camp += cp; why.training += trn; why.injury -= inj;
   });
@@ -1055,7 +1056,7 @@ function develop(season, T) {
   // guard rails on the overall
   const serious = Object.keys(injPen).length > 0, perfC = perf + camp * 0.3, good = perfC > 0.35 && gp >= 8, poor = perfC < -0.2;
   const floor = serious ? -6 : good ? (age <= 28 ? 0 : age <= 31 ? -1 : -2) : (age <= 27 ? -2 : -5);
-  const ceil = Math.max(1, (poor ? (age <= 24 ? 2 : 1) : age >= 30 ? 1 : age >= 27 ? 3 : 4) - Math.floor((season.progGain || 0) / 2));
+  const ceil = Math.max(1, Math.round((poor ? (age <= 24 ? 2 : 1) : age >= 30 ? 1 : age >= 27 ? 3 : 4) * Math.min(1.7, Math.max(0.6, LK))) - Math.floor((season.progGain || 0) / 2));
   let ovr = calcOvr(P.pos, P.attrs), guard = 0, smoothed = 0;
   while ((ovr < ovrFrom + floor || ovr > ovrFrom + ceil) && guard++ < 60) {
     const up = ovr < ovrFrom + floor, pickA = cfg.attrs.filter(([n]) => (up ? P.attrs[n] < 99 : P.attrs[n] > 35))[Math.floor(rnd() * cfg.attrs.length)] || cfg.attrs[0];
@@ -1064,7 +1065,7 @@ function develop(season, T) {
   }
   P.ovr = ovr;
   const changes = cfg.attrs.map(([name]) => ({ attr: name, from: before[name], to: P.attrs[name], d: P.attrs[name] - before[name] }));
-  return { ovrFrom, ovrTo: P.ovr, changes, injured: serious, why, smoothed, perfIdx: Math.round(perf * 100) / 100 };
+  return { ovrFrom, ovrTo: P.ovr, changes, injured: serious, why, smoothed, perfIdx: Math.round(perf * 100) / 100, luck: Math.round(LK * 100) / 100 };
 }
 
 function finishSeason() {
@@ -2902,7 +2903,7 @@ function renderDevelopment() {
       <div class="dev-list">${dv.changes.map((c, i) => `<div class="dev-row" style="animation-delay:${0.1 + i * 0.12}s"><span>${c.attr}</span><b class="${c.d > 0 ? 'good' : c.d < 0 ? 'bad' : 'muted'}">${c.d > 0 ? '+' : ''}${c.d}</b>
         <div class="bar ${barClass(c.to)}"><i style="--w:${c.to}%"></i></div><em>${c.to}</em></div>`).join('')}</div>
       ${dv.why ? `<div class="dev-why"><span>WHY</span>${[['AGE', dv.why.age], ['PRESEASON CAMP', dv.why.camp || 0], ['YOUR SEASON', dv.why.season], ['TRAINING', dv.why.training], ['INJURY', dv.why.injury]].filter(([, v]) => v !== 0).map(([l, v]) => `<em class="${v > 0 ? 'good' : 'bad'}">${l} ${v > 0 ? '+' : ''}${v.toFixed(1)}</em>`).join('')}</div>` : ''}
-      <div class="muted small center">Age ${se.age} · ${P.dev} development${dv.injured ? ' · a serious injury cost you some athleticism' : ''}${dv.smoothed ? ' · your overall changes are kept within a believable range' : ''}</div>
+      <div class="muted small center">Age ${se.age} · ${P.dev} development${dv.luck >= 1.35 ? ' · a breakout year' : dv.luck && dv.luck <= 0.7 ? ' · a slow year: it just did not click' : ''}${dv.injured ? ' · a serious injury cost you some athleticism' : ''}${dv.smoothed ? ' · your overall changes are kept within a believable range' : ''}</div>
       ${pj !== curSl ? `<div class="banner ${pj < curSl ? 'good' : 'warn'}">Depth chart outlook: ${slotLabel(P.pos, curSl)} → <b>${slotLabel(P.pos, pj)}</b> (projected)</div>` : ''}
     </section>
     <div class="row end"><button class="btn btn-primary btn-xl" data-act="afterDev">CONTINUE</button></div></div>`);

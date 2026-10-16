@@ -20,6 +20,7 @@ const csPack = (name, info) => { const c = csColors(info); return { id: info.id,
 
 function csStart(kind) {
   const P = preview, youth = kind === 'youth';
+  P.age = youth ? 18 : 20;                                  // high school at 18, college at 20 (the NFL at 22)
   let name, info, G, rows, oppInfo = null;
   if (youth) {                                              // the MFL kids' season: 8 games against the other MFL clubs
     const mi = MFL_INFO[P.youth]; name = P.youth; const lg = mi.lg; info = { id: 'mfl-' + mi.slug, div: lg, conf: lg, c1: mi.c1, c2: mi.c2 }; G = YOUTH_LG[lg].games; oppInfo = {};
@@ -146,7 +147,7 @@ function csFinishSeason() {
   const greatShare = gp ? CS.games.filter(g => g.rate >= 4).length / gp : 0;
   const camp = CS.mgLog && CS.mgLog.length ? (CS.mgLog[0].score - 2.5) * 0.2 : 0;     // the camp mini game at the start of the season
   const perf = clamp(idx - 1, -0.6, 1.0) + (greatShare - 0.15) * 0.8 + camp;
-  const sc = csYouth() ? 0.6 : 1, target = clamp(Math.round((perf * 5.5 + (w / G - 0.5) * 2.4 + 0.8 + (CS.train.ment || 0) + gauss(0, 0.9)) * sc), csYouth() ? -3 : -5, csYouth() ? 4 : 7);
+  const sc = csYouth() ? 0.6 : 1, target = clamp(Math.round((perf * 4 + (w / G - 0.5) * 1.8 + 0.9 + (CS.train.ment || 0) + gauss(0, 0.8)) * sc), csYouth() ? -3 : -4, csYouth() ? 3 : 5);
   const o0 = P.ovr; let guard = 0;
   while (calcOvr(P.pos, P.attrs) !== o0 + target && guard++ < 120) {
     const up = calcOvr(P.pos, P.attrs) < o0 + target, a = cfg.attrs.filter(([n]) => (up ? P.attrs[n] < 99 : P.attrs[n] > 35)); if (!a.length) break;

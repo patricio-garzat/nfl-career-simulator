@@ -487,7 +487,8 @@ const calcOvr = (pos, attrs) => Math.round(POS[pos].attrs.reduce((s, [n, w]) => 
    --------------------------------------------------------------------- */
 function generatePlayer(name, pos, college, age) {
   const bonus = (COLLEGES.find(c => c[0] === college) || [0, 0])[1];
-  const target = clamp(gauss(71.5 + bonus + (pos === 'K' ? 6 : 0), 5.2), 58, 88);
+  const stage = age <= 18 ? -2.5 : age <= 20 ? -1 : 0;           // a high-school player is rated lower than a draft prospect (he still has years to grow)
+  const target = clamp(gauss(71.5 + stage + bonus + (pos === 'K' ? 6 : 0), 5.2), 54, 88);
   const attrs = {};
   POS[pos].attrs.forEach(([n]) => { attrs[n] = clamp(Math.round(target + gauss(0, 4.5)), 40, 96); });
   const roll = rnd();
@@ -889,7 +890,9 @@ function playGame(season) {
    In-season growth: your overall climbs while you play, not only in the offseason. Good games, training and mini games all feed it; the further you are behind the
    man ahead of you on the depth chart (and the earlier in the season), the faster it moves. It never goes down in season, and a yearly cap keeps it believable.
    --------------------------------------------------------------------- */
-const progCap = age => (age <= 24 ? 6 : age <= 27 ? 4 : age <= 30 ? 2 : 1);
+const progCap = age => (age <= 24 ? 4 : age <= 27 ? 3 : age <= 30 ? 2 : 1);
+// the higher the rating, the harder every extra point is (an 80 grows easily, a 92 almost never)
+const hiF = ovr => (ovr < 80 ? 1 : ovr < 84 ? 0.9 : ovr < 88 ? 0.72 : ovr < 91 ? 0.52 : ovr < 94 ? 0.36 : ovr < 97 ? 0.2 : 0.1);
 function growOvr(n) {                                            // +n overall by nudging attributes (technique first once you are a veteran)
   const P = S.player, cfg = POS[P.pos], from = P.ovr; let guard = 0;
   while (P.ovr < from + n && guard++ < 90) {
@@ -905,8 +908,8 @@ function seasonGrow(se, pts, notes, src) {
   const age = se.age || P.age, cap = progCap(age), d = se.depth, bias = S.contract ? S.contract.bias : 0;
   if ((se.progGain || 0) >= cap) return 0;
   const above = d && d.slot > 1 ? d.mates[d.slot - 2] : null, gap = above ? Math.max(0, above.ovr - (P.ovr + bias)) : 0;
-  const catchUp = 1 + clamp(gap / 8, 0, 1.8), g = se.games.length, early = g < 6 ? 1.8 : g < 10 ? 1.3 : 1, af = age <= 24 ? 1 : age <= 27 ? 0.75 : age <= 30 ? 0.45 : 0.2;
-  se.prog = (se.prog || 0) + pts * catchUp * early * af * Math.sqrt(P.devMult || 1);
+  const catchUp = 1 + clamp(gap / 10, 0, 0.6), g = se.games.length, early = g < 6 ? 1.3 : g < 10 ? 1.1 : 1, af = age <= 24 ? 1 : age <= 27 ? 0.6 : age <= 30 ? 0.3 : 0.1;
+  se.prog = (se.prog || 0) + pts * catchUp * early * af * hiF(P.ovr) * Math.sqrt(P.devMult || 1);
   const from = P.ovr; let up = 0;
   while (se.prog >= 1 && (se.progGain || 0) < cap && P.ovr < 99) { const n = growOvr(1); if (!n) break; se.prog -= 1; se.progGain = (se.progGain || 0) + n; up += n; }
   if ((se.progGain || 0) >= cap) se.prog = Math.min(se.prog, 0.99);
@@ -923,7 +926,7 @@ function seasonGrow(se, pts, notes, src) {
 function seasonProgress(se, game, notes) {
   if (!game) return;
   const played = game.st !== 'OUT' && !game.dnp;
-  seasonGrow(se, played ? 0.12 + 0.04 * (game.rate || 0) : 0.09, notes, played && game.rate >= 3 ? 'a strong game' : 'game experience and practice');
+  seasonGrow(se, played ? ((game.rate || 0) >= 4 ? 0.42 : game.rate === 3 ? 0.2 : game.rate === 2 ? 0.07 : 0) : 0.03, notes, played && game.rate >= 3 ? 'a strong game' : 'game experience and practice');
 }
 
 function seasonTotals(season) {
@@ -1032,10 +1035,10 @@ function develop(season, T) {
   const rawD = {};
   cfg.attrs.forEach(([name, , phys]) => {
     let base = ageDelta(age, !!phys, P.pos);
-    if (base > 0) base *= P.devMult * Math.max(0.45, 1 - (season.progGain || 0) * 0.09);      // what you already grew in season counts
-    const sp = perf * (phys ? 0.55 : 1.0) * (age <= 30 ? 1 : 0.7);         // technique responds more to how you played
+    if (base > 0) base *= P.devMult * Math.max(0.45, 1 - (season.progGain || 0) * 0.09) * 0.85 * hiF(ovrFrom);      // what you already grew in season counts; the offseason alone is a slow burn
+    let sp = perf * (phys ? 0.55 : 1.0) * (age <= 30 ? 1 : 0.7); if (sp > 0) sp *= 0.85 * hiF(ovrFrom);         // technique responds more to how you played
     const trn = phys ? tr.phys : tr.ment, inj = injPen[name] || 0;
-    const cp = camp * (phys ? 0.55 : 1.0) * (age <= 30 ? 1 : 0.7);
+    let cp = camp * (phys ? 0.55 : 1.0) * (age <= 30 ? 1 : 0.7); if (cp > 0) cp *= 0.85 * hiF(ovrFrom);
     rawD[name] = stochRound(base + sp + cp + trn + gauss(0, 0.55) - inj);
     why.age += base; why.season += sp; why.camp += cp; why.training += trn; why.injury -= inj;
   });
@@ -1047,7 +1050,7 @@ function develop(season, T) {
   // guard rails on the overall
   const serious = Object.keys(injPen).length > 0, perfC = perf + camp * 0.3, good = perfC > 0.35 && gp >= 8, poor = perfC < -0.2;
   const floor = serious ? -6 : good ? (age <= 28 ? 0 : age <= 31 ? -1 : -2) : (age <= 27 ? -2 : -5);
-  const ceil = Math.max(1, (poor ? (age <= 24 ? 3 : age <= 27 ? 2 : 1) : age >= 30 ? 2 : 7) - Math.floor((season.progGain || 0) / 2));
+  const ceil = Math.max(1, (poor ? (age <= 24 ? 2 : 1) : age >= 30 ? 1 : age >= 27 ? 3 : 4) - Math.floor((season.progGain || 0) / 2));
   let ovr = calcOvr(P.pos, P.attrs), guard = 0, smoothed = 0;
   while ((ovr < ovrFrom + floor || ovr > ovrFrom + ceil) && guard++ < 60) {
     const up = ovr < ovrFrom + floor, pickA = cfg.attrs.filter(([n]) => (up ? P.attrs[n] < 99 : P.attrs[n] > 35))[Math.floor(rnd() * cfg.attrs.length)] || cfg.attrs[0];
@@ -2202,7 +2205,7 @@ function applyCollegeFilter() {
   });
   const e = grid.querySelector('.cp-empty'); if (e) e.hidden = n > 0;
 }
-let form = { name: '', pos: 'WR', college: '', age: 22, number: NUM_DEFAULT.WR, jerseyName: '', youth: '' };
+let form = { name: '', pos: 'WR', college: '', age: 20, number: NUM_DEFAULT.WR, jerseyName: '', youth: '' };
 let preview = null, rerolls = 3;
 // first team: the MFL (Monterrey Football League) youth club where you started as a kid (optional, just for the story)
 const youthChip = name => { const i = MFL_INFO[name]; return i ? `<span class="chip chip-col youth-chip" style="--yc:${i.c1}"><img class="col-logo xs" src="${mflLogo(i.slug)}" alt="">${esc(name)} <small>${i.lg === 'HS' ? 'HS' : 'MFL'}</small></span>` : ''; };
@@ -2252,8 +2255,7 @@ function renderCreate() {
       <div class="youth-note" id="youthNote" ${form.youth ? '' : 'hidden'}>🧒 <b>You'll play a season with your first team.</b> Then 5 colleges (NCAA and ONEFA), the LFA and the UFL make you offers — and you pick where to go next. Leave First Team empty to choose a college right now.</div>
       </section>
       <section class="cr-sec cr-jersey"><div class="cr-h"><i>3</i><b>Jersey</b><span>age, number and the name on your back</span></div>
-      <div class="row3">
-        <div><label class="lbl">Age</label><input class="input" type="number" inputmode="numeric" pattern="[0-9]*" min="21" max="25" data-model="age" value="${form.age}"></div>
+      <div class="row3" style="grid-template-columns: 1fr 1fr">
         <div><label class="lbl">Jersey Number <span class="hint" id="numHint"></span></label><input class="input" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="99" data-model="number" value="${form.number}"></div>
         <div><label class="lbl">&nbsp;</label><button class="btn btn-ghost" data-act="randNumber" style="width:100%">RANDOM #</button></div>
       </div>
@@ -3014,7 +3016,7 @@ const actions = {
   /* title */
   toTitle: () => { closeModal(); renderTitle(); },
   startCareer: () => {
-    const go = () => { form = { name: '', pos: 'WR', college: '', age: 22, number: NUM_DEFAULT.WR, jerseyName: '', youth: '' }; renderCreate(); };
+    const go = () => { form = { name: '', pos: 'WR', college: '', age: 20, number: NUM_DEFAULT.WR, jerseyName: '', youth: '' }; renderCreate(); };
     if (hasSave()) confirmBox('Start a new career?', 'Your saved career will be replaced as soon as you enter the draft.', 'NEW CAREER', go, true); else go();
   },
   continueCareer: () => { if (loadGame()) goHome(); else { toast('No save found'); renderTitle(); } },
@@ -3041,7 +3043,7 @@ const actions = {
     const name = form.name.trim();
     if (!name) { toast('Please enter a player name'); const i = document.querySelector('[data-model="name"]'); if (i) i.focus(); return; }
     if (!form.youth && !form.college) { toast('Pick a college or a first team'); const c = document.getElementById('cpRoot'); if (c) c.scrollIntoView({ block: 'center' }); return; }
-    const age = clamp(parseInt(form.age, 10) || 22, 21, 25), num = parseInt(form.number, 10);
+    const age = form.youth ? 18 : 20, num = parseInt(form.number, 10);   // high school 18 · college 20 · NFL 22
     if (!numberOk(form.pos, num)) { toast(`${form.pos} jersey numbers must be ${numberRule(form.pos)}`); const i = document.querySelector('[data-model="number"]'); if (i) i.focus(); return; }
     form.age = age; rerolls = 3;
     preview = generatePlayer(name, form.pos, form.youth ? '' : form.college, age); preview.number = num; preview.jerseyName = cleanJerseyName(form.jerseyName); preview.youth = form.youth || ''; renderPreview();
@@ -3049,6 +3051,7 @@ const actions = {
   reroll: () => { if (!rerolls) return; rerolls--; const num = preview.number, jn = preview.jerseyName, yt = preview.youth; preview = generatePlayer(preview.name, preview.pos, preview.college, preview.age); preview.number = num; preview.jerseyName = jn; preview.youth = yt; renderPreview(); },
   backCreate: () => renderCreate(),
   enterDraft: () => {
+    preview.age = 22;                                                   // the draft class: you enter the NFL at 22
     newCareer(preview);
     S.draft = runDraft(S.player); S.teamId = S.draft.teamId;
     S.contract = makeContract({ ...rookieContract(S.draft, S.player.pos), teamId: S.teamId, startYear: START_YEAR }, 'Rookie');

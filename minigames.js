@@ -281,7 +281,7 @@ function mgFinish(ctx) {
   if (weekly) { se.buffs.push({ left: 1, perf: wPerf, label: 'Week ' + (gi + 1) + ' training' }); se.mgTrainAt = gi; se.mgStreak = streak; }
   else { se.buffs.push({ left: 99, perf, label: 'Camp ' + g.n.toLowerCase() }); if (sc >= 4) se.train.ment = Math.min(1.5, (se.train.ment || 0) + 0.25); }
   // the overall moves with the points of the game: every 5 points = +0.1 (negative points take it away); a full +1.0 raises the real rating
-  { const P = ctx.P, gain = rbm ? pts : raw * 2 + (ctx.perfects || 0), dO = Math.round(gain / 50 * 100) / 100; let up = 0;
+  { const P = ctx.P, gain = rbm ? pts : raw * 2 + (ctx.perfects || 0), dO = Math.round(gain / 50 * (gain > 0 && typeof hiF === 'function' ? hiF(P.ovr) : 1) * 100) / 100; let up = 0;
     P.mgFrac = clamp(Math.round(((P.mgFrac || 0) + dO) * 100) / 100, -0.99, 9);
     while (P.mgFrac >= 1 && P.ovr < 99) { let n = 1; if (ctx.env.nfl && typeof growOvr === 'function' && typeof S !== 'undefined' && S && S.player === P) n = growOvr(1); else P.ovr = Math.min(99, P.ovr + 1); if (!n) break; up += n; P.mgFrac = Math.round((P.mgFrac - 1) * 100) / 100; }
     const shown = P.ovr + (P.mgFrac || 0), bx = ctx.stage.querySelector('.mg-bonus');
